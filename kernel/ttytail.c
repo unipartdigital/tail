@@ -30,8 +30,54 @@ static void ttytail_tx(struct work_struct *work)
 	(void) ttytail;
 }
 
+static int ttytail_start(struct ieee802154_hw *hw)
+{
+	struct ttytail *ttytail = hw->priv;
+
+	dev_info(ttytail->dev, "started\n");
+	return 0;
+}
+
+static void ttytail_stop(struct ieee802154_hw *hw)
+{
+	struct ttytail *ttytail = hw->priv;
+
+	dev_info(ttytail->dev, "stopped\n");
+}
+
+static int ttytail_ed(struct ieee802154_hw *hw, u8 *level)
+{
+	struct ttytail *ttytail = hw->priv;
+
+	dev_info(ttytail->dev, "detecting energy\n");
+	*level = 0;
+	return 0;
+}
+
+static int ttytail_set_channel(struct ieee802154_hw *hw, u8 page, u8 channel)
+{
+	struct ttytail *ttytail = hw->priv;
+
+	dev_info(ttytail->dev, "setting channel %d:%d\n", page, channel);
+	return 0;
+}
+
+static int ttytail_xmit_async(struct ieee802154_hw *hw, struct sk_buff *skb)
+{
+	struct ttytail *ttytail = hw->priv;
+
+	dev_info(ttytail->dev, "transmitting\n");
+	ieee802154_xmit_complete(hw, skb, false);
+	return 0;
+}
+
 static const struct ieee802154_ops ttytail_ops = {
 	.owner = THIS_MODULE,
+	.start = ttytail_start,
+	.stop = ttytail_stop,
+	.xmit_async = ttytail_xmit_async,
+	.ed = ttytail_ed,
+	.set_channel = ttytail_set_channel,
 };
 
 static int ttytail_open(struct tty_struct *tty)
@@ -127,7 +173,7 @@ static int __init ttytail_init(void)
 		       "error %d\n", ret);
 		goto err_register_ldisc;
 	}
-	
+
 	return 0;
 
 	tty_unregister_ldisc(X_N_TAIL);
