@@ -34,6 +34,37 @@
  */
 #define X_N_TAIL (NR_LDISCS - 1)
 
+/** Maximum line length */
+#define TTYTAIL_MAX_LINE 256
+
+struct ttytail;
+
+/** A line buffer */
+struct ttytail_line {
+	/** Character data */
+	char data[TTYTAIL_MAX_LINE + 1 /* NUL */];
+	/** Current offset */
+	size_t offset;
+	/** Total length (excluding NUL) */
+	size_t len;
+};
+
+/** Transmit datapath */
+struct ttytail_tx {
+	/** Current transmit buffer (if any)
+	 *
+	 * The IEEE 802.15.4 kernel device abstraction allows for only
+	 * a single outstanding packet in the transmit queue.
+	 */
+	struct sk_buff *skb;
+	/** Work queue */
+	struct work_struct work;
+	/** Line buffer */
+	struct ttytail_line line;
+	/** Completion handler */
+	void (*complete)(struct ttytail *ttytail, int err);
+};
+
 /** An IEEE 802.15.4 TTY-based Tail board device */
 struct ttytail {
 	/** TTY device */
@@ -42,8 +73,10 @@ struct ttytail {
 	struct ieee802154_hw *hw;
 	/** Generic device (for debug messages) */
 	struct device *dev;
-	/** Transmit work queue */
-	struct work_struct tx_work;
+	/** Device registered */
+	bool registered;
+	/** Transmit datapath */
+	struct ttytail_tx tx;
 };
 
 #endif /* _TTYTAIL_H */

@@ -23,12 +23,74 @@
 #include <linux/module.h>
 #include "ttytail.h"
 
-static void ttytail_tx(struct work_struct *work)
-{
-	struct ttytail *ttytail = container_of(work, struct ttytail, tx_work);
+/*****************************************************************************
+ *
+ * Transmit datapath
+ *
+ */
 
-	(void) ttytail;
+static void ttytail_tx_worker(struct work_struct *work)
+{
+	struct ttytail *ttytail = container_of(work, struct ttytail, tx.work);
+	void (*complete)(struct ttytail *ttytail, int err);
+	char *data;
+	size_t remaining;
+	size_t actual;
+
+	remaining = (ttytail->tx.line.len - ttytail->tx.line.offset);
+	if (remaining) {
+		data = &ttytail->tx.line.data[ttytail->tx.line.offset];
+		actual = ttytail->tty->ops->write(ttytail->tty, data,
+						  remaining);
+		ttytail->tx.line.offset += actual;
+		if (actual == remaining) {
+			complete = ttytail->tx.complete;
+			ttytail->tx.complete = NULL;
+			complete(ttytail, 0);
+		}
+	}
 }
+
+static void ttytail_tx_start(struct ttytail *ttytail,
+			     void (*complete)(struct ttytail *ttytail, int err),
+			     const char *fmt, ...)
+{
+	va_list args;
+
+	WARN_ON(ttytail->tx.complete != NULL);
+
+	va_start(args, fmt);
+	if (fmt) {
+		vsnprintf(ttytail->tx.line.data, sizeof(ttytail->tx.line.data),
+			  fmt, args);
+	}
+	va_end(args);
+	dev_info(ttytail->dev, "> %s", ttytail->tx.line.data);
+
+	ttytail->tx.line.offset = 0;
+	ttytail->tx.line.len = strlen(ttytail->tx.line.data);
+	ttytail->tx.complete = complete;
+
+	schedule_work(&ttytail->tx.work);
+}
+
+static void ttytail_tx_cancel(struct ttytail *ttytail)
+{
+	void (*complete)(struct ttytail *ttytail, int err);
+
+	cancel_work_sync(&ttytail->tx.work);
+	if (ttytail->tx.complete) {
+		complete = ttytail->tx.complete;
+		ttytail->tx.complete = NULL;
+		complete(ttytail, -ECANCELED);
+	}
+}
+
+/*****************************************************************************
+ *
+ * IEEE 802.15.4 interface
+ *
+ */
 
 static int ttytail_start(struct ieee802154_hw *hw)
 {
@@ -42,6 +104,7 @@ static void ttytail_stop(struct ieee802154_hw *hw)
 {
 	struct ttytail *ttytail = hw->priv;
 
+	ttytail_tx_cancel(ttytail);
 	dev_info(ttytail->dev, "stopped\n");
 }
 
@@ -62,12 +125,48 @@ static int ttytail_set_channel(struct ieee802154_hw *hw, u8 page, u8 channel)
 	return 0;
 }
 
+static void ttytail_xmit_complete(struct ttytail *ttytail, int err)
+{
+	struct sk_buff *skb;
+
+	skb = ttytail->tx.skb;
+	ttytail->tx.skb = NULL;
+	wmb();
+	ieee802154_xmit_complete(ttytail->hw, skb, false);
+}
+
 static int ttytail_xmit_async(struct ieee802154_hw *hw, struct sk_buff *skb)
 {
 	struct ttytail *ttytail = hw->priv;
+	uint8_t *bytes;
+	char *buf;
+	size_t len;
+	size_t i;
 
-	dev_info(ttytail->dev, "transmitting\n");
-	ieee802154_xmit_complete(hw, skb, false);
+	if (ttytail->tx.skb) {
+		dev_err(ttytail->dev, "concurrent transmission attempted\n");
+		return -ENOBUFS;
+	}
+	if (skb_is_nonlinear(skb)) {
+		dev_err(ttytail->dev, "nonlinear transmission attempted\n");
+		return -ENOTSUPP;
+	}
+
+	len = (3 /* "tx" */ + skb->len * 3 /* " XX" */ + 1 /* "\n" */ +
+	       1 /* NUL */);
+	if (len > sizeof(ttytail->tx.line.data)) {
+		dev_err(ttytail->dev, "overlength transmission attempted\n");
+		return -EINVAL;
+	}
+
+	bytes = skb->data;
+	buf = ttytail->tx.line.data;
+	buf += sprintf(buf, "tx");
+	for (i = 0; i < skb->len; i++)
+		buf += sprintf(buf, " %x", *bytes++);
+	buf += sprintf(buf, "\n");
+
+	ttytail_tx_start(ttytail, ttytail_xmit_complete, NULL);
 	return 0;
 }
 
@@ -80,11 +179,33 @@ static const struct ieee802154_ops ttytail_ops = {
 	.set_channel = ttytail_set_channel,
 };
 
+/*****************************************************************************
+ *
+ * TTY line discipline
+ *
+ */
+
+static void ttytail_open_complete(struct ttytail *ttytail, int err)
+{
+
+	if (err)
+		return;
+
+	err = ieee802154_register_hw(ttytail->hw);
+	if (err) {
+		dev_err(ttytail->dev, "could not register: %d\n", err);
+		return;
+	}
+
+	ttytail->registered = true;
+	dev_info(ttytail->dev, "registered on %s\n",
+		 dev_name(ttytail->tty->dev));
+}
+
 static int ttytail_open(struct tty_struct *tty)
 {
 	struct ieee802154_hw *hw;
 	struct ttytail *ttytail;
-	int ret;
 
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
@@ -93,15 +214,14 @@ static int ttytail_open(struct tty_struct *tty)
 		return -EOPNOTSUPP;
 
 	hw = ieee802154_alloc_hw(sizeof(*ttytail), &ttytail_ops);
-	if (!hw) {
-		ret = -ENOMEM;
-		goto err_alloc;
-	}
+	if (!hw)
+		return -ENOMEM;
 	ttytail = hw->priv;
+	memset(ttytail, 0, sizeof(*ttytail));
 	ttytail->hw = hw;
 	ttytail->tty = tty;
 	ttytail->dev = &ttytail->hw->phy->dev;
-	INIT_WORK(&ttytail->tx_work, ttytail_tx);
+	INIT_WORK(&ttytail->tx.work, ttytail_tx_worker);
 
 	hw->extra_tx_headroom = 0;
 	hw->parent = ttytail->tty->dev;
@@ -109,29 +229,17 @@ static int ttytail_open(struct tty_struct *tty)
 
 	tty->disc_data = ttytail;
 
-	ret = ieee802154_register_hw(ttytail->hw);
-	if (ret)
-		goto err_register_hw;
-
-	dev_info(ttytail->dev, "registered on %s\n",
-		 dev_name(ttytail->tty->dev));
+	ttytail_tx_start(ttytail, ttytail_open_complete, "echo 0\n");
 	return 0;
-
-	flush_work(&ttytail->tx_work);
-	ieee802154_unregister_hw(ttytail->hw);
- err_register_hw:
-	tty->disc_data = NULL;
-	ieee802154_free_hw(ttytail->hw);
- err_alloc:
-	return ret;
 }
 
 static void ttytail_close(struct tty_struct *tty)
 {
 	struct ttytail *ttytail = tty->disc_data;
 
-	flush_work(&ttytail->tx_work);
-	ieee802154_unregister_hw(ttytail->hw);
+	ttytail_tx_cancel(ttytail);
+	if (ttytail->registered)
+		ieee802154_unregister_hw(ttytail->hw);
 	tty->disc_data = NULL;
 	ieee802154_free_hw(ttytail->hw);
 }
@@ -150,7 +258,7 @@ static void ttytail_write_wakeup(struct tty_struct *tty)
 {
 	struct ttytail *ttytail = tty->disc_data;
 
-	schedule_work(&ttytail->tx_work);
+	schedule_work(&ttytail->tx.work);
 }
 
 static struct tty_ldisc_ops ttytail_ldisc = {
@@ -163,22 +271,30 @@ static struct tty_ldisc_ops ttytail_ldisc = {
 	.write_wakeup = ttytail_write_wakeup,
 };
 
+/*****************************************************************************
+ *
+ * Module interface
+ *
+ */
+
 static int __init ttytail_init(void)
 {
-	int ret;
+	int err;
 
-	ret = tty_register_ldisc(X_N_TAIL, &ttytail_ldisc);
-	if (ret != 0) {
+	err = tty_register_ldisc(X_N_TAIL, &ttytail_ldisc);
+	if (err != 0) {
 		printk(KERN_ERR "ttytail: cannot register line discipline: "
-		       "error %d\n", ret);
+		       "error %d\n", err);
 		goto err_register_ldisc;
 	}
+	printk(KERN_INFO "ttytail: registered as line discipline %d\n",
+	       X_N_TAIL);
 
 	return 0;
 
 	tty_unregister_ldisc(X_N_TAIL);
  err_register_ldisc:
-	return ret;
+	return err;
 }
 
 static void __exit ttytail_exit(void)
