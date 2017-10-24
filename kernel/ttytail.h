@@ -65,6 +65,12 @@ struct ttytail_tx {
 	void (*complete)(struct ttytail *ttytail, int err);
 };
 
+/** Receive datapath */
+struct ttytail_rx {
+	/** Line buffer */
+	struct ttytail_line line;
+};
+
 /** An IEEE 802.15.4 TTY-based Tail board device */
 struct ttytail {
 	/** TTY device */
@@ -73,10 +79,10 @@ struct ttytail {
 	struct ieee802154_hw *hw;
 	/** Generic device (for debug messages) */
 	struct device *dev;
-	/** Device registered */
-	bool registered;
 	/** Transmit datapath */
 	struct ttytail_tx tx;
+	/** Receive datapath */
+	struct ttytail_rx rx;
 };
 
 #endif /* _TTYTAIL_H */

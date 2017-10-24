@@ -51,20 +51,17 @@ static void ttytail_tx_worker(struct work_struct *work)
 	}
 }
 
-static void ttytail_tx_start(struct ttytail *ttytail,
-			     void (*complete)(struct ttytail *ttytail, int err),
-			     const char *fmt, ...)
+static void ttytail_tx_vstart(struct ttytail *ttytail,
+			      void (*complete)(struct ttytail *ttytail,
+					       int err),
+			      const char *fmt, va_list args)
 {
-	va_list args;
-
 	WARN_ON(ttytail->tx.complete != NULL);
 
-	va_start(args, fmt);
 	if (fmt) {
 		vsnprintf(ttytail->tx.line.data, sizeof(ttytail->tx.line.data),
 			  fmt, args);
 	}
-	va_end(args);
 	dev_info(ttytail->dev, "> %s", ttytail->tx.line.data);
 
 	ttytail->tx.line.offset = 0;
@@ -72,6 +69,17 @@ static void ttytail_tx_start(struct ttytail *ttytail,
 	ttytail->tx.complete = complete;
 
 	schedule_work(&ttytail->tx.work);
+}
+
+static void ttytail_tx_start(struct ttytail *ttytail,
+			     void (*complete)(struct ttytail *ttytail, int err),
+			     const char *fmt, ...)
+{
+	va_list args;
+
+	va_start(args, fmt);
+	ttytail_tx_vstart(ttytail, complete, fmt, args);
+	va_end(args);
 }
 
 static void ttytail_tx_cancel(struct ttytail *ttytail)
@@ -84,6 +92,44 @@ static void ttytail_tx_cancel(struct ttytail *ttytail)
 		ttytail->tx.complete = NULL;
 		complete(ttytail, -ECANCELED);
 	}
+}
+
+static void ttytail_tx_vsync_complete(struct ttytail *ttytail, int err)
+{
+	/* Do nothing */
+}
+
+static void ttytail_tx_vsync(struct ttytail *ttytail, const char *fmt,
+			     va_list args)
+{
+	ttytail_tx_vstart(ttytail, ttytail_tx_vsync_complete, fmt, args);
+	flush_work(&ttytail->tx.work);
+}
+
+static void ttytail_tx_sync(struct ttytail *ttytail, const char *fmt, ...)
+{
+	va_list args;
+
+	va_start(args, fmt);
+	ttytail_tx_vsync(ttytail, fmt, args);
+	va_end(args);
+}
+
+/*****************************************************************************
+ *
+ * Receive datapath
+ *
+ */
+
+static void ttytail_rx_reset(struct ttytail *ttytail)
+{
+	memset(&ttytail->rx, 0, sizeof(ttytail->rx));
+}
+
+static void ttytail_rx(struct ttytail *ttytail)
+{
+	dev_info(ttytail->dev, "< %s", ttytail->rx.line.data);
+	ttytail_rx_reset(ttytail);
 }
 
 /*****************************************************************************
@@ -152,7 +198,7 @@ static int ttytail_xmit_async(struct ieee802154_hw *hw, struct sk_buff *skb)
 		return -ENOTSUPP;
 	}
 
-	len = (3 /* "tx" */ + skb->len * 3 /* " XX" */ + 1 /* "\n" */ +
+	len = (3 /* "tx" */ + skb->len * 3 /* " XX" */ + 2 /* "\r\n" */ +
 	       1 /* NUL */);
 	if (len > sizeof(ttytail->tx.line.data)) {
 		dev_err(ttytail->dev, "overlength transmission attempted\n");
@@ -164,7 +210,7 @@ static int ttytail_xmit_async(struct ieee802154_hw *hw, struct sk_buff *skb)
 	buf += sprintf(buf, "tx");
 	for (i = 0; i < skb->len; i++)
 		buf += sprintf(buf, " %x", *bytes++);
-	buf += sprintf(buf, "\n");
+	buf += sprintf(buf, "\r\n");
 
 	ttytail_tx_start(ttytail, ttytail_xmit_complete, NULL);
 	return 0;
@@ -185,37 +231,27 @@ static const struct ieee802154_ops ttytail_ops = {
  *
  */
 
-static void ttytail_open_complete(struct ttytail *ttytail, int err)
-{
-
-	if (err)
-		return;
-
-	err = ieee802154_register_hw(ttytail->hw);
-	if (err) {
-		dev_err(ttytail->dev, "could not register: %d\n", err);
-		return;
-	}
-
-	ttytail->registered = true;
-	dev_info(ttytail->dev, "registered on %s\n",
-		 dev_name(ttytail->tty->dev));
-}
-
 static int ttytail_open(struct tty_struct *tty)
 {
 	struct ieee802154_hw *hw;
 	struct ttytail *ttytail;
+	int err;
 
-	if (!capable(CAP_NET_ADMIN))
-		return -EPERM;
+	if (!capable(CAP_NET_ADMIN)) {
+		err = -EPERM;
+		goto err_capable;
+	}
 
-	if (tty->ops->write == NULL)
-		return -EOPNOTSUPP;
+	if (tty->ops->write == NULL) {
+		err = -EOPNOTSUPP;
+		goto err_readonly;
+	}
 
 	hw = ieee802154_alloc_hw(sizeof(*ttytail), &ttytail_ops);
-	if (!hw)
-		return -ENOMEM;
+	if (!hw) {
+		err = -ENOMEM;
+		goto err_alloc_hw;
+	}
 	ttytail = hw->priv;
 	memset(ttytail, 0, sizeof(*ttytail));
 	ttytail->hw = hw;
@@ -229,8 +265,33 @@ static int ttytail_open(struct tty_struct *tty)
 
 	tty->disc_data = ttytail;
 
-	ttytail_tx_start(ttytail, ttytail_open_complete, "echo 0\n");
+	ttytail_tx_sync(ttytail,
+			"\r\n"
+			"reset\r\n"
+			"echo 0\r\n"
+			"config eui\r\n"
+			"rx\r\n");
+
+	err = ieee802154_register_hw(ttytail->hw);
+	if (err) {
+		dev_err(ttytail->dev, "could not register: %d\n", err);
+		goto err_register;
+	}
+
+	dev_info(ttytail->dev, "registered on %s\n",
+		 dev_name(ttytail->tty->dev));
 	return 0;
+
+	ttytail_tx_cancel(ttytail);
+	ttytail_rx_reset(ttytail);
+	ieee802154_unregister_hw(ttytail->hw);
+ err_register:
+	tty->disc_data = NULL;
+	ieee802154_free_hw(ttytail->hw);
+ err_alloc_hw:
+ err_readonly:
+ err_capable:
+	return err;
 }
 
 static void ttytail_close(struct tty_struct *tty)
@@ -238,8 +299,13 @@ static void ttytail_close(struct tty_struct *tty)
 	struct ttytail *ttytail = tty->disc_data;
 
 	ttytail_tx_cancel(ttytail);
-	if (ttytail->registered)
-		ieee802154_unregister_hw(ttytail->hw);
+	ttytail_tx_sync(ttytail,
+			"\r\n"
+			"reset\r\n");
+
+	ttytail_tx_cancel(ttytail);
+	ttytail_rx_reset(ttytail);
+	ieee802154_unregister_hw(ttytail->hw);
 	tty->disc_data = NULL;
 	ieee802154_free_hw(ttytail->hw);
 }
@@ -249,9 +315,18 @@ static int ttytail_receive_buf2(struct tty_struct *tty,
 				char *flags, int count)
 {
 	struct ttytail *ttytail = tty->disc_data;
+	int remaining;
 
-	dev_info(ttytail->dev, "received %d bytes\n", count);
-	return 0;
+	for (remaining = count; remaining; remaining--, data++) {
+		if ((*data == '\r') || (*data == '\n')) {
+			if (ttytail->rx.line.len)
+				ttytail_rx(ttytail);
+		} else if (ttytail->rx.line.len <
+			   (sizeof(ttytail->rx.line.data) - 1 /* NUL */)) {
+			ttytail->rx.line.data[ttytail->rx.line.len++] = *data;
+		}
+	}
+	return count;
 }
 
 static void ttytail_write_wakeup(struct tty_struct *tty)
