@@ -25,6 +25,7 @@
 
 #include <linux/tty.h>
 #include <linux/tty_ldisc.h>
+#include <linux/wait.h>
 #include <linux/workqueue.h>
 #include <net/mac802154.h>
 
@@ -57,16 +58,18 @@ struct ttytail_tx {
 	 * a single outstanding packet in the transmit queue.
 	 */
 	struct sk_buff *skb;
-	/** Work queue */
-	struct work_struct work;
 	/** Line buffer */
 	struct ttytail_line line;
-	/** Completion handler */
-	void (*complete)(struct ttytail *ttytail, int err);
+	/** Work queue */
+	struct work_struct work;
+	/** Wait queue */
+	wait_queue_head_t wait;
 };
 
 /** Receive datapath */
 struct ttytail_rx {
+	/** Current receive buffer (if any) */
+	struct sk_buff *skb;
 	/** Line buffer */
 	struct ttytail_line line;
 };
@@ -79,6 +82,8 @@ struct ttytail {
 	struct ieee802154_hw *hw;
 	/** Generic device (for debug messages) */
 	struct device *dev;
+	/** EUI-64 address */
+	uint64_t eui64;
 	/** Transmit datapath */
 	struct ttytail_tx tx;
 	/** Receive datapath */
