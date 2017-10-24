@@ -32,17 +32,18 @@
 static void ttytail_tx_worker(struct work_struct *work)
 {
 	struct ttytail *ttytail = container_of(work, struct ttytail, tx.work);
+	struct ttytail_line *line = &ttytail->tx.line;
 	void (*complete)(struct ttytail *ttytail, int err);
 	char *data;
 	size_t remaining;
 	size_t actual;
 
-	remaining = (ttytail->tx.line.len - ttytail->tx.line.offset);
+	remaining = (line->len - line->offset);
 	if (remaining) {
-		data = &ttytail->tx.line.data[ttytail->tx.line.offset];
+		data = &line->data[line->offset];
 		actual = ttytail->tty->ops->write(ttytail->tty, data,
 						  remaining);
-		ttytail->tx.line.offset += actual;
+		line->offset += actual;
 		if (actual == remaining) {
 			complete = ttytail->tx.complete;
 			ttytail->tx.complete = NULL;
@@ -56,16 +57,16 @@ static void ttytail_tx_vstart(struct ttytail *ttytail,
 					       int err),
 			      const char *fmt, va_list args)
 {
+	struct ttytail_line *line = &ttytail->tx.line;
+
 	WARN_ON(ttytail->tx.complete != NULL);
 
-	if (fmt) {
-		vsnprintf(ttytail->tx.line.data, sizeof(ttytail->tx.line.data),
-			  fmt, args);
-	}
-	dev_info(ttytail->dev, "> %s", ttytail->tx.line.data);
+	if (fmt)
+		vsnprintf(line->data, sizeof(line->data), fmt, args);
+	dev_info(ttytail->dev, "> %s", line->data);
 
-	ttytail->tx.line.offset = 0;
-	ttytail->tx.line.len = strlen(ttytail->tx.line.data);
+	line->offset = 0;
+	line->len = strlen(line->data);
 	ttytail->tx.complete = complete;
 
 	schedule_work(&ttytail->tx.work);
@@ -121,6 +122,43 @@ static void ttytail_tx_sync(struct ttytail *ttytail, const char *fmt, ...)
  *
  */
 
+static int ttytail_rx_byte(struct ttytail *ttytail)
+{
+	struct ttytail_line *line = &ttytail->rx.line;
+	int *byte;
+	int *len;
+
+	if (sscanf("%x%n", &line->data[line->offset], &byte, &len) != 1) {
+		dev_err(ttytail->dev, "invalid byte at \"%s\"\n",
+			&line->data[line->offset]);
+		return -EINVAL;
+	}
+
+	line->offset += *len;
+	return *byte;
+}
+
+static int ttytail_rx_bytes(struct ttytail *ttytail, uint8_t *data, size_t len)
+{
+	struct ttytail_line *line = &ttytail->rx.line;
+	int byte;
+
+	while (1) {
+		byte = ttytail_rx_byte(ttytail);
+		if (byte < 0)
+			return byte;
+		*data++ = byte;
+		if (len-- == 0)
+			return 0;
+		if (line->data[line->offset] != ' ') {
+			dev_err(ttytail->dev, "invalid separator at \"%s\"\n",
+				&line->data[line->offset]);
+			return -EINVAL;
+		}
+		line->offset++;
+	}
+}
+
 static void ttytail_rx_reset(struct ttytail *ttytail)
 {
 	memset(&ttytail->rx, 0, sizeof(ttytail->rx));
@@ -128,7 +166,12 @@ static void ttytail_rx_reset(struct ttytail *ttytail)
 
 static void ttytail_rx(struct ttytail *ttytail)
 {
-	dev_info(ttytail->dev, "< %s", ttytail->rx.line.data);
+	struct ttytail_line *line = &ttytail->rx.line;
+
+	dev_info(ttytail->dev, "< %s", line->data);
+
+
+	
 	ttytail_rx_reset(ttytail);
 }
 
@@ -184,6 +227,7 @@ static void ttytail_xmit_complete(struct ttytail *ttytail, int err)
 static int ttytail_xmit_async(struct ieee802154_hw *hw, struct sk_buff *skb)
 {
 	struct ttytail *ttytail = hw->priv;
+	struct ttytail_line *line = &ttytail->tx.line;
 	uint8_t *bytes;
 	char *buf;
 	size_t len;
@@ -200,13 +244,13 @@ static int ttytail_xmit_async(struct ieee802154_hw *hw, struct sk_buff *skb)
 
 	len = (3 /* "tx" */ + skb->len * 3 /* " XX" */ + 2 /* "\r\n" */ +
 	       1 /* NUL */);
-	if (len > sizeof(ttytail->tx.line.data)) {
+	if (len > sizeof(line->data)) {
 		dev_err(ttytail->dev, "overlength transmission attempted\n");
 		return -EINVAL;
 	}
 
 	bytes = skb->data;
-	buf = ttytail->tx.line.data;
+	buf = line->data;
 	buf += sprintf(buf, "tx");
 	for (i = 0; i < skb->len; i++)
 		buf += sprintf(buf, " %x", *bytes++);
