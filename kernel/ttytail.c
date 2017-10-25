@@ -23,14 +23,20 @@
 #include <linux/module.h>
 #include "ttytail.h"
 
-#define TTYTAIL_INIT "\r\n" "reset\r\n" "echo 0\r\n" "config eui\r\n" "rx\r\n"
-#define TTYTAIL_RESET "\r\n" "reset\r\n"
+#define TTYTAIL_TIMEOUT (3*HZ)
 
 /*****************************************************************************
  *
  * Transmit datapath
  *
  */
+
+static bool ttytail_tx_idle(struct ttytail *ttytail)
+{
+	struct ttytail_line *line = &ttytail->tx.line;
+
+	return (line->offset == line->len);
+}
 
 static void ttytail_tx_worker(struct work_struct *work)
 {
@@ -47,7 +53,7 @@ static void ttytail_tx_worker(struct work_struct *work)
 						  remaining);
 		line->offset += actual;
 		if (actual == remaining)
-			wake_up_interruptible(&ttytail->tx.wait);
+			wake_up_interruptible(&ttytail->wait);
 	}
 }
 
@@ -56,7 +62,7 @@ static void ttytail_tx_start(struct ttytail *ttytail, const char *fmt, ...)
 	struct ttytail_line *line = &ttytail->tx.line;
 	va_list args;
 
-	WARN_ON(line->offset != line->len);
+	WARN_ON(!ttytail_tx_idle(ttytail));
 
 	va_start(args, fmt);
 	if (fmt)
@@ -73,13 +79,7 @@ static void ttytail_tx_start(struct ttytail *ttytail, const char *fmt, ...)
 static void ttytail_tx_cancel(struct ttytail *ttytail)
 {
 	cancel_work_sync(&ttytail->tx.work);
-}
-
-static void ttytail_tx_wait(struct ttytail *ttytail)
-{
-	struct ttytail_line *line = &ttytail->tx.line;
-
-	wait_event_interruptible(ttytail->tx.wait, (line->offset == line->len));
+	wake_up_interruptible(&ttytail->wait);
 }
 
 /*****************************************************************************
@@ -232,8 +232,22 @@ static void ttytail_rx(struct ttytail *ttytail)
 
 	dev_info(ttytail->dev, "< %s", line->data);
 
-	len = ttytail_rx_byte(ttytail);
-	if (len >= 0) {
+	if ((sep = strchr(line->data, ':')) != NULL) {
+		*sep++ = '\0';
+		line->offset = (sep - line->data);
+		ttytail_rx_config(ttytail, line->data);
+		ttytail_rx_reset(ttytail);
+	} else if (strcmp(line->data, "reset") == 0) {
+		ttytail_rx_reset(ttytail);
+	} else if (strncmp(line->data, "Tail cli", 8) == 0) {
+		ttytail_rx_reset(ttytail);
+	} else if (strcmp(line->data, "Ready for action") == 0) {
+		ttytail->ready = true;
+		ttytail_rx_reset(ttytail);
+	} else if (strcmp(line->data, "echo 0") == 0) {
+		ttytail->echo_off = true;
+		ttytail_rx_reset(ttytail);
+	} else if ((len = ttytail_rx_byte(ttytail)) >= 0) {
 		if ((line->data[line->offset] == ':') &&
 		    (line->data[line->offset + 1] == ' ')) {
 			line->offset += 2;
@@ -245,15 +259,68 @@ static void ttytail_rx(struct ttytail *ttytail)
 				line->data);
 			ttytail_rx_reset(ttytail);
 		}
-	} else if ((sep = strchr(line->data, ':')) != NULL) {
-		*sep++ = '\0';
-		line->offset = (sep - line->data);
-		ttytail_rx_config(ttytail, line->data);
-		ttytail_rx_reset(ttytail);
 	} else {
 		dev_err(ttytail->dev, "invalid line \"%s\"\n", line->data);
 		ttytail_rx_reset(ttytail);
 	}
+	wake_up_interruptible(&ttytail->wait);
+}
+
+/*****************************************************************************
+ *
+ * Device reset
+ *
+ */
+
+static int ttytail_reset(struct ttytail *ttytail)
+{
+	ttytail_tx_cancel(ttytail);
+	ttytail->ready = false;
+	ttytail_tx_start(ttytail, "\r\nreset\r\n");
+	if (wait_event_interruptible_timeout(ttytail->wait,
+					     ttytail->ready,
+					     TTYTAIL_TIMEOUT) <= 0) {
+		dev_err(ttytail->dev, "reset failed\n");
+		return -ETIMEDOUT;
+	}
+
+	return 0;
+}
+
+static int ttytail_config(struct ttytail *ttytail)
+{
+	int err;
+
+	err = ttytail_reset(ttytail);
+	if (err)
+		return err;
+
+	ttytail->echo_off = false;
+	ttytail_tx_start(ttytail, "echo 0\r\n");
+	if (wait_event_interruptible_timeout(ttytail->wait,
+					     ttytail->echo_off,
+					     TTYTAIL_TIMEOUT) <= 0) {
+		dev_err(ttytail->dev, "echo disable failed\n");
+		return -ETIMEDOUT;
+	}
+
+	ttytail_tx_start(ttytail, "config eui\r\n");
+	if (wait_event_interruptible_timeout(ttytail->wait,
+					     ttytail->eui64 != 0,
+					     TTYTAIL_TIMEOUT) <= 0) {
+		dev_err(ttytail->dev, "fetch EUI64 failed\n");
+		return -ETIMEDOUT;
+	}
+
+	ttytail_tx_start(ttytail, "rx\r\n");
+	if (wait_event_interruptible_timeout(ttytail->wait,
+					     ttytail_tx_idle(ttytail),
+					     TTYTAIL_TIMEOUT) <= 0) {
+		dev_err(ttytail->dev, "RX enable failed\n");
+		return -ETIMEDOUT;
+	}
+
+	return 0;
 }
 
 /*****************************************************************************
@@ -347,6 +414,27 @@ static const struct ieee802154_ops ttytail_ops = {
  *
  */
 
+static void ttytail_open_worker(struct work_struct *work)
+{
+	struct ttytail *ttytail = container_of(work, struct ttytail, open_work);
+	int err;
+
+	err = ttytail_config(ttytail);
+	if (err) {
+		dev_err(ttytail->dev, "could not configure: %d\n", err);
+		return;
+	}
+
+	err = ieee802154_register_hw(ttytail->hw);
+	if (err) {
+		dev_err(ttytail->dev, "could not register: %d\n", err);
+		return;
+	}
+	ttytail->registered = true;
+	dev_info(ttytail->dev, "registered on %s\n",
+		 dev_name(ttytail->tty->dev));
+}
+
 static int ttytail_open(struct tty_struct *tty)
 {
 	struct ieee802154_hw *hw;
@@ -374,7 +462,8 @@ static int ttytail_open(struct tty_struct *tty)
 	ttytail->tty = tty;
 	ttytail->dev = &ttytail->hw->phy->dev;
 	INIT_WORK(&ttytail->tx.work, ttytail_tx_worker);
-	init_waitqueue_head(&ttytail->tx.wait);
+	INIT_WORK(&ttytail->open_work, ttytail_open_worker);
+	init_waitqueue_head(&ttytail->wait);
 
 	hw->extra_tx_headroom = 0;
 	hw->parent = ttytail->tty->dev;
@@ -382,24 +471,11 @@ static int ttytail_open(struct tty_struct *tty)
 
 	tty->disc_data = ttytail;
 
-	ttytail_tx_start(ttytail, TTYTAIL_INIT);
-	ttytail_tx_wait(ttytail);
+	schedule_work(&ttytail->open_work);
 
-	err = ieee802154_register_hw(ttytail->hw);
-	if (err) {
-		dev_err(ttytail->dev, "could not register: %d\n", err);
-		goto err_register;
-	}
-
-	dev_info(ttytail->dev, "registered on %s\n",
-		 dev_name(ttytail->tty->dev));
 	return 0;
 
-	ieee802154_unregister_hw(ttytail->hw);
- err_register:
-	ttytail_tx_cancel(ttytail);
-	ttytail_tx_start(ttytail, TTYTAIL_RESET);
-	ttytail_tx_wait(ttytail);
+	cancel_work_sync(&ttytail->open_work);
 	ttytail_tx_cancel(ttytail);
 	ttytail_rx_reset(ttytail);
 	tty->disc_data = NULL;
@@ -414,10 +490,9 @@ static void ttytail_close(struct tty_struct *tty)
 {
 	struct ttytail *ttytail = tty->disc_data;
 
-	ieee802154_unregister_hw(ttytail->hw);
-	ttytail_tx_cancel(ttytail);
-	ttytail_tx_start(ttytail, TTYTAIL_RESET);
-	ttytail_tx_wait(ttytail);
+	cancel_work_sync(&ttytail->open_work);
+	if (ttytail->registered)
+		ieee802154_unregister_hw(ttytail->hw);
 	ttytail_tx_cancel(ttytail);
 	ttytail_rx_reset(ttytail);
 	tty->disc_data = NULL;
@@ -429,15 +504,22 @@ static int ttytail_receive_buf2(struct tty_struct *tty,
 				char *flags, int count)
 {
 	struct ttytail *ttytail = tty->disc_data;
+	struct ttytail_line *line = &ttytail->rx.line;
 	int remaining;
 
 	for (remaining = count; remaining; remaining--, data++) {
-		if ((*data == '\r') || (*data == '\n')) {
-			if (ttytail->rx.line.len)
+		if (*data == '\0') {
+			/* Discard NUL bytes (seen after reset) */
+		} else if (((*data == '>') || (*data == ' ')) &&
+			   (line->len == 0)) {
+			/* Discard start-of-line prompt characters */
+		} else if ((*data == '\r') || (*data == '\n')) {
+			/* Process lines (discarding empty lines) */
+			if (line->len)
 				ttytail_rx(ttytail);
-		} else if (ttytail->rx.line.len <
-			   (sizeof(ttytail->rx.line.data) - 1 /* NUL */)) {
-			ttytail->rx.line.data[ttytail->rx.line.len++] = *data;
+		} else if (line->len < (sizeof(line->data) - 1 /* NUL */)) {
+			/* Buffer other characters */
+			line->data[line->len++] = *data;
 		}
 	}
 	return count;

@@ -62,8 +62,6 @@ struct ttytail_tx {
 	struct ttytail_line line;
 	/** Work queue */
 	struct work_struct work;
-	/** Wait queue */
-	wait_queue_head_t wait;
 };
 
 /** Receive datapath */
@@ -82,12 +80,22 @@ struct ttytail {
 	struct ieee802154_hw *hw;
 	/** Generic device (for debug messages) */
 	struct device *dev;
+	/** Device is registered */
+	bool registered;
+	/** Device is ready */
+	bool ready;
+	/** Echo has been disabled */
+	bool echo_off;
 	/** EUI-64 address */
 	uint64_t eui64;
 	/** Transmit datapath */
 	struct ttytail_tx tx;
 	/** Receive datapath */
 	struct ttytail_rx rx;
+	/** Device opener work queue */
+	struct work_struct open_work;
+	/** Wait queue */
+	wait_queue_head_t wait;
 };
 
 #endif /* _TTYTAIL_H */
