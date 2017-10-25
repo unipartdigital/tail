@@ -201,7 +201,7 @@ static void ttytail_rx_timestamp(struct ttytail *ttytail, uint8_t first)
 	ttytail_rx_reset(ttytail);
 }
 
-static void ttytail_rx_config(struct ttytail *ttytail, char *key)
+static void ttytail_rx_eui64(struct ttytail *ttytail)
 {
 	union {
 		uint8_t bytes[8];
@@ -209,35 +209,23 @@ static void ttytail_rx_config(struct ttytail *ttytail, char *key)
 	} u;
 	int err;
 
-	if (strcmp(key, "eui") == 0) {
-		err = ttytail_rx_bytes(ttytail, u.bytes, sizeof(u.bytes));
-		if (err) {
-			dev_err(ttytail->dev, "invalid EUI-64\n");
-			goto err;
-		}
-		ttytail->eui64 = u.eui64;
-	} else {
-		dev_err(ttytail->dev, "unknown config key \"%s\"\n", key);
+	err = ttytail_rx_bytes(ttytail, u.bytes, sizeof(u.bytes));
+	if (err) {
+		dev_err(ttytail->dev, "invalid EUI-64\n");
+		return;
 	}
-
- err:
+	ttytail->eui64 = be64_to_cpu(u.eui64);
 	ttytail_rx_reset(ttytail);
 }
 
 static void ttytail_rx(struct ttytail *ttytail)
 {
 	struct ttytail_line *line = &ttytail->rx.line;
-	char *sep;
 	int len;
 
 	dev_info(ttytail->dev, "< %s", line->data);
 
-	if ((sep = strchr(line->data, ':')) != NULL) {
-		*sep++ = '\0';
-		line->offset = (sep - line->data);
-		ttytail_rx_config(ttytail, line->data);
-		ttytail_rx_reset(ttytail);
-	} else if (strcmp(line->data, "reset") == 0) {
+	if (strcmp(line->data, "reset") == 0) {
 		ttytail_rx_reset(ttytail);
 	} else if (strncmp(line->data, "Tail cli", 8) == 0) {
 		ttytail_rx_reset(ttytail);
@@ -247,6 +235,9 @@ static void ttytail_rx(struct ttytail *ttytail)
 	} else if (strcmp(line->data, "echo 0") == 0) {
 		ttytail->echo_off = true;
 		ttytail_rx_reset(ttytail);
+	} else if (strncmp(line->data, "eui: ", 5) == 0) {
+		line->offset = 5;
+		ttytail_rx_eui64(ttytail);
 	} else if ((len = ttytail_rx_byte(ttytail)) >= 0) {
 		if ((line->data[line->offset] == ':') &&
 		    (line->data[line->offset + 1] == ' ')) {
@@ -424,6 +415,8 @@ static void ttytail_open_worker(struct work_struct *work)
 		dev_err(ttytail->dev, "could not configure: %d\n", err);
 		return;
 	}
+
+	ttytail->hw->phy->perm_extended_addr = ttytail->eui64;
 
 	err = ieee802154_register_hw(ttytail->hw);
 	if (err) {
