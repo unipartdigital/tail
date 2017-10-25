@@ -36,7 +36,7 @@
 #define X_N_TAIL (NR_LDISCS - 1)
 
 /** Maximum line length */
-#define TTYTAIL_MAX_LINE 256
+#define TTYTAIL_MAX_LINE 512
 
 struct ttytail;
 
