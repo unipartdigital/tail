@@ -1,0 +1,3 @@
+[submodule "circuit/lib/cvra"]
+	path = circuit/lib/cvra
+	url = git@github.com:cvra/kicad-lib.git
