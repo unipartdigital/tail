@@ -1,0 +1,81 @@
+Source,/home/gavan/unipart/tail/tail.sch
+Kicad Rev,Eeschema 4.0.6-e0-6349~52~ubuntu16.10.1
+Generated Date,Mon 08 May 2017 13:41:26 BST
+
+Title,Not Set
+Company,Not Set
+Revision,Not Set
+Date Issue,Not Set
+
+Reference,Value,Library,Library Ref
+U1,DWM1000,tail,DWM1000
+J14,MCU_PWR,conn,CONN_01X03
+J17,RADIO_PWR,conn,CONN_01X03
+J22,ACCEL_PWR,conn,CONN_01X03
+J12,VREG_PWR,conn,CONN_01X02
+J13,I_MEASURE,conn,CONN_01X02
+J25,USB_OTG,conn,USB_OTG
+J16,EXT_PWR,conn,CONN_01X02
+BT1,Coin cell,device,Battery_Cell
+J19,LiPo,conn,CONN_01X02
+J21,PWR_COIN,conn,CONN_01X02
+J18,PWR_LIPO,conn,CONN_01X02
+J15,PWR_EXT,conn,CONN_01X02
+J23,PWR_USB,conn,CONN_01X02
+J24,CHG_EN,conn,CONN_01X02
+U2,EFM32HG222F64,tail,EFM32HG222F64
+U4,XC6215B332NR,tail,XC6215B332NR
+C14,100n,device,C_Small
+R7,4K7,device,R
+J1,RADIO_RST_EN,conn,CONN_01X02
+D1,RED,device,LED_Small
+D2,RED,device,LED_Small
+D4,RED,device,LED_Small
+D3,RED,device,LED_Small
+R3,150,device,R
+R4,150,device,R
+R6,150,device,R
+R5,150,device,R
+R1,10K,device,R
+R2,10K,device,R
+J20,RADIOAON_PWR,conn,CONN_01X03
+R8,100K,device,R
+R9,100K,device,R
+Q1,Q_NMOS_GSD,device,Q_NMOS_GSD
+J10,BATT_MON,conn,CONN_01X02
+J2,PULLUP_SELECT,conn,CONN_01X03
+C2,10u,device,C_Small
+U5,MCP73831-2-OT,battery_management,MCP73831-2-OT
+R10,2.2K,device,R_Small
+C18,4.7uF,device,C_Small
+R11,470,device,R_Small
+D5,RED,device,LED_Small_ALT
+C16,4.7uF,device,C_Small
+J11,UART,conn,CONN_01X03
+J9,DEBUG,conn,CONN_02X05
+C4,100n,device,C_Small
+C5,100n,device,C_Small
+C6,100n,device,C_Small
+C7,100n,device,C_Small
+C8,100n,device,C_Small
+C10,100n,device,C_Small
+C12,10u,device,C_Small
+C13,1u,device,C_Small
+Y1,32.768kHz CFPX-217 20ppm 7pF,device,Crystal_Small
+C1,8p,device,C_Small
+C3,8p,device,C_Small
+C9,26p,device,C_Small
+C11,26p,device,C_Small
+J8,GPIO,conn,CONN_02X08
+J7,RADIO_GPIO,conn,CONN_01X04
+J3,TXLED,conn,CONN_01X02
+J4,RXLED,conn,CONN_01X02
+J6,SFDLED,conn,CONN_01X02
+J5,RXOKLED,conn,CONN_01X02
+C15,1u,device,C_Small
+C17,100n,device,C_Small
+Y2,E3SB16.0000F09G11AE,device,Crystal_GND24_Small
+U3,MC3630,tail,MC3630
+FID1,Fiducial,SymbolsSimilarEN60617+oldDIN617-RevE8,Dummy_FIDUCIAL_Passermarke_Type1_RevE_Date16Nov2011
+FID2,Fiducial,SymbolsSimilarEN60617+oldDIN617-RevE8,Dummy_FIDUCIAL_Passermarke_Type1_RevE_Date16Nov2011
+FID3,Fiducial,SymbolsSimilarEN60617+oldDIN617-RevE8,Dummy_FIDUCIAL_Passermarke_Type1_RevE_Date16Nov2011

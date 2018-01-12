@@ -1,0 +1,11 @@
+EESchema-DOCLIB  Version 2.0
+#
+$CMP EFM32HG222F64
+D Happy Gecko 25MHz QFP48
+$ENDCMP
+#
+$CMP XC6215B332NR
+D 3.3V Low Quiescent Current LDO
+$ENDCMP
+#
+#End Doc Library
