@@ -842,10 +842,6 @@ static int dw1000_reconfigure(struct dw1000 *dw, unsigned int changed)
 			return rc;
 	}
 
-	//
-	regmap_write(dw->sys_ctrl.regs, DW1000_SYS_CTRL0,
-		     (DW1000_SYS_CTRL0_TXSTRT | DW1000_SYS_CTRL0_TRXOFF));
-
 	return 0;
 }
 
@@ -1731,6 +1727,13 @@ static int dw1000_init(struct dw1000 *dw)
 	if ((rc = regmap_update_bits(dw->sys_cfg.regs, 0, mask, value)) != 0)
 		return rc;
 
+	/* Configure crystal trim to midpoint */
+	mask = DW1000_FS_XTALT_XTALT_MASK;
+	value = DW1000_FS_XTALT_XTALT_MIDPOINT;
+	if ((rc = regmap_update_bits(dw->fs_ctrl.regs, DW1000_FS_XTALT,
+				     mask, value)) != 0)
+		return rc;
+
 	/* Handle short inter-frame gaps in hardware */
 	value = DW1000_TX_FCTRL4_IFSDELAY(IEEE802154_SIFS_PERIOD);
 	if ((rc = regmap_write(dw->tx_fctrl.regs, DW1000_TX_FCTRL4,
@@ -1774,9 +1777,6 @@ static int dw1000_init(struct dw1000 *dw)
 	/* Load LDE microcode */
 	if ((rc = dw1000_load_lde(dw)) != 0)
 		return rc;
-
-	// fs_xtalt
-	regmap_update_bits(dw->fs_ctrl.regs, 0x0e, 0x1f, 0x10);
 
 	/* Configure radio */
 	if ((rc = dw1000_reconfigure(dw, -1U)) != 0)
