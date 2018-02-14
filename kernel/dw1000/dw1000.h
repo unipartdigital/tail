@@ -113,6 +113,8 @@ struct dw1000_spi_transfers {
 #define DW1000_TX_TIME_LEN	10
 #define DW1000_TX_ANTD		0x18
 #define DW1000_TX_ANTD_LEN	2
+#define DW1000_SYS_STATE	0x19
+#define DW1000_SYS_STATE_LEN	3
 #define DW1000_ACK_RESP_T	0x1a
 #define DW1000_ACK_RESP_T_LEN	4
 #define DW1000_RX_SNIFF		0x1d
@@ -211,7 +213,11 @@ struct dw1000_dev_id {
 #define DW1000_SYS_CTRL3_HRBPT			0x01
 
 /* Interrupt mask and status registers */
-#define DW1000_IRQ_TXFRS			0x00000080
+#define DW1000_IRQ_TXFRS			0x00000080UL
+#define DW1000_IRQ_RXDFR			0x00002000UL
+
+/* Receive frame information register */
+#define DW1000_RX_FINFO_RXFLEN(val)		(((val) >> 0) & 0x7ff)
 
 /* Channel control register */
 #define DW1000_CHAN_CTRL_TX_CHAN(n)		((n) << 0)
@@ -394,8 +400,8 @@ struct dw1000_regmap {
 	const struct dw1000_regmap_config *config;
 };
 
-/* Data transmission */
-struct dw1000_xmit {
+/* Transmit descriptor */
+struct dw1000_tx {
 	/* Socket buffer */
 	struct sk_buff *skb;
 	/* Length */
@@ -412,6 +418,20 @@ struct dw1000_xmit {
 	struct dw1000_spi_transfers sys_ctrl_trxoff;
 	/* SPI transfers for TX start */
 	struct dw1000_spi_transfers sys_ctrl_txstrt;
+};
+
+/* Receive descriptor */
+struct dw1000_rx {
+	/* Socket buffer */
+	struct sk_buff *skb;
+	/* Frame information */
+	int finfo;
+	/* SPI message */
+	struct spi_message msg;
+	/* SPI transfers for data buffer */
+	struct dw1000_spi_transfers rx_buffer;
+	/* SPI transfers for buffer toggle */
+	struct dw1000_spi_transfers sys_ctrl;
 };
 
 /* DW1000 device */
@@ -446,6 +466,7 @@ struct dw1000 {
 	struct dw1000_regmap rx_time;
 	struct dw1000_regmap tx_time;
 	struct dw1000_regmap tx_antd;
+	struct dw1000_regmap sys_state;
 	struct dw1000_regmap ack_resp_t;
 	struct dw1000_regmap rx_sniff;
 	struct dw1000_regmap tx_power;
@@ -478,8 +499,10 @@ struct dw1000 {
 
 	/* Interrupt status worker */
 	struct work_struct irq_work;
-	/* Current transmission */
-	struct dw1000_xmit tx;
+	/* Transmit descriptor */
+	struct dw1000_tx tx;
+	/* Receive descriptor */
+	struct dw1000_rx rx;
 };
 
 /**

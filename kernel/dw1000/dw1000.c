@@ -325,6 +325,7 @@ DW1000_REGMAP(rx_ttcko, DW1000_RX_TTCKO, DW1000_RX_TTCKO_LEN, uint8_t);
 DW1000_REGMAP(rx_time, DW1000_RX_TIME, DW1000_RX_TIME_LEN, uint8_t);
 DW1000_REGMAP(tx_time, DW1000_TX_TIME, DW1000_TX_TIME_LEN, uint8_t);
 DW1000_REGMAP(tx_antd, DW1000_TX_ANTD, DW1000_TX_ANTD_LEN, uint16_t);
+DW1000_REGMAP(sys_state, DW1000_SYS_STATE, DW1000_SYS_STATE_LEN, uint8_t);
 DW1000_REGMAP(ack_resp_t, DW1000_ACK_RESP_T, DW1000_ACK_RESP_T_LEN, uint32_t);
 DW1000_REGMAP(rx_sniff, DW1000_RX_SNIFF, DW1000_RX_SNIFF_LEN, uint32_t);
 DW1000_REGMAP(tx_power, DW1000_TX_POWER, DW1000_TX_POWER_LEN, uint8_t);
@@ -365,6 +366,7 @@ static const struct dw1000_regmap_config *dw1000_configs[] = {
 	&dw1000_rx_time,
 	&dw1000_tx_time,
 	&dw1000_tx_antd,
+	&dw1000_sys_state,
 	&dw1000_ack_resp_t,
 	&dw1000_rx_sniff,
 	&dw1000_tx_power,
@@ -593,7 +595,7 @@ static const struct dw1000_rate_config dw1000_rate_configs[] = {
 		.tdsym_ns = 128,
 		.txpsr = 0x1,
 		.drx_tune0b = 0x0001,
-		.drx_tune1b = 0x0010,
+		.drx_tune1b = 0x0020, //0x0010,
 		.drx_tune2 = {
 			[DW1000_PRF_16M] = { 0x2d, 0x00, 0x1a, 0x31 },
 			[DW1000_PRF_64M] = { 0x6b, 0x00, 0x3b, 0x31 },
@@ -710,6 +712,8 @@ static int dw1000_reconfigure(struct dw1000 *dw, unsigned int changed)
 			DW1000_TX_FCTRL2_PE_MASK);
 		value = (DW1000_TX_FCTRL2_TXPRF(prf) |
 			 DW1000_TX_FCTRL2_TXPSR(rate_cfg->txpsr));
+		// hack PE
+		value |= 0x10;
 		if ((rc = regmap_update_bits(dw->tx_fctrl.regs,
 					     DW1000_TX_FCTRL2,
 					     mask, value)) != 0)
@@ -839,6 +843,10 @@ static int dw1000_reconfigure(struct dw1000 *dw, unsigned int changed)
 					   &lde_repc, sizeof(lde_repc))) != 0)
 			return rc;
 	}
+
+	//
+	regmap_write(dw->sys_ctrl.regs, DW1000_SYS_CTRL0,
+		     (DW1000_SYS_CTRL0_TXSTRT | DW1000_SYS_CTRL0_TRXOFF));
 
 	return 0;
 }
@@ -975,52 +983,13 @@ static int dw1000_configure_smart_power(struct dw1000 *dw, bool smart_power)
  */
 
 /**
- * dw1000_xmit_async() - Start packet transmission
- *
- * @hw:			IEEE 802.15.4 device
- * @skb:		Socket buffer
- * @return:		0 on success or -errno
- */
-static int dw1000_xmit_async(struct ieee802154_hw *hw, struct sk_buff *skb)
-{
-	struct dw1000 *dw = hw->priv;
-	struct dw1000_xmit *tx = &dw->tx;
-	int rc;
-
-	/* Sanity check */
-	if (tx->skb) {
-		dev_err(dw->dev, "concurrent transmit is not supported\n");
-		rc = -ENOBUFS;
-		goto err_concurrent;
-	}
-
-	/* Construct transmission */
-	tx->skb = skb;
-	tx->tx_buffer.data.tx_buf = skb->data;
-	tx->tx_buffer.data.len = skb->len;
-	tx->len = DW1000_TX_FCTRL0_TFLEN(skb->len);
-	tx->submitted = false;
-
-	/* Submit transmission */
-	if ((rc = spi_async(dw->spi, &tx->msg)) != 0)
-		goto err_spi;
-
-	return 0;
-
- err_spi:
-	tx->skb = NULL;
- err_concurrent:
-	return rc;
-}
-
-/**
- * dw1000_xmit_complete() - Handle transmit completion
+ * dw1000_tx_complete() - Handle transmit completion
  *
  * @dw:			DW1000 device
  */
-static void dw1000_xmit_complete(struct dw1000 *dw)
+static void dw1000_tx_complete(struct dw1000 *dw)
 {
-	struct dw1000_xmit *tx = &dw->tx;
+	struct dw1000_tx *tx = &dw->tx;
 	struct sk_buff *skb;
 	size_t sifs_max_len;
 
@@ -1038,14 +1007,14 @@ static void dw1000_xmit_complete(struct dw1000 *dw)
 }
 
 /**
- * dw1000_xmit_complete() - Handle transmit submission completion
+ * dw1000_tx_complete() - Handle transmit SPI message completion
  *
  * @context:		DW1000 device
  */
-static void dw1000_xmit_submit_complete(void *context)
+static void dw1000_tx_spi_complete(void *context)
 {
 	struct dw1000 *dw = context;
-	struct dw1000_xmit *tx = &dw->tx;
+	struct dw1000_tx *tx = &dw->tx;
 
 	/* Mark as submitted */
 	tx->submitted = true;
@@ -1054,8 +1023,153 @@ static void dw1000_xmit_submit_complete(void *context)
 	if (tx->msg.status != 0) {
 		dev_err(dw->dev, "transmit submission failed: %d\n",
 			tx->msg.status);
-		dw1000_xmit_complete(dw);
+		dw1000_tx_complete(dw);
 	}
+}
+
+/**
+ * dw1000_tx_async() - Transmit packet
+ *
+ * @hw:			IEEE 802.15.4 device
+ * @skb:		Socket buffer
+ * @return:		0 on success or -errno
+ */
+static int dw1000_tx(struct ieee802154_hw *hw, struct sk_buff *skb)
+{
+	struct dw1000 *dw = hw->priv;
+	struct dw1000_tx *tx = &dw->tx;
+	int rc;
+
+	/* Sanity check */
+	if (tx->skb) {
+		dev_err(dw->dev, "concurrent transmit is not supported\n");
+		rc = -ENOBUFS;
+		goto err_concurrent;
+	}
+
+	/* Construct transmit descriptor */
+	tx->skb = skb;
+	tx->tx_buffer.data.tx_buf = skb->data;
+	tx->tx_buffer.data.len = skb->len;
+	tx->len = DW1000_TX_FCTRL0_TFLEN(skb->len);
+	tx->submitted = false;
+
+	/* Post transmit descriptor */
+	if ((rc = spi_async(dw->spi, &tx->msg)) != 0)
+		goto err_spi;
+
+	return 0;
+
+ err_spi:
+	tx->skb = NULL;
+ err_concurrent:
+	return rc;
+}
+
+/**
+ * dw1000_tx_prepare() - Prepare transmit descriptor
+ *
+ * @dw:			DW1000 device
+ * @return:		0 on success or -errno
+ */
+static int dw1000_tx_prepare(struct dw1000 *dw)
+{
+	static const uint8_t trxoff = DW1000_SYS_CTRL0_TRXOFF;
+	static const uint8_t txstrt = (DW1000_SYS_CTRL0_TXSTRT |
+				       DW1000_SYS_CTRL0_WAIT4RESP);
+	struct dw1000_tx *tx = &dw->tx;
+
+	/* Prepare transmit descriptor */
+	memset(tx, 0, sizeof(*tx));
+	spi_message_init_no_memset(&tx->msg);
+	tx->msg.complete = dw1000_tx_spi_complete;
+	tx->msg.context = dw;
+	dw1000_init_write(&tx->msg, &tx->tx_buffer, DW1000_TX_BUFFER, 0,
+			  NULL, 0);
+	dw1000_init_write(&tx->msg, &tx->tx_fctrl, DW1000_TX_FCTRL,
+			  DW1000_TX_FCTRL0, &tx->len, sizeof(tx->len));
+	dw1000_init_write(&tx->msg, &tx->sys_ctrl_trxoff, DW1000_SYS_CTRL,
+			  DW1000_SYS_CTRL0, &trxoff, sizeof(trxoff));
+	dw1000_init_write(&tx->msg, &tx->sys_ctrl_txstrt, DW1000_SYS_CTRL,
+			  DW1000_SYS_CTRL0, &txstrt, sizeof(txstrt));
+
+	return 0;
+}
+
+/******************************************************************************
+ *
+ * Receive datapath
+ *
+ */
+
+/**
+ * dw1000_rx() - Receive packet
+ *
+ * @dw:			DW1000 device
+ */
+static void dw1000_rx(struct dw1000 *dw)
+{
+	struct sk_buff *skb;
+	struct dw1000_rx *rx = &dw->rx;
+	size_t len;
+	int rc;
+
+	/* Read frame information */
+	if ((rc = regmap_read(dw->rx_finfo.regs, 0, &rx->finfo)) != 0)
+		goto abort;
+
+	//
+	dev_info(dw->dev, "RX finfo %08x\n", rx->finfo);
+
+	/* Allocate socket buffer */
+	len = DW1000_RX_FINFO_RXFLEN(rx->finfo);
+	skb = dev_alloc_skb(len);
+	if (!skb) {
+		rc = -ENOMEM;
+		goto abort;
+	}
+	skb_put(skb, len);
+
+	/* Construct receive descriptor */
+	rx->skb = skb;
+	rx->rx_buffer.data.rx_buf = skb->data;
+	rx->rx_buffer.data.len = len;
+
+	/* Post receive descriptor */
+	if ((rc = spi_sync(dw->spi, &rx->msg)) != 0)
+		goto abort;
+
+	/* Hand off to IEEE 802.15.4 stack */
+	ieee802154_rx_irqsafe(dw->hw, skb, 0); // lqi
+
+	return;
+
+ abort:
+	dev_err(dw->dev, "receive failed: %d\n", rc);
+}
+
+/**
+ * dw1000_rx_prepare() - Prepare receive descriptor
+ *
+ * @dw:			DW1000 device
+ * @return:		0 on success or -errno
+ */
+static int dw1000_rx_prepare(struct dw1000 *dw)
+{
+	static const uint8_t hrbpt = DW1000_SYS_CTRL3_HRBPT;
+	struct dw1000_rx *rx = &dw->rx;
+
+	/* Prepare receive descriptor */
+	memset(rx, 0, sizeof(*rx));
+	spi_message_init_no_memset(&rx->msg);
+	//rx->msg.complete = dw1000_rx_spi_complete;
+	//rx->msg.context = dw;
+	dw1000_init_read(&rx->msg, &rx->rx_buffer, DW1000_RX_BUFFER, 0,
+			 NULL, 0);
+	dw1000_init_write(&rx->msg, &rx->sys_ctrl, DW1000_SYS_CTRL,
+			  DW1000_SYS_CTRL3, &hrbpt, sizeof(hrbpt));
+
+	return 0;
 }
 
 /******************************************************************************
@@ -1098,7 +1212,11 @@ static void dw1000_irq_worker(struct work_struct *work)
 
 	/* Handle transmit completion, if applicable */
 	if (status & DW1000_IRQ_TXFRS)
-		dw1000_xmit_complete(dw);
+		dw1000_tx_complete(dw);
+
+	/* Handle received packet, if applicable */
+	if (status & DW1000_IRQ_RXDFR)
+		dw1000_rx(dw);
 
 	/* Acknowledge interrupts */
 	if ((rc = regmap_write(dw->sys_status.regs, 0, status)) != 0)
@@ -1126,7 +1244,8 @@ static int dw1000_start(struct ieee802154_hw *hw)
 	int rc;
 
 	/* Enable interrupt generation */
-	if ((rc = regmap_write(dw->sys_mask.regs, 0, DW1000_IRQ_TXFRS)) != 0)
+	if ((rc = regmap_write(dw->sys_mask.regs, 0,
+			       (DW1000_IRQ_TXFRS | DW1000_IRQ_RXDFR))) != 0)
 		goto err_sys_mask;
 
 	/* Enable receiver */
@@ -1293,6 +1412,9 @@ static int dw1000_set_promiscuous_mode(struct ieee802154_hw *hw, bool on)
 	struct dw1000 *dw = hw->priv;
 	int rc;
 
+	//
+	on = true;
+
 	/* Enable/disable frame filtering */
 	if ((rc = regmap_update_bits(dw->sys_cfg.regs, 0, DW1000_SYS_CFG_FFEN,
 				     (on ? 0 : DW1000_SYS_CFG_FFEN))) != 0)
@@ -1307,7 +1429,7 @@ static const struct ieee802154_ops dw1000_ops = {
 	.owner = THIS_MODULE,
 	.start = dw1000_start,
 	.stop = dw1000_stop,
-	.xmit_async = dw1000_xmit_async,
+	.xmit_async = dw1000_tx,
 	.ed = dw1000_ed,
 	.set_channel = dw1000_set_channel,
 	.set_hw_addr_filt = dw1000_set_hw_addr_filt,
@@ -1605,6 +1727,10 @@ static int dw1000_init(struct dw1000 *dw)
 			   DW1000_SYS_CFG_FFAA | DW1000_SYS_CFG_FFAM |
 			   DW1000_SYS_CFG_FFAR | DW1000_SYS_CFG_FFA4 |
 			   DW1000_SYS_CFG_FFA5);
+
+	//
+	sys_cfg_filters |= 0x00000800;
+
 	mask = (sys_cfg_filters | DW1000_SYS_CFG_DIS_DRXB |
 		DW1000_SYS_CFG_RXAUTR);
 	value = (sys_cfg_filters | DW1000_SYS_CFG_RXAUTR);
@@ -1655,39 +1781,12 @@ static int dw1000_init(struct dw1000 *dw)
 	if ((rc = dw1000_load_lde(dw)) != 0)
 		return rc;
 
+	// fs_xtalt
+	regmap_update_bits(dw->fs_ctrl.regs, 0x0e, 0x1f, 0x10);
+
 	/* Configure radio */
 	if ((rc = dw1000_reconfigure(dw, -1U)) != 0)
 		return rc;
-
-	return 0;
-}
-
-/**
- * dw1000_prepare() - Prepare predefined transfers
- *
- * @dw:			DW1000 device
- * @return:		0 on success or -errno
- */
-static int dw1000_prepare(struct dw1000 *dw)
-{
-	static const uint8_t trxoff = DW1000_SYS_CTRL0_TRXOFF;
-	static const uint8_t txstrt = (DW1000_SYS_CTRL0_TXSTRT |
-				       DW1000_SYS_CTRL0_WAIT4RESP);
-	struct dw1000_xmit *tx = &dw->tx;
-
-	/* Prepare transmission */
-	memset(tx, 0, sizeof(*tx));
-	spi_message_init_no_memset(&tx->msg);
-	tx->msg.complete = dw1000_xmit_submit_complete;
-	tx->msg.context = dw;
-	dw1000_init_write(&tx->msg, &tx->tx_buffer, DW1000_TX_BUFFER, 0,
-			  NULL, 0);
-	dw1000_init_write(&tx->msg, &tx->tx_fctrl, DW1000_TX_FCTRL,
-			  DW1000_TX_FCTRL0, &tx->len, sizeof(tx->len));
-	dw1000_init_write(&tx->msg, &tx->sys_ctrl_trxoff, DW1000_SYS_CTRL,
-			  DW1000_SYS_CTRL0, &trxoff, sizeof(trxoff));
-	dw1000_init_write(&tx->msg, &tx->sys_ctrl_txstrt, DW1000_SYS_CTRL,
-			  DW1000_SYS_CTRL0, &txstrt, sizeof(txstrt));
 
 	return 0;
 }
@@ -1723,6 +1822,10 @@ static int dw1000_probe(struct spi_device *spi)
 	INIT_WORK(&dw->irq_work, dw1000_irq_worker);
 	hw->parent = &spi->dev;
 
+	// hack PRF and preamble code
+	dw->prf = DW1000_PRF_16M;
+	dw->pcode = 4;
+
 	/* Report capabilities */
 	hw->flags = (IEEE802154_HW_TX_OMIT_CKSUM |
 		     IEEE802154_HW_AFILT |
@@ -1749,10 +1852,16 @@ static int dw1000_probe(struct spi_device *spi)
 		goto err_init;
 	}
 
-	/* Prepare predefined transfers */
-	if ((rc = dw1000_prepare(dw)) != 0) {
-		dev_err(dw->dev, "preparation failed: %d\n", rc);
-		goto err_prepare;
+	/* Prepare transmit descriptor */
+	if ((rc = dw1000_tx_prepare(dw)) != 0) {
+		dev_err(dw->dev, "TX preparation failed: %d\n", rc);
+		goto err_tx_prepare;
+	}
+
+	/* Prepare receive descriptor */
+	if ((rc = dw1000_rx_prepare(dw)) != 0) {
+		dev_err(dw->dev, "RX preparation failed: %d\n", rc);
+		goto err_rx_prepare;
 	}
 
 	/* Add attribute group */
@@ -1783,7 +1892,8 @@ static int dw1000_probe(struct spi_device *spi)
  err_request_irq:
 	sysfs_remove_group(&dw->dev->kobj, &dw1000_attr_group);
  err_create_group:
- err_prepare:
+ err_rx_prepare:
+ err_tx_prepare:
  err_init:
  err_reset:
  err_regmap_init:
@@ -1805,6 +1915,7 @@ static int dw1000_remove(struct spi_device *spi)
 
 	ieee802154_unregister_hw(hw);
 	sysfs_remove_group(&dw->dev->kobj, &dw1000_attr_group);
+	dw1000_reset(dw);
 	ieee802154_free_hw(hw);
 	return 0;
 }
