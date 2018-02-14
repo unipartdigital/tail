@@ -595,7 +595,7 @@ static const struct dw1000_rate_config dw1000_rate_configs[] = {
 		.tdsym_ns = 128,
 		.txpsr = 0x1,
 		.drx_tune0b = 0x0001,
-		.drx_tune1b = 0x0020, //0x0010,
+		.drx_tune1b = 0x0010,
 		.drx_tune2 = {
 			[DW1000_PRF_16M] = { 0x2d, 0x00, 0x1a, 0x31 },
 			[DW1000_PRF_64M] = { 0x6b, 0x00, 0x3b, 0x31 },
@@ -712,8 +712,6 @@ static int dw1000_reconfigure(struct dw1000 *dw, unsigned int changed)
 			DW1000_TX_FCTRL2_PE_MASK);
 		value = (DW1000_TX_FCTRL2_TXPRF(prf) |
 			 DW1000_TX_FCTRL2_TXPSR(rate_cfg->txpsr));
-		// hack PE
-		value |= 0x10;
 		if ((rc = regmap_update_bits(dw->tx_fctrl.regs,
 					     DW1000_TX_FCTRL2,
 					     mask, value)) != 0)
@@ -1727,10 +1725,6 @@ static int dw1000_init(struct dw1000 *dw)
 			   DW1000_SYS_CFG_FFAA | DW1000_SYS_CFG_FFAM |
 			   DW1000_SYS_CFG_FFAR | DW1000_SYS_CFG_FFA4 |
 			   DW1000_SYS_CFG_FFA5);
-
-	//
-	sys_cfg_filters |= 0x00000800;
-
 	mask = (sys_cfg_filters | DW1000_SYS_CFG_DIS_DRXB |
 		DW1000_SYS_CFG_RXAUTR);
 	value = (sys_cfg_filters | DW1000_SYS_CFG_RXAUTR);
