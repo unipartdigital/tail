@@ -488,9 +488,10 @@ static const struct dw1000_channel_config dw1000_channel_configs[] = {
 			[DW1000_PRF_64M] = { 0x9a, 0x7a, 0x5a, 0x3a },
 		},
 		.pcodes = {
-			[DW1000_PRF_16M] = (BIT(7) | BIT(8)),
-			[DW1000_PRF_64M] = (BIT(17) | BIT(18) | BIT(19) |
-					    BIT(20)),
+			[DW1000_PRF_16M] = (BIT(3) | BIT(4) | BIT(7) | BIT(8)),
+			[DW1000_PRF_64M] = (BIT(9) | BIT(10) | BIT(11) |
+					    BIT(12) | BIT(17) | BIT(18) |
+					    BIT(19) | BIT(20)),
 		},
 	},
 	[5] = {
@@ -520,9 +521,10 @@ static const struct dw1000_channel_config dw1000_channel_configs[] = {
 			[DW1000_PRF_64M] = { 0xd1, 0xb1, 0x71, 0x51 },
 		},
 		.pcodes = {
-			[DW1000_PRF_16M] = (BIT(7) | BIT(8)),
-			[DW1000_PRF_64M] = (BIT(17) | BIT(18) | BIT(19) |
-					    BIT(20)),
+			[DW1000_PRF_16M] = (BIT(3) | BIT(4) | BIT(7) | BIT(8)),
+			[DW1000_PRF_64M] = (BIT(9) | BIT(10) | BIT(11) |
+					    BIT(12) | BIT(17) | BIT(18) |
+					    BIT(19) | BIT(20)),
 		},
 	},
 };
@@ -638,7 +640,7 @@ static unsigned int dw1000_pcode(struct dw1000 *dw)
 		return dw->pcode;
 
 	/* Otherwise, use first pcodes preamble code */
-	return (ffs(pcodes) - 1);
+	return (fls(pcodes) - 1);
 }
 
 /**
@@ -1114,9 +1116,6 @@ static void dw1000_rx(struct dw1000 *dw)
 	if ((rc = regmap_read(dw->rx_finfo.regs, 0, &rx->finfo)) != 0)
 		goto abort;
 
-	//
-	dev_info(dw->dev, "RX finfo %08x\n", rx->finfo);
-
 	/* Allocate socket buffer */
 	len = DW1000_RX_FINFO_RXFLEN(rx->finfo);
 	skb = dev_alloc_skb(len);
@@ -1136,7 +1135,7 @@ static void dw1000_rx(struct dw1000 *dw)
 		goto abort;
 
 	/* Hand off to IEEE 802.15.4 stack */
-	ieee802154_rx_irqsafe(dw->hw, skb, 0); // lqi
+	ieee802154_rx_irqsafe(dw->hw, skb, 0); // TODO: lqi
 
 	return;
 
@@ -1158,6 +1157,7 @@ static int dw1000_rx_prepare(struct dw1000 *dw)
 	/* Prepare receive descriptor */
 	memset(rx, 0, sizeof(*rx));
 	spi_message_init_no_memset(&rx->msg);
+	// TODO: async RX
 	//rx->msg.complete = dw1000_rx_spi_complete;
 	//rx->msg.context = dw;
 	dw1000_init_read(&rx->msg, &rx->rx_buffer, DW1000_RX_BUFFER, 0,
@@ -1407,9 +1407,6 @@ static int dw1000_set_promiscuous_mode(struct ieee802154_hw *hw, bool on)
 {
 	struct dw1000 *dw = hw->priv;
 	int rc;
-
-	//
-	on = true;
 
 	/* Enable/disable frame filtering */
 	if ((rc = regmap_update_bits(dw->sys_cfg.regs, 0, DW1000_SYS_CFG_FFEN,
@@ -1812,15 +1809,11 @@ static int dw1000_probe(struct spi_device *spi)
 	dw->phy = hw->phy;
 	dw->channel = DW1000_CHANNEL_DEFAULT;
 	dw->pcode = 0;
-	dw->prf = DW1000_PRF_64M;
+	dw->prf = DW1000_PRF_16M;
 	dw->rate = DW1000_RATE_6800K;
 	dw->smart_power = true;
 	INIT_WORK(&dw->irq_work, dw1000_irq_worker);
 	hw->parent = &spi->dev;
-
-	// hack PRF and preamble code
-	dw->prf = DW1000_PRF_16M;
-	dw->pcode = 4;
 
 	/* Report capabilities */
 	hw->flags = (IEEE802154_HW_TX_OMIT_CKSUM |
