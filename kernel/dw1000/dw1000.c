@@ -1154,13 +1154,13 @@ static void dw1000_ptp_worker(struct work_struct *work)
 }
 
 /**
- * dw1000_ptp_adjfine() - Adjust frequency of hardware clock
+ * dw1000_ptp_adjfreq() - Adjust frequency of hardware clock
  *
  * @ptp:		PTP clock information
- * @scaled_ppm:		Frequency offset in parts per 65536 million
+ * @delta:		Frequency offset in parts per billion
  * @return:		0 on success or -errno
  */
-static int dw1000_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
+static int dw1000_ptp_adjfreq(struct ptp_clock_info *ptp, int32_t delta)
 {
 	struct dw1000 *dw = container_of(ptp, struct dw1000, ptp.info);
 	uint64_t delta_mult;
@@ -1168,22 +1168,21 @@ static int dw1000_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 	bool negate;
 
 	/* Split out sign to allow for unsigned division */
-	if (scaled_ppm < 0) {
-		scaled_ppm = -scaled_ppm;
+	if (delta < 0) {
+		delta = -delta;
 		negate = true;
 	} else {
 		negate = false;
 	}
 
 	/* Calculate multiplier value */
-	delta_mult = scaled_ppm;
+	delta_mult = delta;
 	delta_mult *= DW1000_CYCLECOUNTER_MULT;
-	delta_mult = div_u64(delta_mult, 1000000); /* ppm */
-	delta_mult = (delta_mult >> 16); /* scale factor for scaled_ppm */
+	delta_mult = div_u64(delta_mult, 1000000000UL); /* ppb */
 	mult = (negate ? (DW1000_CYCLECOUNTER_MULT - delta_mult) :
 		(DW1000_CYCLECOUNTER_MULT + delta_mult));
-	dev_dbg(dw->dev, "adjust frequency %+ld scaled ppm: mult %d->%d\n",
-		scaled_ppm, DW1000_CYCLECOUNTER_MULT, mult);
+	dev_dbg(dw->dev, "adjust frequency %+d ppb: multiplier %d->%d\n",
+		delta, DW1000_CYCLECOUNTER_MULT, mult);
 
 	/* Read timecounter to establish a baseline point at which the
 	 * frequency changes (i.e. to synchronise the cycle and
@@ -1307,7 +1306,7 @@ static int dw1000_ptp_init(struct dw1000 *dw)
 	info->owner = THIS_MODULE;
 	info->max_adj = DW1000_PTP_MAX_ADJ;
 	snprintf(info->name, sizeof(info->name), "%s", dev_name(dw->dev));
-	info->adjfine = dw1000_ptp_adjfine;
+	info->adjfreq = dw1000_ptp_adjfreq;
 	info->adjtime = dw1000_ptp_adjtime;
 	info->gettime64 = dw1000_ptp_gettime;
 	info->settime64 = dw1000_ptp_settime;
