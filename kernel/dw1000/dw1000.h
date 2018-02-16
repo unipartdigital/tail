@@ -86,16 +86,11 @@ union dw1000_eui64 {
 };
 
 /* Timestamp format */
-struct dw1000_timestamp {
-	uint8_t byte[5];
-} __packed;
-
-/* Cycle counter format */
-union dw1000_cyclecount {
-	/* Timestamp value */
-	struct dw1000_timestamp ts;
+union dw1000_timestamp {
 	/* Cycle count */
 	__le64 cc;
+	/* Raw bytes */
+	uint8_t raw[5];
 };
 
 /* LDO tuning register format */
@@ -367,8 +362,18 @@ union dw1000_ldotune {
 #define DW1000_CYCLECOUNTER_MULT 8402051 /* Maximum 24-bit multiplier */
 #define DW1000_CYCLECOUNTER_SHIFT 29 /* Scale down to nanoseconds */
 
+/* Maximum multiplier adjustment
+ *
+ * This represents the maximum change that can be made to the cycle
+ * counter multiplier without exceeding the 24-bit range, expressed as
+ * parts per billion of the original multiplier value.  Some margin is
+ * provided to allow for the various conversion factors used in
+ * calculations.
+ */
+#define DW1000_PTP_MAX_ADJ 990000000L
+
 /* Cycle counter wraparound check interval: well within 17.2074 seconds */
-#define DW1000_PTP_WORK_DELAY (5 * HZ)
+#define DW1000_PTP_WORK_DELAY (3 * HZ)
 
 /* Pulse repetition frequencies */
 enum dw1000_prf {
@@ -477,7 +482,7 @@ struct dw1000_tx {
 	/* Length */
 	uint8_t len;
 	/* Timestamp */
-	struct dw1000_timestamp time;
+	union dw1000_timestamp time;
 
 	/* Data SPI message */
 	struct spi_message data;
@@ -505,7 +510,7 @@ struct dw1000_rx {
 	/* Frame information */
 	uint32_t finfo;
 	/* Timestamp */
-	struct dw1000_timestamp time;
+	union dw1000_timestamp time;
 
 	/* Information SPI message */
 	struct spi_message info;
