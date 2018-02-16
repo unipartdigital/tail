@@ -24,8 +24,11 @@
 #define __DW1000_H
 
 #include <linux/device.h>
+#include <linux/mutex.h>
 #include <linux/regmap.h>
 #include <linux/spi/spi.h>
+#include <linux/timecounter.h>
+#include <linux/ptp_clock_kernel.h>
 
 /* Supported channel page (UWB only) */
 #define DW1000_CHANNEL_PAGE 4
@@ -86,6 +89,14 @@ union dw1000_eui64 {
 struct dw1000_timestamp {
 	uint8_t byte[5];
 } __packed;
+
+/* Cycle counter format */
+union dw1000_cyclecount {
+	/* Timestamp value */
+	struct dw1000_timestamp ts;
+	/* Cycle count */
+	__le64 cc;
+};
 
 /* LDO tuning register format */
 union dw1000_ldotune {
@@ -351,6 +362,14 @@ union dw1000_ldotune {
 #define DW1000_LDELOAD_WAIT_MIN_US 150
 #define DW1000_LDELOAD_WAIT_MAX_US 500
 
+/* Cycle counter parameters: 40-bit counter, nominal rate 63.8976GHz */
+#define DW1000_CYCLECOUNTER_MASK CYCLECOUNTER_MASK(40)
+#define DW1000_CYCLECOUNTER_MULT 8402051 /* Maximum 24-bit multiplier */
+#define DW1000_CYCLECOUNTER_SHIFT 29 /* Scale down to nanoseconds */
+
+/* Cycle counter wraparound check interval: well within 17.2074 seconds */
+#define DW1000_PTP_WORK_DELAY (5 * HZ)
+
 /* Pulse repetition frequencies */
 enum dw1000_prf {
 	DW1000_PRF_16M = 0x1,
@@ -503,6 +522,20 @@ struct dw1000_rx {
 	struct dw1000_spi_transfers sys_ctrl;
 };
 
+/* PTP clock */
+struct dw1000_ptp {
+	/* Time counter access mutex */
+	struct mutex mutex;
+	/* PTP clock */
+	struct ptp_clock *clock;
+	/* PTP clock information */
+	struct ptp_clock_info info;
+	/* Raw cycle counter */
+	struct cyclecounter cc;
+	/* Time counter */
+	struct timecounter tc;
+};
+
 /* DW1000 device */
 struct dw1000 {
 	/* SPI device */
@@ -575,6 +608,11 @@ struct dw1000 {
 	struct dw1000_tx tx;
 	/* Receive descriptor */
 	struct dw1000_rx rx;
+
+	/* PTP clock */
+	struct dw1000_ptp ptp;
+	/* Clock wraparound detection worker */
+	struct delayed_work ptp_work;
 };
 
 /**
