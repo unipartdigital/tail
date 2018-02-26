@@ -490,7 +490,7 @@ union dw1000_ldotune {
  * This is a somewhat arbitrary choice, providing a basic level of
  * protection against inaccurate receive timestamps.
  */
-#define DW1000_LQI_THRESHOLD_DEFAULT 16
+#define DW1000_LQI_THRESHOLD_DEFAULT 0
 
 /* Pulse repetition frequencies */
 enum dw1000_prf {

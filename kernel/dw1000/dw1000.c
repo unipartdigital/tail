@@ -1157,6 +1157,17 @@ static void dw1000_ptp_worker(struct work_struct *work)
 	struct dw1000 *dw = container_of(to_delayed_work(work),
 					 struct dw1000, ptp_work);
 
+	//
+	int sys_status;
+	uint8_t sys_state[3];
+
+	regmap_read(dw->sys_status.regs, 0, &sys_status);
+	regmap_bulk_read(dw->sys_state.regs, 0, sys_state,
+			 ARRAY_SIZE(sys_state));
+	dev_info(dw->dev, "*** status %08x state %02x:%02x:%02x TX %p\n",
+		 sys_status, sys_state[0], sys_state[1], sys_state[2],
+		 dw->tx.skb);
+
 	/* Read timecounter; this must be done at least twice per wraparound */
 	mutex_lock(&dw->ptp.mutex);
 	timecounter_read(&dw->ptp.tc);
@@ -1356,7 +1367,49 @@ static void dw1000_timestamp(struct dw1000 *dw,
 	ns_frac += (uint64_t) cc_frac * dw->ptp.cc.mult;
 	ns += (ns_frac >> DW1000_CYCLECOUNTER_TOTAL_SHIFT);
 	ns_frac &= ((1ULL << DW1000_CYCLECOUNTER_TOTAL_SHIFT) - 1);
+	if (0) {
+		unsigned long long cc = le64_to_cpu(time->cc);
+		unsigned long long cc_last = (dw->ptp.tc.cycle_last <<
+					      DW1000_CYCLECOUNTER_FRAC_SHIFT);
+		unsigned long long tc_nsec = dw->ptp.tc.nsec;
+		unsigned long long tc_frac = (dw->ptp.tc.frac <<
+					      (32 - DW1000_CYCLECOUNTER_SHIFT));
+		unsigned long long r_nsec = ns;
+		unsigned long long r_frac =
+			(ns_frac >> (DW1000_CYCLECOUNTER_TOTAL_SHIFT - 32));
+		signed long long delta_cc = (cc - cc_last);
+		signed long long delta_nsec = (r_nsec - tc_nsec);
+		signed long long delta_frac = (r_frac - tc_frac);
+		if (delta_nsec > 0 && delta_frac < 0) {
+			delta_frac += (1ULL << 32);
+			delta_nsec--;
+		} else if (delta_nsec < 0 && delta_frac > 0) {
+			delta_frac -= (1ULL << 32);
+			delta_nsec++;
+		}
+		unsigned long long abs_delta_cc =
+			(delta_cc > 0 ? delta_cc : -delta_cc);
+		unsigned long long abs_delta_nsec =
+			(delta_nsec > 0 ? delta_nsec : -delta_nsec);
+		unsigned long long abs_delta_frac =
+			(delta_frac > 0 ? delta_frac : -delta_frac);
+
+		dev_dbg(dw->dev, "mult %#x cc %#llx %c %#llx = %#llx nsec "
+			"%#llx.%08llx %c %#llx.%08llx = %#llx.%08llx\n",
+			dw->ptp.cc.mult, cc_last,
+			(delta_cc >= 0 ? '+' : '-'), abs_delta_cc, cc,
+			tc_nsec, tc_frac,
+			(delta_nsec >= 0 || delta_frac >= 0 ? '+' : '-'),
+			abs_delta_nsec, abs_delta_frac, r_nsec, r_frac);
+	}
 	mutex_unlock(&dw->ptp.mutex);
+
+	//
+	if (1) {
+		ns -= 0x1500000000000000ULL;
+		ns <<= 8;
+		ns += (ns_frac >> (DW1000_CYCLECOUNTER_TOTAL_SHIFT - 8));
+	}
 
 	/* Fill in kernel hardware timestamp */
 	memset(hwtstamps, 0, sizeof(*hwtstamps));
@@ -1606,6 +1659,7 @@ static int dw1000_rx_reset(struct dw1000 *dw)
 	struct sk_buff *skb;
 	unsigned long flags;
 	int sys_status;
+	int sys_state_rx;
 	int rc;
 
 	/* There is no clean separation between the TX and RX
@@ -1666,6 +1720,12 @@ static int dw1000_rx_reset(struct dw1000 *dw)
 	if ((rc = regmap_write(dw->sys_ctrl.regs, DW1000_SYS_CTRL1,
 			       DW1000_SYS_CTRL1_RXENAB)) != 0)
 		goto err;
+
+	/* Check receive state machine */
+	if ((rc = regmap_read(dw->sys_state.regs, DW1000_SYS_STATE_RX,
+			      &sys_state_rx)) != 0)
+		goto err;
+	dev_notice(dw->dev, "***** RX state %02x\n", sys_state_rx);
 
 	/* Unblock transmissions */
 	spin_lock_irqsave(&dw->tx_lock, flags);
