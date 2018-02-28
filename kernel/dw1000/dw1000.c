@@ -1815,7 +1815,7 @@ static void dw1000_rx_dfr(struct dw1000 *dw)
 	 * are safe to read the remaining data even if a subsequent
 	 * overrun occurs before our data read is complete.
 	 */
-	if (rx->rxovrr & DW1000_SYS_STATUS2_RXOVRR) {
+	if (0 && (rx->rxovrr & DW1000_SYS_STATUS2_RXOVRR)) {
 		dev_err(dw->dev, "RX overrun; aborting receive\n");
 		dw1000_rx_reset(dw);
 		return;
@@ -1905,10 +1905,11 @@ static void dw1000_irq_worker(struct work_struct *work)
 		dw1000_tx_frs(dw);
 
 	/* Handle received packet or receive overrun, if applicable */
-	if (sys_status & DW1000_SYS_STATUS_RXOVRR) {
+	if (0 && (sys_status & DW1000_SYS_STATUS_RXOVRR)) {
 		dev_err(dw->dev, "RX overrun occurred\n");
 		dw1000_rx_reset(dw);
-	} else if (sys_status & DW1000_SYS_STATUS_RXDFR) {
+	}//	} else
+	if (sys_status & (DW1000_SYS_STATUS_RXDFR | DW1000_SYS_STATUS_RXOVRR)) {
 		dw1000_rx_dfr(dw);
 	}
 
