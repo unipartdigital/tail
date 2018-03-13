@@ -1,9 +1,0 @@
-[submodule "circuit/lib/cvra"]
-	path = circuit/lib/cvra
-	url = https://github.com/cvra/kicad-lib.git
-[submodule "circuit/lib/pihat"]
-	path = circuit/lib/pihat
-	url = https://github.com/xesscorp/RPi_Hat.pretty.git
-[submodule "kernel/pitail/hats"]
-	path = kernel/pitail/hats
-	url = https://github.com/raspberrypi/hats.git
