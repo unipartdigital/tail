@@ -8,46 +8,36 @@ from tools import distance2points
 
 
 def opt_func_gen(data, N):
-    """
-    Provided the required data, returns a function (and saves a file of it) 
-    in a shape proper for scipy.optimize.root with method='lm'
-    :param data: [index p1, index p2, distance between p1 and p2, 
-                simmulated error, (p1 coordinates, p2 coordinates)] 
-                -- as returned by simulate.gen_distances
-    :param N:  Number of points //Should in the future be automatically 
-    extracted from the data
-    :return: String of the function text (and ideally Numba compiled function)
-    """
-    # Todo: the function generation should be tried with Jinja2
     f = ''
     # f += '@numba.jit(nopython=True)\n'
     f += 'def f(input):\n'
-    # f += '    print("length of input data: ", len(X), X)\n'
+    # f += '    print("length of input data: ", len(x))\n'
+    # f += '    x = numpy.concatenate(([0, 0, 0, x[0], 0, 0, x[1], x[2], 0], x[3:]))\n'
+    # f += '    print(x)\n'
     f += '    x = numpy.zeros(len(input) + 6)\n'
     f += '    x[3] = input[0]\n'
     f += '    x[6] = input[1]\n'
     f += '    x[7] = input[2]\n'
     f += '    x[9:] = input[3:]\n'
-    # f += '    x = numpy.concatenate((numpy.array([0, 0, 0, x[0], 0, 0, x[1], x[2], 0]), ' \
-    #      'numpy.array(x[3:])))\n'
-    # f += '    print(x)\n'
     f += '    f = numpy.array((\n'
     df = '    df = numpy.array((\n'
-    # Todo: calculate x[n]**2 here and then apply it to the set of equations
+    # optimisation: calculate x[n]**2 here
+    # and then apply it to the set of equations
     blank_jac_line = ['0' for i in range(N * 3)]
     for line in data:
-        # ~ print line
+        # print(line)
         m = line[0]
         n = line[1]
-        f += '        x[{}]**2 - 2*x[{}]*x[{}] + x[{}]**2 + x[{}]**2 - ' \
-             '2*x[{}]*x[{}] + x[{}]**2 + x[{}]**2 - 2*x[{}]*x[{}] + ' \
-             'x[{}]**2 - {}**2, \n'.format(m*3, m*3, n*3, n*3,
-                             m*3 + 1, m*3 + 1, n*3 + 1, n*3 + 1,
-                             m*3 + 2, m*3 + 2, n*3 + 2, n*3 + 2,
-                             line[2])
-
+        error = line[3]
+        line = [m*3, n*3,
+                m*3 + 1, n*3 + 1,
+                m*3 + 2, n*3 + 2,
+                line[2]**2]
+        f += '        (x[{}] - x[{}])**2 + (x[{}]- x[{}])**2' \
+             ' + (x[{}] - x[{}])**2 - {}, \n'.format(*line)
+        # print(f)
         jacobian_line = copy.copy(blank_jac_line)
-        dstr = '2*x[{}] - 2*x[{}]'
+        dstr = '2*(x[{}] - x[{}])'
         jacobian_line[m*3] = dstr.format(m*3, n*3)
         jacobian_line[n*3] = dstr.format(n*3, m*3)
         jacobian_line[m*3 + 1] = dstr.format(m*3 + 1, n*3 + 1)
@@ -58,52 +48,8 @@ def opt_func_gen(data, N):
             jacobian_line.pop(i)
         # print(len(jacobian_line))
         df += '        (' + ', '.join(jacobian_line) + '),\n'
-    f += '    ))\n' + df + '    ))\n    #print(sum(map(abs,f)))\n' \
-                          '    return f, df.transpose()'
-    # print(f)
-    with open('func_code.py', 'w') as file:
-        file.writelines(f)
-    return f
-
-
-def opt_func_gen_old(data, N):
-    eq_sys = []
-    f = 'def f(x):\n'
-    # f += '    print("length of input data: ", len(x))\n'
-    f += '    x = numpy.concatenate(([0, 0, 0, x[0], 0, 0, x[1], x[2], 0], x[3:]))\n'
-    # f += '    print(x)\n'
-    f += '    f = [\n'
-    df = '    df = numpy.array([\n'
-    # optimisation: calculate x[n]**2 here
-    # and then apply it to the set of equations
-    blank_jac_line = ['0' for i in range(N * 3)]
-    for line in data:
-        # print(line)
-        m = line[0]
-        n = line[1]
-        error = line[3]
-        line = [m*3, m*3, n*3, n*3,
-                m*3 + 1, m*3 + 1, n*3 + 1, n*3 + 1,
-                m*3 + 2, m*3 + 2, n*3 + 2, n*3 + 2,
-                line[2]**2]
-        f += '        x[{}]**2 - 2*x[{}]*x[{}] + x[{}]**2 + x[{}]**2 - ' \
-             '2*x[{}]*x[{}] + x[{}]**2 + x[{}]**2 - 2*x[{}]*x[{}] + ' \
-             'x[{}]**2 - {}, \n'.format(*line)
-        # print(f)
-        jacobian_line = copy.copy(blank_jac_line)
-        dstr = '2*x[{}] - 2*x[{}]'
-        jacobian_line[m*3] = dstr.format(m*3, n*3)
-        jacobian_line[n*3] = dstr.format(n*3, m*3)
-        jacobian_line[m*3 + 1] = dstr.format(m*3 + 1, n*3 + 1)
-        jacobian_line[n*3 + 1] = dstr.format(n*3 + 1, m*3 + 1)
-        jacobian_line[m*3 + 2] = dstr.format(m*3 + 2, n*3 + 2)
-        jacobian_line[n*3 + 2] = dstr.format(n*3 + 2, m*3 + 2)
-        for i in [8, 5, 4, 2, 1, 0]:
-            jacobian_line.pop(i)
-        # print(len(jacobian_line))
-        df += '        [' + ', '.join(jacobian_line) + '],\n'
-    f += '    ]\n' + df + '    ])\n    #print(sum(map(abs,f)))\n' \
-                          '    return f, numpy.transpose(numpy.array(df))'
+    f += '    ))\n' + df + '    ))\n' \
+         '    return f, df.transpose()'
     # ~ print f
     with open('func_code.py', 'w') as file:
         file.writelines(f)
@@ -212,5 +158,6 @@ def optimisation(f, guess, **kwarg):
     return sol
 
 def get_opt_func(data, N):
-    exec(opt_func_gen_old(data, N), globals())
+    exec(opt_func_gen(data, N), globals())
     return f
+
