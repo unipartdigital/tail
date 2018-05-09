@@ -67,8 +67,7 @@ def check_precision2(kwarg):
 
     points = points_gen(**kwarg)
     data = gen_distances(points, **kwarg)
-    f1 = get_opt_func(data, kwarg['N'])
-    f = get_opt_func1(data, kwarg['N'])
+    f = get_opt_func(data, kwarg['N'])
     best_dist_diff = 10e6
     while 1:
         init_guess = simple_init_guess_gen(kwarg['N'])
