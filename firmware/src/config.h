@@ -11,7 +11,24 @@
 	X(xtal_trim,         0x0002) \
 	X(role,              0x0003) \
 	X(antenna_delay_tx,  0x0004) \
-	X(antenna_delay_rx,  0x0005)
+	X(antenna_delay_rx,  0x0005) \
+	X(chan,              0x0006) \
+	X(prf_high,          0x0007) \
+	X(tx_plen,           0x0008) \
+	X(rx_pac,            0x0009) \
+	X(tx_pcode,          0x000a) \
+	X(rx_pcode,          0x000b) \
+	X(ns_sfd,            0x000c) \
+	X(data_rate,         0x000d) \
+	X(long_frames,       0x000e) \
+	X(sfd_timeout,       0x000f) \
+	X(associated,        0x0010) \
+	X(pan,               0x0011) \
+	X(short_addr,        0x0012) \
+	X(tag_target_addr,   0x0013) \
+	X(tag_source_port,   0x0014) \
+	X(tag_dest_port,     0x0015) \
+	X(tag_period,        0x0016)
 
 #define CONFIG_KEY_INVALID 0x0000
 
@@ -63,5 +80,9 @@ config_key config_enumerate(config_iterator *iterator);
 
 const char *config_key_to_name(config_key key);
 config_key config_key_from_name(const char *name);
+
+/* Same rules as for config_enumerate */
+void config_enumerate_key_names_start(config_key *key);
+const char *config_enumerate_key_names(config_key *key);
 
 #endif

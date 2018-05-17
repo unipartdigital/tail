@@ -9,7 +9,7 @@
 #define ADDR_SHORT 2
 #define ADDR_LONG 3
 
-#define PAN_UNASSOCIATED 0
+#define PAN_UNASSOCIATED 0xffff
 #define PAN_BROADCAST 0xffff
 
 typedef struct {
@@ -20,6 +20,9 @@ typedef struct {
 		uint64_t l;
 	} a;
 } address_t;
+
+typedef uint8_t ipv6_addr_t[16];
+
 
 void proto_init(void);
 void start_rx(void);
@@ -35,6 +38,8 @@ void tag_start(void);
 void tag_with_period(int period);
 void tag(void);
 void tag_average(int period, int count);
+void tagipv6_with_period(int period);
+void tagipv6(void);
 void anchor(void);
 void stop(void);
 void proto_poll();

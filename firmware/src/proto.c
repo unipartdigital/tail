@@ -4,6 +4,7 @@
 #include "uart.h"
 #include "time.h"
 #include "proto.h"
+#include "config.h"
 
 #include "em_gpio.h"
 
@@ -82,6 +83,29 @@ device_t device = {
 		.receive_after_transmit = false
 };
 
+typedef struct {
+	address_t target_mac_addr;
+	ipv6_addr_t target_ipv6_addr;
+	uint16_t source_port;
+	uint16_t dest_port;
+	int period;
+} tag_data_t;
+
+#define DEFAULT_IPV6_ADDR {0xff, 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}
+#define DEFAULT_TARGET_ADDR {.type = ADDR_SHORT, .pan = PAN_BROADCAST, .a.s = 0xffff}
+ipv6_addr_t default_ipv6_addr = DEFAULT_IPV6_ADDR;
+address_t default_target_addr = DEFAULT_TARGET_ADDR;
+#define DEFAULT_SOURCE_PORT 0xf0b0
+#define DEFAULT_DEST_PORT 0xf0b0
+
+tag_data_t tag_data = {
+		.target_mac_addr = DEFAULT_TARGET_ADDR,
+        .target_ipv6_addr = DEFAULT_IPV6_ADDR,
+		.source_port = 0xf0b0,
+        .dest_port = 0xf0b0,
+        .period = TIME_FROM_SECONDS(1)
+};
+
 #define READ16(buf, i) (buf[i] + (buf[i+1] << 8))
 #define READ32(buf, i) (READ16(buf, i) + (((uint32_t)READ16(buf, i+2)) << 16))
 #define READ64(buf, i) (READ32(buf, i) + (((uint64_t)READ32(buf, i+4)) << 32))
@@ -116,6 +140,11 @@ device_t device = {
 #define TAIL_RANGE4       5
 
 #define TAIL_SYNC_BEACON  7
+
+#define TAIL_HEADER_ACCEL   0x80
+#define TAIL_HEADER_LISTEN  0x40
+#define TAIL_HEADER_BATTERY 0x20
+#define TAIL_HEADER_CONFIG  0x10
 
 /* MAC frame (IEEE 802.15.4-2011)
  *
@@ -189,7 +218,7 @@ typedef struct packet {
 
 #define MICROSECONDS_TO_DWTIME(x) ((x)*((uint64_t)128*4992)/10)
 
-#define TURNAROUND_DELAY MICROSECONDS_TO_DWTIME(600)
+#define TURNAROUND_DELAY MICROSECONDS_TO_DWTIME(700)
 
 #define SPEED_OF_LIGHT 299792458
 
@@ -218,6 +247,15 @@ void proto_init(void)
     distance_valid = false;
     tag_packet_timeout = false;
     tag_packet_failed = false;
+
+    device.eui = 0;
+    (void) config_get(config_key_eui, (uint8_t *)&device.eui, sizeof(device.eui));
+
+    device.associated = (config_get8(config_key_associated) != 0);
+    device.short_addr = config_get16(config_key_short_addr);
+    device.pan = 0;
+    if (config_get(config_key_pan, (uint8_t *)&device.pan, sizeof(device.pan)) <= 0)
+    	device.pan = PAN_UNASSOCIATED;
 }
 
 void start_rx(void)
@@ -447,6 +485,222 @@ void tag_with_period(int period)
 	tag_start();
 }
 
+int ipv6_header(uint8_t *buf, int offset, ipv6_addr_t a)
+{
+	int dam = 0;
+	if ((a[0] == 0xff) &&
+			(a[2] == 0) && (a[3] == 0) && (a[4] == 0) && (a[5] == 0) &&
+			(a[6] == 0) && (a[7] == 0) && (a[8] == 0) && (a[9] == 0) &&
+			(a[10] == 0)) {
+	    dam++;
+	    if ((a[11] == 0) && (a[12] == 0)) {
+	    	dam++;
+			if ((a[1] == 2) && (a[13] == 0) && (a[14] == 0)) {
+				dam++;
+			}
+	    }
+	}
+    /* compressed IPv6 header */
+    /* XXX this will need revisiting to efficiently address non-multicast addresses */
+    buf[offset++] = 0x7f; /* iphc header TF=3, NH=1, HLIM=3 */
+    buf[offset++] = 0x38+dam; /* CID=0, SAC=0, SAM=3, M=1, DAC=0, DAM=dam */
+
+    switch (dam) {
+    case 0:
+    	for (int i = 0; i < 16; i++)
+    	    buf[offset++] = a[i];
+    	break;
+    case 1:
+    	buf[offset++] = a[1];
+    	buf[offset++] = a[11];
+    	buf[offset++] = a[12];
+    	buf[offset++] = a[13];
+    	buf[offset++] = a[14];
+    	buf[offset++] = a[15];
+    	break;
+    case 2:
+    	buf[offset++] = a[1];
+    	buf[offset++] = a[13];
+    	buf[offset++] = a[14];
+    	buf[offset++] = a[15];
+    	break;
+    case 3:
+    	buf[offset++] = a[15];
+    	break;
+    }
+
+    return offset;
+}
+
+int ipv6_udp_header(uint8_t *buf, int offset, uint16_t source_port, uint16_t dest_port)
+{
+	int p;
+
+	if (((source_port & 0xfff0) == 0xf0b0) && ((dest_port & 0xfff0) == 0xf0b0))
+		p = 3;
+	else if ((source_port & 0xff00) == 0xf000)
+		p = 2;
+	else if ((dest_port & 0xff00) == 0xf000)
+		p = 1;
+	else
+		p = 0;
+
+    /* compressed UDP header */
+    buf[offset++] = 0xf0 + p; /* HC_UDP, C=0, P=p */
+
+    if (p == 3) {
+    	buf[offset++] = ((source_port & 0x0f) << 4) | (dest_port & 0x0f);
+    } else {
+    	if (p != 2)
+    	    buf[offset++] = source_port >> 8;
+    	buf[offset++] = source_port & 0xff;
+    	if (p != 1)
+    	    buf[offset++] = dest_port >> 8;
+    	buf[offset++] = dest_port & 0xff;
+    }
+
+    buf[offset++] = 0x00; /* Placeholder for UDP checksum 1 */
+    buf[offset++] = 0x00; /* Placeholder for UDP checksum 2 */
+
+    return offset;
+}
+
+void ipv6_udp_checksum(uint8_t *buf, address_t *mac_addr, ipv6_addr_t ipv6_addr, uint16_t source_port, uint16_t dest_port, int udp_offset, int offset)
+{
+	uint32_t checksum = 0;
+	int payload_offset = udp_offset + 3;
+	switch (buf[udp_offset] & 3) {
+	case 0:
+		payload_offset += 4;
+		break;
+	case 1:
+	case 2:
+		payload_offset += 3;
+		break;
+	case 3:
+		payload_offset += 1;
+		break;
+	}
+	int length = offset - payload_offset;
+
+	/* 128 bit source address */
+	checksum += 0xfe80; /* Link local prefix */
+	switch (mac_addr->type) {
+	case ADDR_SHORT:
+		checksum += mac_addr->pan ^ 0x0200; /* U/L bit */
+		checksum += 0x00ff;
+		checksum += 0xfe00;
+	    checksum += mac_addr->a.s;
+		break;
+	case ADDR_LONG:
+		checksum += ((mac_addr->a.l >> 48) & 0xffff) ^ 0x0200; /* U/L bit */
+		checksum += ((mac_addr->a.l >> 32) & 0xffff);
+		checksum += ((mac_addr->a.l >> 16) & 0xffff);
+		checksum += (mac_addr->a.l & 0xffff);
+		break;
+	}
+	/* 128 bits dest address */
+	for (int i = 0; i < 16; i += 2)
+	    checksum += ((uint16_t)(ipv6_addr[i]) << 8) + ipv6_addr[i+1];
+	/* upper-layer packet length plus uncompressed UDP header length */
+	checksum += length + 8;
+
+	/* next header */
+	checksum += 17; /* UDP next header */
+
+	/* UDP header */
+    checksum += source_port;
+	checksum += dest_port;
+	checksum += length + 8;
+
+	for (int i = 0; i < (length & ~1); i += 2) {
+		checksum += ((buf[payload_offset + i] << 8) | buf[payload_offset + i + 1]);
+	}
+	if (length & 1)
+		checksum += (buf[payload_offset + length-1] << 8);
+
+	checksum = (checksum & 0xffff) + (checksum >> 16);
+	checksum = (checksum & 0xffff) + (checksum >> 16);
+
+	checksum = ~checksum;
+
+	txbuf[payload_offset-2] = (checksum >> 8) & 0xff;
+	txbuf[payload_offset-1] = (checksum >> 0) & 0xff;
+}
+
+void tagipv6_start(void)
+{
+    int offset, udp_offset;
+
+    time_event_in(tagipv6_start, tag_data.period);
+
+    proto_header(txbuf);
+    offset = proto_dest(txbuf, &tag_data.target_mac_addr);
+    offset = proto_source(txbuf, offset);
+    offset = ipv6_header(txbuf, offset, tag_data.target_ipv6_addr);
+    udp_offset = offset;
+    offset = ipv6_udp_header(txbuf, offset, tag_data.source_port, tag_data.dest_port);
+
+    /* payload goes here */
+    txbuf[offset++] = TAIL_HEADER_BATTERY; /* Tail status flags */
+
+    txbuf[offset++] = 0x00; /* Battery state */
+
+    address_t source_mac_addr;
+
+    source_mac_addr.pan = device.pan;
+    if (device.associated) {
+        source_mac_addr.type = ADDR_SHORT;
+        source_mac_addr.a.s = device.short_addr;
+    } else {
+    	source_mac_addr.type = ADDR_LONG;
+        source_mac_addr.a.l = device.eui;
+    }
+
+    ipv6_udp_checksum(txbuf, &source_mac_addr, tag_data.target_ipv6_addr, tag_data.source_port, tag_data.dest_port, udp_offset, offset);
+
+    radio_writepayload(txbuf, offset, 0);
+    radio_txprepare(offset+2, 0, false);
+
+	radio_txstart(false);
+}
+
+void tagipv6_with_period(int period)
+{
+    radio_callbacks tag_callbacks = {
+    		.txdone = NULL,
+    		.rxdone = NULL,
+    		.rxtimeout = NULL,
+    		.rxerror = NULL
+    };
+
+	radio_setcallbacks(&tag_callbacks);
+
+	tag_data.target_mac_addr = default_target_addr;
+    /* Do we want to be able to direct this packet differently at the MAC layer? */
+
+	memcpy(tag_data.target_ipv6_addr, default_ipv6_addr, sizeof(ipv6_addr_t));
+	(void) config_get(config_key_tag_target_addr, tag_data.target_ipv6_addr, 16);
+
+	tag_data.source_port = DEFAULT_SOURCE_PORT;
+	tag_data.dest_port = DEFAULT_DEST_PORT;
+
+	(void) config_get(config_key_tag_source_port, (uint8_t *)&tag_data.source_port, sizeof(tag_data.source_port));
+	(void) config_get(config_key_tag_dest_port, (uint8_t *)&tag_data.dest_port, sizeof(tag_data.dest_port));
+
+	tag_data.period = period;
+
+	tagipv6_start();
+}
+
+void tagipv6(void)
+{
+	int period = 0;
+	if (config_get(config_key_tag_period, (uint8_t *)&period, sizeof(int)) <= 0)
+		period = 1000;
+	tagipv6_with_period(TIME_FROM_MS(period));
+}
+
 void tag(void)
 {
 	tag_with_period(TIME_FROM_SECONDS(1));
@@ -509,7 +763,6 @@ void range_start(void)
 
 	time_event_in(range_start, ranging.period);
 	radio_txstart(false);
-//	write_string(".");
 }
 
 void range_with_period(address_t *addr, int period)
@@ -594,7 +847,9 @@ void ranchor(void)
 
 void proto_poll()
 {
-    if (ranging.valid || ranging.done) {
+	bool valid = ranging.valid;
+
+    if (valid || ranging.done) {
     	int64_t time;
     	int64_t mm;
     	int64_t rt1 = ranging.rt1;
@@ -625,7 +880,7 @@ void proto_poll()
 		     +  (rt1 - tt1) * (rt1 + tt2))
 		     / (2*(rt1 + rt2 + tt1 + tt2));
 #endif
-    	if (ranging.running && ranging.valid) {
+    	if (ranging.running && valid) {
     		ranging.sum += time;
     		if (ranging.count)
     			ranging.count--;
@@ -637,7 +892,8 @@ void proto_poll()
     		time = ranging.sum / ranging.count_initial;
     	}
 
-    	ranging.valid = false;
+    	if (valid)
+    	    ranging.valid = false;
 
     	if (!ranging.running) {
     		mm = DWTIME_TO_MILLIMETRES(time);
@@ -662,7 +918,7 @@ void proto_poll()
         		write_int64(tt2);
         	}
 #endif
-        	write_string("\r\n");
+        	write_string("!\r\n");
         }
     }
 
@@ -688,7 +944,7 @@ void proto_poll()
         write_string(",");
         write_int64(turnaround_delay);
 #endif
-        write_string("\r\n");
+        write_string("?\r\n");
     }
     if (tag_packet_timeout) {
     	tag_packet_timeout = false;
@@ -857,7 +1113,7 @@ bool tail_range1(packet_t *p)
 
 	td = ttx - p->timestamp + device.antenna_delay_tx;
 
-	ranging.tx_stamp = ttx;
+	ranging.tx_stamp = ttx + device.antenna_delay_tx;
 
 	proto_header(txbuf);
 	pp = proto_reply(txbuf, p);
@@ -886,9 +1142,9 @@ bool tail_range2(packet_t *p)
 	ttx = ttx & ~0x1ff;
 
 	ranging.rt1 = p->timestamp - ranging.tx_stamp;
-	ranging.tt2 = ttx - p->timestamp;
+	ranging.tt2 = ttx - p->timestamp + device.antenna_delay_tx;
 
-	ranging.tx_stamp = ttx;
+	ranging.tx_stamp = ttx + device.antenna_delay_tx;
 
 	proto_header(txbuf);
 	pp = proto_reply(txbuf, p);
@@ -933,7 +1189,7 @@ bool tail_range4(packet_t *p)
 {
 	ranging.rt2 = TIMESTAMP_READ(p->payload+1);
 
-	ranging.valid = true;
+    ranging.valid = true;
 
 	return false;
 }
@@ -1037,8 +1293,10 @@ bool proto_despatch(uint8_t *buf, int len)
 		/* Data */
 		switch (buf[pp]) {
 		case TAIL_PING:
+			write_string("p");
 			return tail_ping(&p);
 		case TAIL_PONG:
+			write_string("o");
 			return tail_pong(&p);
 		case TAIL_RANGE1:
 			return tail_range1(&p);

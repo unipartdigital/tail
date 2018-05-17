@@ -19,6 +19,7 @@
 #define ROLE_TAG 1
 #define ROLE_ANCHOR 2
 #define ROLE_RANCHOR 3
+#define ROLE_TAGIPV6 6
 
 #define CLOCK_DEBUG 0
 
@@ -26,7 +27,7 @@
 #define ANTENNA_DELAY_TX 16434
 #define ANTENNA_DELAY_RX 16434
 
-radio_config_t demo_config = {
+radio_config_t radio_config = {
 		/* chan */        5,
 		/* prf_high */    false,
 		/* tx_plen */     RADIO_PLEN_128,
@@ -147,7 +148,24 @@ int main(void)
 //    radio_write32(RREG(PMSC_LEDC), FIELDS(PMSC_LEDC, BLNKEN, 1, BLINK_TIM, 2));
     radio_write32(RREG(PMSC_LEDC), FIELDS(PMSC_LEDC, BLNKEN, 1, BLINK_TIM, 1));
 
-    radio_configure(&demo_config);
+    uint8_t byte;
+
+    (void) config_get(config_key_chan, &radio_config.chan, sizeof(radio_config.chan));
+    if (config_get(config_key_prf_high, &byte, 1) > 0)
+    	radio_config.prf_high = byte?true:false;
+    (void) config_get(config_key_tx_plen, &radio_config.tx_plen, sizeof(radio_config.tx_plen));
+    (void) config_get(config_key_rx_pac, &radio_config.rx_pac, sizeof(radio_config.rx_pac));
+    (void) config_get(config_key_tx_pcode, &radio_config.tx_pcode, sizeof(radio_config.tx_pcode));
+    (void) config_get(config_key_rx_pcode, &radio_config.rx_pcode, sizeof(radio_config.rx_pcode));
+    if (config_get(config_key_ns_sfd, &byte, 1) > 0)
+    	radio_config.ns_sfd = byte?true:false;
+    (void) config_get(config_key_data_rate, &radio_config.data_rate, sizeof(radio_config.data_rate));
+    if (config_get(config_key_long_frames, &byte, 1) > 0)
+    	radio_config.long_frames = byte?true:false;
+    (void) config_get(config_key_sfd_timeout, (uint8_t *)&radio_config.sfd_timeout, sizeof(radio_config.sfd_timeout));
+
+
+    radio_configure(&radio_config);
 
     radio_spi_speed(true);
 
@@ -165,6 +183,9 @@ int main(void)
     	break;
     case ROLE_RANCHOR:
     	ranchor();
+    	break;
+    case ROLE_TAGIPV6:
+    	tagipv6();
     	break;
     }
 

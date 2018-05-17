@@ -141,11 +141,6 @@ bool token_uint64(uint64_t *value, int base)
 	return true;
 }
 
-void fn_help(void)
-{
-	write_string("This is a helpful message\r\n");
-}
-
 void fn_test(void)
 {
 	int i;
@@ -267,6 +262,14 @@ void fn_raverage(void)
 void fn_ranchor(void)
 {
 	ranchor();
+}
+
+void fn_tagipv6(void)
+{
+	int period = 1000;
+	(void) token_int(&period, 0);
+
+	tagipv6_with_period(TIME_FROM_MS(period));
 }
 
 /* We pass in the buffer because this is called from fn_config which has already allocated
@@ -501,13 +504,29 @@ void fn_status(void)
     write_string("\r\n");
 }
 
+void fn_help_config(void)
+{
+	write_string("Recognised config variables:\r\n");
+	config_key key;
+	config_enumerate_key_names_start(&key);
+	const char *name;
+	while ((name = config_enumerate_key_names(&key)) != NULL) {
+		write_string("  ");
+		write_string(name);
+		write_string("\r\n");
+	}
+}
+
 typedef struct {
 	const char *command;
 	void (*fn)(void);
 } command;
 
+void fn_help(void);
+
 static command command_table[] = {
 		{"help", &fn_help},
+		{"help_config", &fn_help_config},
 		{"test", &fn_test},
 		{"read", &fn_read},
 		{"write", &fn_write},
@@ -525,8 +544,20 @@ static command command_table[] = {
 		{"range", &fn_range},
 		{"ranchor", &fn_ranchor},
 		{"raverage", &fn_raverage},
-		{"status", &fn_status}
+		{"status", &fn_status},
+		{"tagipv6", &fn_tagipv6}
 };
+
+void fn_help(void)
+{
+	write_string("Recognised commands:\r\n");
+	for (int i = 0; i < ARRAY_SIZE(command_table); i++) {
+		write_string("  ");
+		write_string(command_table[i].command);
+		write_string("\r\n");
+	}
+}
+
 
 void cli_execute(void)
 {

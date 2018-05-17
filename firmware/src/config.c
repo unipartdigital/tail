@@ -315,3 +315,17 @@ config_key config_key_from_name(const char *name)
 	}
 	return CONFIG_KEY_INVALID;
 }
+
+void config_enumerate_key_names_start(config_key *key)
+{
+	*key = 0;
+}
+
+const char *config_enumerate_key_names(config_key *key)
+{
+	if (*key >= ARRAY_SIZE(config_key_table))
+		return NULL;
+	config_key k = *key;
+	(*key)++;
+	return config_key_table[k].name;
+}
