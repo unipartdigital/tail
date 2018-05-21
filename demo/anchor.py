@@ -10,6 +10,7 @@ import argparse
 import ctypes
 import ipaddress
 import json
+import netifaces
 import socket
 import socketserver
 
@@ -53,12 +54,12 @@ class AnchorRequestHandler(socketserver.BaseRequestHandler):
         (data, sock, ancdata, msg_flags) = self.request
         (host, port, flowinfo, scopeid) = self.client_address
         (addr, _, zone) = host.partition('%')
-        values = {'data': data.hex()}
+        values = {'anchor': anchor, 'data': data.hex()}
         ip = ipaddress.ip_address(addr)
         if ip.is_link_local:
-            eui64 = bytearray(ip.packed[8:])
-            eui64[0] ^= 0x02
-            values['eui64'] = eui64.hex()
+            tag = bytearray(ip.packed[8:])
+            tag[0] ^= 0x02
+            values['tag'] = tag.hex()
         for cmsg_level, cmsg_type, cmsg_data in ancdata:
             if (cmsg_level == socket.SOL_SOCKET and
                 cmsg_type == socket.SO_TIMESTAMPING):
@@ -90,11 +91,16 @@ class AnchorServer(socketserver.UDPServer):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Anchor daemon")
+    parser.add_argument('-i', '--interface', type=str, default='lowpan0',
+                        help="Listening network interface")
     parser.add_argument('-l', '--listen', type=int, default=LISTEN_PORT,
                         help="Listening port")
     parser.add_argument('-p', '--port', type=int, default=SEND_PORT)
     parser.add_argument('server', type=str, help="Server address")
     args = parser.parse_args()
-    server = AnchorServer(('', args.listen), AnchorRequestHandler)
+    ifaddrs = netifaces.ifaddresses(args.interface)
+    anchor = ifaddrs.get(netifaces.AF_PACKET)[0]['addr'].replace(':', '')
+    scope = socket.if_nametoindex(args.interface)
+    server = AnchorServer(('', args.listen, 0, scope), AnchorRequestHandler)
     client = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
     server.serve_forever(poll_interval=None)
