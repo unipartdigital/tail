@@ -29,18 +29,39 @@ class Timespec(ctypes.Structure):
     _fields_ = [("tv_sec", ctypes.c_long),
                 ("tv_nsec", ctypes.c_long)]
 
+    def __int__(self):
+        return ((self.tv_sec * 1000000000 + self.tv_nsec) << 32)
+
     def __str__(self):
-        return '%ld.%09ld' % (self.tv_sec, self.tv_nsec)
+        return '%#x' % int(self)
 
     def __bool__(self):
         return bool(self.tv_sec or self.tv_nsec)
+
+
+class Timehires(ctypes.Structure):
+
+    _fields_ = [("tv_nsec", ctypes.c_uint64),
+                ("tv_frac", ctypes.c_uint32),
+                ("__res", ctypes.c_uint32)]
+
+    def __int__(self):
+        return ((self.tv_nsec << 32) | self.tv_frac)
+
+    def __str__(self):
+        return '%#x' % int(self)
+
+    def __bool__(self):
+        return bool(self.tv_nsec or self.tv_frac)
+
 
 
 class Timestamp(ctypes.Structure):
 
     _fields_ = [("sw", Timespec),
                 ("legacy", Timespec),
-                ("hw", Timespec)]
+                ("hw", Timespec),
+                ("hr", Timehires)]
 
     def __str__(self):
         return ','.join('%s=%s' % (x[0], getattr(self, x[0]))
@@ -63,8 +84,9 @@ class AnchorRequestHandler(socketserver.BaseRequestHandler):
         for cmsg_level, cmsg_type, cmsg_data in ancdata:
             if (cmsg_level == socket.SOL_SOCKET and
                 cmsg_type == socket.SO_TIMESTAMPING):
-                ts = Timestamp.from_buffer_copy(cmsg_data)
-                values['ts'] = str(ts.hw)
+                ts_raw = cmsg_data.ljust(ctypes.sizeof(Timestamp), b'\0')
+                ts = Timestamp.from_buffer_copy(ts_raw)
+                values['ts'] = int(ts.hr if ts.hr else ts.hw)
         res = json.dumps(values)
         print(res)
         client.sendto(res.encode() + b'\n', (args.server, args.port))
