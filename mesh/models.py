@@ -14,7 +14,7 @@ C = 299792458
 
 #should be optimised
 @numba.jit(cache=True)
-def point_in_bbox(bbox):#, bbox_int):
+def random_point_in_bbox(bbox):#, bbox_int):
     return [uniform(bbox[i], bbox[i+1]) for i in range(int(len(bbox)/2))]
 
 
@@ -73,6 +73,10 @@ class AnchorMesh(dict):
         self.make_anchors_array()
         self.make_blank_tdoa_array()
         self.make_blank_bbox_array()
+
+    def add_create_anchor(self, id, point):
+        anch = Anchor(id, point)
+        self.update({anch.id: anch})
 
     def update_closest_neighbors(self, anchor):
         # distances = dict()
@@ -157,7 +161,7 @@ class AnchorMesh(dict):
                                         - zero_time))
             bbox_ex.append(numpy.nanmin(self.ex_bbox_array[:, i * 2 + 1]
                                         + zero_time))
-        p = point_in_bbox(bbox_ex)
+        p = random_point_in_bbox(bbox_ex)
         return numpy.array((*p, zero_time))
 
     ############
@@ -171,7 +175,7 @@ class AnchorMesh(dict):
         self.current_base_anchor = numpy.array(sensor.base_anchor.point)
         # print('anchor point expanded', self.anchors_array)
 
-    # @numba.jit(nopython=False, cache=True)
+    @numba.jit(nopython=False, cache=True)
     def f_non_linear(self, x):
         # XXX: remove the sqrts when it starts working
         base = numpy.sqrt(numpy.sum(numpy.square(
@@ -193,11 +197,11 @@ class AnchorMesh(dict):
         position = root(self.f_non_linear, guess, jac=False, method='lm',
                         options={
                             'col_deriv': True,
-                            'maxiter': 1000,
+                            'maxiter': 10000,
                             # 'epsfcn': 1,
-                            'factor': 0.1,
-                            'xtol': 1e-10,
-                            'ftol': 1e-10
+                            'factor': 0.0001,
+                            'xtol': 1E-25,
+                            'ftol': 1E-25
                         })
         return position
 
@@ -245,6 +249,29 @@ class TDOA(object):
                                             self.anchor.id, self.distance)
 
 
+class BBox(object):
+    def __init__(self, p1, p2=None):
+        self.p1 = p1
+        if p2:
+            self.p2 = p2
+        else:
+            self.p2 = Point([0]*len(p1))
+
+    @numba.jit(cache=True)
+    def point_in(self, p):
+        for i in range(len(p)):
+            if not (self.p1[i] <= p[i] <= self.p2[i]
+                    or self.p1[i] >= p[i] >= self.p2[i]):
+                return False
+        return True
+
+    def random_point(self):
+        return Point(tuple(uniform(self.p2[x], self.p1[x])
+                           for x in range(len(self.p1))))
+
+
+
+
 ################
 # test functions
 ################
@@ -263,31 +290,49 @@ def distance2points(p1, p2):
 def get_sensor_tdoas(sensor, mesh):
     toas = {}
     min_toa = 10e25
-    closest_anchor = None
     for id, anchor in mesh.items():
         toas[id] = sensor.test_point.distance2point(anchor.point)
         if toas[id] < min_toa:
             min_toa = toas[id]
-            closest_anchor = anchor
     for id, toa in toas.items():
         sensor.tdoas.update({id: TDOA(mesh[id],
                                       toa - min_toa,
                                       random())})
     sensor.get_base_tdoa()
 
-def try_tdoa(N_attampts, mesh):
+
+def create_random_mesh(N_anchors, bbox):
+    mesh = AnchorMesh()
+    for i in range(N_anchors):
+        p = bbox.random_point()
+        print(p)
+        id = str(i)
+        mesh.add_create_anchor(id, p)
+    print(mesh)
+    return mesh
+
+
+
+# def set_random_sensor_situation(sensor, settings):
+
+
+def try_tdoa(N_attampts, mesh, bbox):
     sensors = []
     all_error = 0
     max_error = 0
     for i in range(N_attampts):
-        sensor = Sensor(point=Point(), test_point=randpoint())
+        sensor = Sensor(point=Point(), test_point=bbox.random_point())
         sensors.append(sensor)
         get_sensor_tdoas(sensor, mesh)
-        # print('tp', sensor.test_point)
         position = mesh.find_sensor_position_non_linear(sensor)
-        # print('position', position.x)
+
         error = distance2points(position.x[1:], sensor.test_point)
-        # print('error', error)
+        if error > 0.1:
+            print('tp', sensor.test_point)
+            print('position', position.x)
+            print('error', error)
+        else:
+            print('success')
         all_error += error
         if error > max_error:
             max_error = error
@@ -299,11 +344,9 @@ def try_tdoa(N_attampts, mesh):
 if __name__ == '__main__':
 
     # get some random anchors
-    a, b, c = 100, 200, 50
-
-
-    def randpoint():
-        return Point((randint(0, a), randint(0, b), randint(0, c)))
+    mesh_bbox = BBox(Point([100, 200, 50]))
+    sensor_bbox = BBox(Point([100, 200, 50]))
+    # print(sensor_bbox, sensor_bbox.p1, sensor_bbox.p2)
 
     # test_coords = [
     #     [70, 142, 26],
@@ -315,12 +358,8 @@ if __name__ == '__main__':
     #     [5, 148, 2],
     # ]
 
-    N_anchors = 7
-    mesh = AnchorMesh()
-    for i in range(N_anchors):
-        p = randpoint()
-        anch = Anchor(str(i), p)
-        mesh.update({anch.id: anch})
+    N_anchors = 4
+    mesh = create_random_mesh(N_anchors=N_anchors, bbox=mesh_bbox)
     # print(mesh.keys(), mesh.values())
 
     # key_iter, mesh_array = mesh.anchors_array()
@@ -328,6 +367,6 @@ if __name__ == '__main__':
 
     # generate some sensors to test with
     start_time = time.time()
-    N_attampts = 10000
+    N_attampts = 100
 
-    cProfile.run('try_tdoa({}, mesh)'.format(N_attampts))
+    cProfile.run('try_tdoa({}, mesh, sensor_bbox)'.format(N_attampts))
