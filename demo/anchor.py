@@ -123,6 +123,6 @@ if __name__ == "__main__":
     ifaddrs = netifaces.ifaddresses(args.interface)
     anchor = ifaddrs.get(netifaces.AF_PACKET)[0]['addr'].replace(':', '')
     scope = socket.if_nametoindex(args.interface)
-    server = AnchorServer(('', args.listen, 0, scope), AnchorRequestHandler)
-    client = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+    server = AnchorServer(('', args.listen), AnchorRequestHandler)
+    client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     server.serve_forever(poll_interval=None)

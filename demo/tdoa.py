@@ -48,6 +48,8 @@ def hyperjump(b0,bs,bi,di,sigma,theta):
     return x[0:3]
 
 def hyperlater(B,R,S,delta=None,theta=0.045,maxiter=8):
+    if R.size < 6:
+        raise np.linalg.LinAlgError('Not enough inputs')
     N = 1
     I = np.argsort(R)
     I0,Ii = I[0],I[1:]
