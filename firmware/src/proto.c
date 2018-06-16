@@ -737,6 +737,7 @@ void stop(void)
     radio_setcallbacks(&callbacks);
 	time_event_clear(tag_start);
 	time_event_clear(range_start);
+	time_event_clear(tagipv6_start);
     radio_txrxoff();
 }
 
