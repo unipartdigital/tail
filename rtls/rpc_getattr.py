@@ -11,7 +11,7 @@ import socket
 import select
 import ctypes
 import json
-
+import sys
 
 class Config():
     remote     = None
@@ -22,6 +22,11 @@ class Config():
 
 cfg = Config()
 
+
+
+def RPCGetAttrRet(args):
+    print('getAttr() = {}'.format(args))
+    return True
 
 
 def SendRPC(sock,func,args):
@@ -37,20 +42,29 @@ def RecvRPC(sock):
     (data, client) = sock.recvfrom(4096)
     try:
         rpc = json.loads(data.decode())
+        func = rpc.get('func', None)
+        args = rpc.get('args', None)
+        if func == 'getAttr::return':
+            return RPCGetAttrRet(args)
     except:
-        rpc = { }
-    pprint.pprint(rpc)
-    
-    
-def SocketLoop():
+        pass
+
+    return False
+
+
+def SocketLoop(attr):
     rsock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     rsock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     rsock.bind(cfg.rpc_bind)
+    
+    SendRPC(rsock, 'getAttr', [attr])
 
-    while True:
+    done = False
+    
+    while not done:
         rset,wset,eset = select.select([rsock],[],[])
         if rsock in rset:
-            RecvRPC(rsock)
+            done = RecvRPC(rsock)
 
     
 def main():
@@ -60,15 +74,20 @@ def main():
     
     parser.add_argument('-p', '--port', type=int, default=cfg.rpc_port)
     parser.add_argument('remote', type=str, help="Remote address")
+    parser.add_argument('attribute', type=str, help="DW1000 sysfs attribute")
     
     args = parser.parse_args()
 
-    cfg.rpc_addr = args.remote
-    cfg.rpc_port = args.port
-    cfg.rpc_dest = (cfg.rpc_addr, cfg.rpc_port)
+    addr = socket.getaddrinfo(args.remote, args.port, socket.AF_INET)[0][4]
+
+    attr = args.attribute
+    
+    cfg.rpc_addr = addr[0]
+    cfg.rpc_port = addr[1]
+    cfg.rpc_dest = addr
     cfg.rpc_bind = ('', cfg.rpc_port)
 
-    SocketLoop()
+    SocketLoop(attr)
     
 
 

@@ -3,7 +3,6 @@
 # Test hack for developing RPi Tail algorithms
 #
 
-import pprint
 import argparse
 import ipaddress
 import netifaces
@@ -33,24 +32,12 @@ def SendRPC(sock,func,args):
     sock.sendto(msg.encode(), cfg.rpc_dest)
 
 
-def RecvRPC(sock):
-    (data, client) = sock.recvfrom(4096)
-    try:
-        rpc = json.loads(data.decode())
-    except:
-        rpc = { }
-    pprint.pprint(rpc)
-    
-    
-def SocketLoop():
+def SocketLoop(attr, data):
     rsock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     rsock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     rsock.bind(cfg.rpc_bind)
-
-    while True:
-        rset,wset,eset = select.select([rsock],[],[])
-        if rsock in rset:
-            RecvRPC(rsock)
+    
+    SendRPC(rsock, 'setAttr', [attr,data])
 
     
 def main():
@@ -60,15 +47,24 @@ def main():
     
     parser.add_argument('-p', '--port', type=int, default=cfg.rpc_port)
     parser.add_argument('remote', type=str, help="Remote address")
+    parser.add_argument('attribute', type=str, help="DW1000 sysfs attribute")
+    parser.add_argument('value', type=str, help="DW1000 sysfs attribute value")
     
     args = parser.parse_args()
 
-    cfg.rpc_addr = args.remote
-    cfg.rpc_port = args.port
-    cfg.rpc_dest = (cfg.rpc_addr, cfg.rpc_port)
+    addr = socket.getaddrinfo(args.remote, args.port, socket.AF_INET)[0][4]
+
+    attr = args.attribute
+    data = args.value
+    
+    cfg.rpc_addr = addr[0]
+    cfg.rpc_port = addr[1]
+    cfg.rpc_dest = addr
     cfg.rpc_bind = ('', cfg.rpc_port)
 
-    SocketLoop()
+    print('Connecting to anchor {}'.format(cfg.rpc_addr))
+
+    SocketLoop(attr,data)
     
 
 

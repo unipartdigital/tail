@@ -3,6 +3,7 @@
 # Test hack for developing RPi Tail algorithms
 #
 
+import pprint
 import argparse
 import ipaddress
 import netifaces
@@ -30,6 +31,7 @@ class Config():
     server_addr   = None
     server_port   = 61666
     server_bind   = None
+    dw1000_sysfs  = '/sys/devices/platform/soc/3f204000.spi/spi_master/spi0/spi0.0/dw1000/'
 
 cfg = Config()
 
@@ -54,27 +56,6 @@ for name,value in (
         ('SOF_TIMESTAMPING_OPT_TX_SWHW',  (1<<14))):
     if not hasattr(socket, name):
         setattr(socket, name, value)
-
-
-class hwts_conf(Structure):
-
-    _fields_ = [("flags", c_int32),
-                ("tx_type", c_int32),
-                ("rx_filter", c_int32)]
-
-    def __init__(self,flg,typ,fil):
-        self.flags = flg
-        self.tx_type = typ
-        self.rx_filter = fil
-
-class ifreq(Structure):
-
-    _fields_ = [("ifr_name", c_char*16),
-                ("ifr_data", POINTER(hwts_conf))]
-
-    def __init__(self,name,data):
-        self.ifr_name = name.encode()
-        self.ifr_data = data
 
 
 class Timespec(Structure):
@@ -123,6 +104,31 @@ class Timestamp(Structure):
                         if getattr(self, x[0]))
 
 
+def SetDWAttr(attr, data):
+    try:
+        fd = open(cfg.dw1000_sysfs + attr, 'w')
+        fd.write(str(data))
+        fd.close()
+        ret = 0
+        print('SetDWAttr({}, {})'.format(attr,data))
+    except:
+        print('SetDWAttr {} := {} failed'.format(attr,data))
+        ret = -1
+    return ret
+
+
+def GetDWAttr(attr):
+    try:
+        fd = open(cfg.dw1000_sysfs + attr, 'r')
+        val = fd.read()
+        fd.close()
+        print('GetDWAttr({}) = {}'.format(attr,val))
+    except:
+        print('GetDWAttr {} failed'.format(attr))
+        val = ''
+    return val.rstrip()
+
+
 def GetTagEUI(addr):
     ip = ipaddress.ip_address(addr)
     if ip.is_link_local:
@@ -131,7 +137,6 @@ def GetTagEUI(addr):
         return tag.hex()
     else:
         return '0'
-
 
 
 def GetAnclTs(ancl):
@@ -145,7 +150,7 @@ def GetAnclTs(ancl):
 
 def SendBlink(sock):
     msg = cfg.anchor_eui
-    print('Blink to ' + str(cfg.blink_send))
+    print('BLINK!')
     sock.sendto(msg.encode(), cfg.blink_send)
 
 
@@ -155,32 +160,57 @@ def RecvBlink(bsock, rsock):
     addr = host.partition('%')[0]
     tss = GetAnclTs(ancl)
     eui = GetTagEUI(addr)
-    out = {
-        'anchor'  : cfg.anchor_eui,
+    msg = {
+        'func'    : 'blink',
         'type'    : 'recv',
+        'anchor'  : cfg.anchor_eui,
         'data'    : data.hex(),
         'tag'     : eui,
         'ts'      : str(tss.hires),
     }
-    res = json.dumps(out)
-    print('RECV timestamp: ' + res)
-    rsock.sendto(res.encode(), cfg.server_send)
+    print('RECV BLINK:')
+    pprint.pprint(msg)
+    SendRPC(rsock,msg)
     
     
 def RecvStamp(bsock, rsock):
     (data, ancl, _, _) = bsock.recvmsg(4096, 1024, socket.MSG_ERRQUEUE)
     tss = GetAnclTs(ancl)
-    out = {
-        'anchor'  : cfg.anchor_eui,
+    msg = {
+        'func'    : 'blink',
         'type'    : 'xmit',
+        'anchor'  : cfg.anchor_eui,
         'data'    : data[28:].hex(),
         'tag'     : cfg.anchor_eui,
         'ts'      : str(tss.hires),
     }
-    res = json.dumps(out)
-    print('XMIT timestamp: ' + res)
-    rsock.sendto(res.encode(), cfg.server_send)
+    print('XMIT BLINK:')
+    pprint.pprint(msg)
+    SendRPC(rsock,msg)
+
+
+def RPCGetAttr(rsock,args):
+    val = GetDWAttr(args[0])
+    msg = {
+        'func'     : 'getAttr::return',
+        'args'     : val,
+    }
+    SendRPC(rsock, msg)
     
+
+def RPCSetAttr(rsock,args):
+    val = SetDWAttr(args[0],args[1])
+    msg = {
+        'func'     : 'setAttr::return',
+        'args'     : val,
+    }
+    SendRPC(rsock, msg)
+
+
+def SendRPC(sock, msg):
+    res = json.dumps(msg)
+    sock.sendto(res.encode(), cfg.server_send)
+
     
 def RecvRPC(bsock, rsock):
     (data, remote) = rsock.recvfrom(4096)
@@ -190,14 +220,15 @@ def RecvRPC(bsock, rsock):
     args = rpc.get('args', None)
     if func == 'blink':
         SendBlink(bsock)
-
+    elif func == 'setAttr':
+        RPCSetAttr(rsock,args)
+    elif func == 'getAttr':
+        RPCGetAttr(rsock,args)
+        
 
 def SocketLoop():
     
     bsock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
-
-#    ifr = ifreq(cfg.if_name, pointer(hwts_conf(0,1,1)))
-#    fcntl.ioctl(bsock, 0x89b0, ifr)
 
     bsock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
@@ -260,7 +291,6 @@ def main():
     cfg.anchor_link  = cfg.if_addr.get(netifaces.AF_INET6)[0]['addr']
     cfg.anchor_ip    = cfg.anchor_link.split('%')[0]
 
-#    cfg.blink_bind  = (cfg.anchor_ip, cfg.blink_port, 0, cfg.if_index)
     cfg.blink_bind  = ('', cfg.blink_port, 0, cfg.if_index)
     cfg.blink_send  = (cfg.blink_addr, cfg.blink_port, 0, cfg.if_index)
 
@@ -269,6 +299,8 @@ def main():
     cfg.server_send = server
     cfg.server_bind = ('', cfg.server_port)
 
+    print('Anchor server starting...')
+    
     SocketLoop()
     
 
