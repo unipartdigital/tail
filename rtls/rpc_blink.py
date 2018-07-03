@@ -36,7 +36,7 @@ def SocketLoop():
     rsock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     rsock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     rsock.bind(cfg.rpc_bind)
-
+    
     SendRPC(rsock, 'blink', 0)
 
     
