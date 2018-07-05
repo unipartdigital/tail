@@ -98,11 +98,6 @@ class Timestamp(Structure):
         ("hw", Timespec),
         ("hires", Timehires) ]
 
-    def __str__(self):
-        return ','.join('%s=%s' % (x[0], getattr(self, x[0]))
-                        for x in self._fields_
-                        if getattr(self, x[0]))
-
 
 def SetDWAttr(attr, data):
     try:
@@ -110,7 +105,7 @@ def SetDWAttr(attr, data):
         fd.write(str(data))
         fd.close()
         ret = 0
-        print('SetDWAttr({}, {})'.format(attr,data))
+        #print('SetDWAttr({}, {})'.format(attr,data))
     except:
         print('SetDWAttr {} := {} failed'.format(attr,data))
         ret = -1
@@ -122,7 +117,7 @@ def GetDWAttr(attr):
         fd = open(cfg.dw1000_sysfs + attr, 'r')
         val = fd.read()
         fd.close()
-        print('GetDWAttr({}) = {}'.format(attr,val))
+        #print('GetDWAttr({}) = {}'.format(attr,val))
     except:
         print('GetDWAttr {} failed'.format(attr))
         val = ''
@@ -148,61 +143,90 @@ def GetAnclTs(ancl):
     return tss
 
 
-def SendBlink(sock):
-    msg = cfg.anchor_eui
-    print('BLINK!')
-    sock.sendto(msg.encode(), cfg.blink_send)
-
-
 def RecvBlink(bsock, rsock):
-    (data, ancl, flags, remote) = bsock.recvmsg(4096, 1024, 0)
-    host = remote[0]
-    addr = host.partition('%')[0]
+    (data, ancl, flags, rem) = bsock.recvmsg(4096, 1024, 0)
+    try:
+        (bst,bid) = struct.unpack('!16sI', data)
+        eui = bst.decode()
+    except:
+        eui = GetTagEUI(rem[0].partition('%')[0])
+        bid = None
     tss = GetAnclTs(ancl)
-    eui = GetTagEUI(addr)
     msg = {
-        'func'    : 'blink',
-        'type'    : 'recv',
-        'anchor'  : cfg.anchor_eui,
-        'data'    : data.hex(),
-        'tag'     : eui,
-        'ts'      : str(tss.hires),
+        'func'    : 'blinkRecv',
+        'args'    : {
+            'anchor'  : cfg.anchor_eui,
+            'bid'     : bid,
+            'tag'     : eui,
+            'tss'     : str(tss.hires),
+        },
+        'seqn'    : 0,
     }
-    print('RECV BLINK:')
-    pprint.pprint(msg)
+    #print('RECV BLINK:')
+    #pprint.pprint(msg)
     SendRPC(rsock,msg)
     
     
 def RecvStamp(bsock, rsock):
     (data, ancl, _, _) = bsock.recvmsg(4096, 1024, socket.MSG_ERRQUEUE)
+    try:
+        (bst,bid) = struct.unpack('!16sI', data[28:])
+        eui = bst.decode()
+    except:
+        eui = cfg.anchor_eui
+        bid = None
     tss = GetAnclTs(ancl)
     msg = {
-        'func'    : 'blink',
-        'type'    : 'xmit',
-        'anchor'  : cfg.anchor_eui,
-        'data'    : data[28:].hex(),
-        'tag'     : cfg.anchor_eui,
-        'ts'      : str(tss.hires),
+        'func'    : 'blinkXmit',
+        'args'    : {
+            'anchor'  : cfg.anchor_eui,
+            'bid'     : bid,
+            'tag'     : eui,
+            'tss'     : str(tss.hires),
+        },
+        'seqn'    : 0,
     }
-    print('XMIT BLINK:')
-    pprint.pprint(msg)
+    #print('XMIT BLINK:')
+    #pprint.pprint(msg)
     SendRPC(rsock,msg)
 
 
-def RPCGetAttr(rsock,args):
-    val = GetDWAttr(args[0])
+def RPCBlink(rpc,sock):
+    args = rpc['args']
+    bid = args.get('bid', 0)
+    msg = struct.pack('!16sI', cfg.anchor_eui.encode(), bid)
+    sock.sendto(msg, cfg.blink_send)
+
+
+def RPCGetEUI(rpc,rsock):
+    args = rpc['args']
+    eui = cfg.anchor_eui
     msg = {
-        'func'     : 'getAttr::return',
-        'args'     : val,
+        'func'  : 'getEUI::ret',
+        'args'  : { 'value': eui },
+        'seqn'  : rpc['seqn'],
+    }
+    SendRPC(rsock, msg)
+
+
+def RPCGetAttr(rpc,rsock):
+    args = rpc['args']
+    val = GetDWAttr(args['attr'])
+    msg = {
+        'func'  : 'getAttr::ret',
+        'args'  : { 'attr': args['attr'], 'value': val },
+        'seqn'  : rpc['seqn'],
     }
     SendRPC(rsock, msg)
     
 
-def RPCSetAttr(rsock,args):
-    val = SetDWAttr(args[0],args[1])
+def RPCSetAttr(rpc,rsock):
+    args = rpc['args']
+    val = SetDWAttr(args['attr'], args['value'])
     msg = {
-        'func'     : 'setAttr::return',
-        'args'     : val,
+        'func'     : 'setAttr::ret',
+        'args'     : { 'attr': args['attr'], 'value': val },
+        'seqn'     : rpc['seqn'],
     }
     SendRPC(rsock, msg)
 
@@ -215,15 +239,15 @@ def SendRPC(sock, msg):
 def RecvRPC(bsock, rsock):
     (data, remote) = rsock.recvfrom(4096)
     rpc = json.loads(data.decode())
-    print('RPC call: {}'.format(rpc))
     func = rpc.get('func', 'none')
-    args = rpc.get('args', None)
     if func == 'blink':
-        SendBlink(bsock)
+        RPCBlink(rpc,bsock)
     elif func == 'setAttr':
-        RPCSetAttr(rsock,args)
+        RPCSetAttr(rpc,rsock)
     elif func == 'getAttr':
-        RPCGetAttr(rsock,args)
+        RPCGetAttr(rpc,rsock)
+    elif func == 'getEUI':
+        RPCGetEUI(rpc,rsock)
         
 
 def SocketLoop():
@@ -249,7 +273,7 @@ def SocketLoop():
     
     bsock.bind(cfg.blink_bind)
     
-    rsock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    rsock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
     rsock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     rsock.bind(cfg.server_bind)
 
@@ -281,7 +305,7 @@ def main():
     
     args = parser.parse_args()
 
-    server = socket.getaddrinfo(args.server, args.port, socket.AF_INET)[0][4]
+    server = socket.getaddrinfo(args.server, args.port, socket.AF_INET6)[0][4]
 
     cfg.if_name   = args.interface
     cfg.if_addr   = netifaces.ifaddresses(args.interface)
@@ -297,7 +321,7 @@ def main():
     cfg.server_addr = server[0]
     cfg.server_port = server[1]
     cfg.server_send = server
-    cfg.server_bind = ('', cfg.server_port)
+    cfg.server_bind = ('', server[1])
 
     print('Anchor server starting...')
     
