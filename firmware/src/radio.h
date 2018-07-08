@@ -42,6 +42,21 @@ typedef struct
 
 #define RADIO_SFD_TIMEOUT_DEFAULT 0x1041
 
+/* To be used in the first argument of radio_configsleep */
+#define RADIO_SLEEP_PRESERVE   0x100
+#define RADIO_SLEEP_LOADOPSET   0x80
+#define RADIO_SLEEP_CONFIG      0x40
+#define RADIO_SLEEP_LOADEUI     0x08
+#define RADIO_SLEEP_GOTORX      0x04
+#define RADIO_SLEEP_TANDV       0x01
+
+/* To be used in the second argument of radio_configsleep */
+#define RADIO_SLEEP_XTAL_ENABLE 0x10
+#define RADIO_SLEEP_WAKE_CONUT  0x08
+#define RADIO_SLEEP_WAKE_CS     0x04
+#define RADIO_SLEEP_WAKE_WAKEUP 0x02
+#define RADIO_SLEEP_ENABLE      0x01
+
 typedef void (*radio_callback)(void);
 
 typedef struct radio_callbacks {
@@ -88,5 +103,9 @@ void radio_antenna_delay_rx(uint16_t delay);
 void radio_antenna_delay_tx(uint16_t delay);
 void radio_xtal_trim(uint8_t value);
 uint32_t radio_otp_read32(uint32_t address);
+void radio_configsleep(uint16_t mode, uint8_t wake);
+void radio_entersleep(void);
+void radio_wakeup(void);
+void radio_cswakeup(void);
 
 #endif /* _RADIO_H */

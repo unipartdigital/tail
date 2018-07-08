@@ -183,14 +183,15 @@ static uint16_t repc_values[] = {
 	/* 24 */ 0x3850
 };
 
-uint32_t radio_syscfg;
-bool radio_long_frames;
-uint32_t radio_tx_fctrl;
-uint8_t radio_trim_init;
-uint16_t radio_aon_wcfg;
-uint8_t radio_otp_rev;
-uint32_t radio_chipid;
-uint32_t radio_lotid;
+static uint32_t radio_syscfg;
+static bool radio_long_frames;
+static uint32_t radio_tx_fctrl;
+static uint8_t radio_trim_init;
+static uint16_t radio_aon_wcfg;
+static uint8_t radio_otp_rev;
+static uint32_t radio_chipid;
+static uint32_t radio_lotid;
+
 
 void delay(int ms)
 {
@@ -258,12 +259,17 @@ void radio_init(bool loadlde)
     uint16_t val;
     uint32_t ldo_tune;
 
+	radio_spi_init();
+
+	/* If the radio was asleep then it needs to be woken up before it can be accessed */
+	radio_wakeup();
+
+	delay(1);
+
 	/* Reset the radio */
 	GPIO_PinModeSet(gpioPortC, 10, gpioModePushPull, 0);
 	delay(1);
 	GPIO_PinModeSet(gpioPortC, 10, gpioModeInput, 0);
-
-	radio_spi_init();
 
 	if (radio_deviceid() != 0xDECA0130)
 		for (;;) ;
@@ -829,6 +835,38 @@ uint32_t radio_otp_read32(uint32_t address)
     radio_write8(RREG(OTP_CTRL), FIELDS(OTP_CTRL, OTPREAD, 1, OTPRDEN, 1));
     radio_write8(RREG(OTP_CTRL), 0x00);
     return radio_read32(RREG(OTP_RDAT));
+}
+
+void radio_configsleep(uint16_t mode, uint8_t wake)
+{
+    mode |= radio_aon_wcfg;
+    radio_write16(RREG(AON_WCFG), mode);
+    radio_write8(RREG(AON_CFG0), wake);
+}
+
+void radio_entersleep(void)
+{
+    radio_aonarrayupload();
+}
+
+/* Note that a wakeup can cause a transfer of AON memory to core registers.
+ * Access to those core registers should be avoided until the transfer is
+ * complete. The datasheet doesn't indicate how long this takes or how to
+ * tell once it's done. The Tx buffer is not part of this set.
+ */
+void radio_wakeup(void)
+{
+    radio_spi_wakeup_assert();
+    /* Needs to be at least 500us */
+    delay(1);
+    radio_spi_wakeup_deassert();
+}
+
+void radio_cswakeup(void)
+{
+    radio_spi_start();
+    delay(1);
+    radio_spi_stop();
 }
 
 #endif

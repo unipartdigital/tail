@@ -9,6 +9,10 @@
 #define RADIO_BITRATE_SLOW 3000000
 #define RADIO_BITRATE_FAST 20000000
 
+#define RADIO_WAKEUP_PORT gpioPortC
+#define RADIO_WAKEUP_PIN 11
+#define RADIO_USE_WAKEUP
+
 void radio_spi_init(void)
 {
 	CMU_ClockEnable(cmuClock_HFPER, true);
@@ -28,6 +32,9 @@ void radio_spi_init(void)
 	GPIO_PinModeSet((GPIO_Port_TypeDef)AF_USART0_RX_PORT(RADIO_LOCATION), AF_USART0_RX_PIN(RADIO_LOCATION), gpioModeInput, 0);
 	GPIO_PinModeSet((GPIO_Port_TypeDef)AF_USART0_CS_PORT(RADIO_LOCATION), AF_USART0_CS_PIN(RADIO_LOCATION), gpioModePushPull, 1);
 	GPIO_PinModeSet((GPIO_Port_TypeDef)AF_USART0_CLK_PORT(RADIO_LOCATION), AF_USART0_CLK_PIN(RADIO_LOCATION), gpioModePushPull, 0);
+#ifdef RADIO_USE_WAKEUP
+	GPIO_PinModeSet((GPIO_Port_TypeDef)RADIO_WAKEUP_PORT, RADIO_WAKEUP_PIN, gpioModePushPull, 0);
+#endif
 }
 
 void radio_spi_speed(bool fast)
@@ -44,6 +51,18 @@ void radio_spi_stop(void)
 {
 	GPIO_PinOutSet ((GPIO_Port_TypeDef)AF_USART0_CS_PORT(RADIO_LOCATION), AF_USART0_CS_PIN(RADIO_LOCATION));
 }
+
+#ifdef RADIO_USE_WAKEUP
+void radio_spi_wakeup_deassert(void)
+{
+	GPIO_PinOutClear ((GPIO_Port_TypeDef)RADIO_WAKEUP_PORT, RADIO_WAKEUP_PIN);
+}
+
+void radio_spi_wakeup_assert(void)
+{
+	GPIO_PinOutSet ((GPIO_Port_TypeDef)RADIO_WAKEUP_PORT, RADIO_WAKEUP_PIN);
+}
+#endif
 
 #if 0
 static inline uint8_t radio_spi_transfer(uint8_t data)

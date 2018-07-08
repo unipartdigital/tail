@@ -517,6 +517,17 @@ void fn_help_config(void)
 	}
 }
 
+void fn_sleep(void)
+{
+	radio_configsleep(RADIO_SLEEP_CONFIG | RADIO_SLEEP_TANDV, RADIO_SLEEP_WAKE_WAKEUP | RADIO_SLEEP_ENABLE);
+	radio_entersleep();
+}
+
+void fn_wake(void)
+{
+	radio_wakeup();
+}
+
 typedef struct {
 	const char *command;
 	void (*fn)(void);
@@ -545,7 +556,9 @@ static command command_table[] = {
 		{"ranchor", &fn_ranchor},
 		{"raverage", &fn_raverage},
 		{"status", &fn_status},
-		{"tagipv6", &fn_tagipv6}
+		{"tagipv6", &fn_tagipv6},
+		{"sleep", &fn_sleep},
+		{"wake", &fn_wake}
 };
 
 void fn_help(void)
