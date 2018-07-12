@@ -188,6 +188,101 @@ void fn_erase(void)
 	flash_erase((void *)addr, FLASH_PAGE_SIZE);
 }
 
+void fn_rread(void)
+{
+	int file;
+	int reg;
+	int len;
+	int i;
+
+	if ((!token_int(&file, 16)) || (!token_int(&reg, 16)) || (!token_int(&len, 0))) {
+		write_string("Usage: read <file> <register> <length>\r\n");
+		return;
+	}
+
+	/* We're going to use clibuf because at this point it's not going to be reused.
+	 * This will be a problem if we ever decide to implement command history.
+	 */
+	if (len > CLI_MAXLEN+1)
+		len = CLI_MAXLEN+1;
+	radio_read(file, reg, (uint8_t *)clibuf, len);
+
+	for (i = 0; i < len; i++)
+	{
+        write_hex(clibuf[i]);
+        write_string(" ");
+	}
+    write_string("\r\n");
+}
+
+void fn_rdump(void)
+{
+	struct { const char *name; uint8_t file; uint16_t reg; uint8_t len; } rset[] = {
+#define X(name)			{ #name, RREG(name), RLEN(name) },
+			X(DEV_ID)
+			X(SYS_STATUS)
+			X(SYS_CFG)
+			X(SYS_MASK)
+			X(SYS_CTRL)
+			X(EC_CTRL)
+			X(OTP_SF)
+			X(OTP_CTRL)
+			X(FS_PLLCFG)
+			X(FS_PLLTUNE)
+			X(FS_XTALT)
+			X(RF_RXCTRLH)
+			X(RF_TXCTRL)
+			X(DRX_TUNE0B)
+			X(DRX_TUNE1A)
+			X(DRX_TUNE1B)
+			X(DRX_TUNE4H)
+			X(DRX_TUNE2)
+			X(DRX_SFDTOC)
+			X(AGC_TUNE2)
+			X(AGC_TUNE1)
+			X(USR_SFD)
+			X(CHAN_CTRL)
+			X(TX_FCTRL)
+			X(RX_FWTO)
+			X(RX_FINFO)
+			X(LDE_CFG1)
+			X(LDE_CFG2)
+			X(LDE_REPC)
+			X(DX_TIME)
+			X(TX_TIME)
+			X(RX_TIME)
+			X(PMSC_CTRL0)
+			X(PMSC_CTRL1)
+			X(PMSC_LEDC)
+			X(GPIO_MODE)
+			X(AON_WCFG)
+			X(AON_CFG0)
+			X(AON_CFG1)
+			X(AON_CTRL)
+			X(LDE_RXANTD)
+			X(TX_ANTD)
+#undef X
+	};
+	int r, i;
+	for (r = 0; r < ARRAY_SIZE(rset); r++) {
+		uint8_t file = rset[r].file;
+		uint16_t reg = rset[r].reg;
+		int len = rset[r].len;
+	    if (len > CLI_MAXLEN+1)
+		    len = CLI_MAXLEN+1;
+	    radio_read(file, reg, (uint8_t *)clibuf, len);
+
+	    write_string(rset[r].name);
+	    write_string(": ");
+	    for (i = 0; i < len; i++)
+	    {
+            write_hex(clibuf[i]);
+            write_string(" ");
+	    }
+        write_string("\r\n");
+	}
+}
+
 void fn_stop(void)
 {
 	txrx_rxactive = false;
@@ -558,7 +653,9 @@ static command command_table[] = {
 		{"status", &fn_status},
 		{"tagipv6", &fn_tagipv6},
 		{"sleep", &fn_sleep},
-		{"wake", &fn_wake}
+		{"wake", &fn_wake},
+		{"rread", &fn_rread},
+		{"rdump", &fn_rdump},
 };
 
 void fn_help(void)

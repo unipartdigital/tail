@@ -140,13 +140,7 @@ int main(void)
   }
 #endif
 
-    uint32_t reg = radio_read32(RREG(PMSC_CTRL0));
-    FIELDS_EDIT(reg, PMSC_CTRL0, KHZCLKEN, 1, GPDRN, 1, GPDCE, 1, GPRN, 1, GPCE, 1);
-    radio_write32(RREG(PMSC_CTRL0), reg);
-
-    radio_write32(RREG(GPIO_MODE), FIELDS(GPIO_MODE, MSGP0, 1, MSGP1, 1, MSGP2, 1, MSGP3, 1));
-//    radio_write32(RREG(PMSC_LEDC), FIELDS(PMSC_LEDC, BLNKEN, 1, BLINK_TIM, 2));
-    radio_write32(RREG(PMSC_LEDC), FIELDS(PMSC_LEDC, BLNKEN, 1, BLINK_TIM, 1));
+    radio_leds(true, 1);
 
     uint8_t byte;
 

@@ -107,5 +107,9 @@ void radio_configsleep(uint16_t mode, uint8_t wake);
 void radio_entersleep(void);
 void radio_wakeup(void);
 void radio_cswakeup(void);
+void radio_wakeup_action(void);
+void radio_cswakeup_action(void);
+void radio_leds(bool on, int time);
+void radio_leds_restore(void);
 
 #endif /* _RADIO_H */

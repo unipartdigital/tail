@@ -191,6 +191,12 @@ static uint16_t radio_aon_wcfg;
 static uint8_t radio_otp_rev;
 static uint32_t radio_chipid;
 static uint32_t radio_lotid;
+static bool radio_ledstate;
+static int radio_ledtime;
+
+static bool radio_long_frames;
+static uint8_t radio_fs_plltune;
+static bool radio_prf_high;
 
 
 void delay(int ms)
@@ -262,7 +268,7 @@ void radio_init(bool loadlde)
 	radio_spi_init();
 
 	/* If the radio was asleep then it needs to be woken up before it can be accessed */
-	radio_wakeup();
+	radio_wakeup_action();
 
 	delay(1);
 
@@ -499,15 +505,17 @@ void radio_configure(radio_config_t *config)
     }
 
     radio_long_frames = config->long_frames;
+    radio_fs_plltune = fs_plltune_values[ch_index];
+    radio_prf_high = config->prf_high;
 
     FIELDS_EDIT(radio_syscfg, SYS_CFG, PHR_MODE, radio_long_frames?3:0);
 
     radio_write32(RREG(SYS_CFG), radio_syscfg);
     radio_write16(RREG(LDE_REPC), repc);
-	radio_configlde(config->prf_high);
+	radio_configlde(radio_prf_high);
 
     radio_write32(RREG(FS_PLLCFG), fs_pllcfg_values[ch_index]);
-    radio_write8(RREG(FS_PLLTUNE), fs_plltune_values[ch_index]);
+    radio_write8(RREG(FS_PLLTUNE), radio_fs_plltune);
     radio_write8(RREG(RF_RXCTRLH), bw_wide?0xBC:0xD8);
     radio_write32(RREG(RF_TXCTRL), rf_txctrl_values[ch_index]);
     radio_write16(RREG(DRX_TUNE0B), drx_tune0b_values[config->data_rate * 2 + (config->ns_sfd?1:0)]);
@@ -849,24 +857,68 @@ void radio_entersleep(void)
     radio_aonarrayupload();
 }
 
+void radio_wakeup_restore(void)
+{
+    radio_leds_restore();
+	radio_configlde(radio_prf_high);
+    radio_write8(RREG(FS_PLLTUNE), radio_fs_plltune);
+    /* Let's hope that AGC_TUNE2 is actually set - AGC_TUNE1 is mentioned
+     * twice in the datasheet so we presume this is an error
+     */
+}
+
 /* Note that a wakeup can cause a transfer of AON memory to core registers.
  * Access to those core registers should be avoided until the transfer is
  * complete. The datasheet doesn't indicate how long this takes or how to
  * tell once it's done. The Tx buffer is not part of this set.
  */
-void radio_wakeup(void)
+void radio_wakeup_action(void)
 {
     radio_spi_wakeup_assert();
     /* Needs to be at least 500us */
     delay(1);
     radio_spi_wakeup_deassert();
+    delay(5);
 }
 
-void radio_cswakeup(void)
+void radio_wakeup(void)
+{
+	radio_wakeup_action();
+    radio_wakeup_restore();
+}
+
+void radio_cswakeup_action(void)
 {
     radio_spi_start();
     delay(1);
     radio_spi_stop();
+    delay(5);
+}
+
+void radio_cswakeup(void)
+{
+	radio_cswakeup_action();
+    radio_wakeup_restore();
+}
+
+void radio_leds_restore(void)
+{
+	bool on = radio_ledstate;
+	int time = radio_ledtime;
+
+    uint32_t reg = radio_read32(RREG(PMSC_CTRL0));
+    FIELDS_EDIT(reg, PMSC_CTRL0, KHZCLKEN, on, GPDRN, 1, GPDCE, 1, GPRN, 1, GPCE, 1);
+    radio_write32(RREG(PMSC_CTRL0), reg);
+
+    radio_write32(RREG(GPIO_MODE), FIELDS(GPIO_MODE, MSGP0, on, MSGP1, on, MSGP2, on, MSGP3, on));
+    radio_write32(RREG(PMSC_LEDC), FIELDS(PMSC_LEDC, BLNKEN, on, BLINK_TIM, time));
+}
+/* Some of these bits aren't preserved over sleep, so it's best to call this again after wakeup */
+void radio_leds(bool on, int time)
+{
+	radio_ledstate = on;
+	radio_ledtime = time;
+	radio_leds_restore();
 }
 
 #endif
