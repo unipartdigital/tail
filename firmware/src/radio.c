@@ -197,7 +197,7 @@ static int radio_ledtime;
 static bool radio_long_frames;
 static uint8_t radio_fs_plltune;
 static bool radio_prf_high;
-
+static uint16_t radio_saved_antenna_delay_tx;
 
 void delay(int ms)
 {
@@ -757,6 +757,7 @@ void radio_antenna_delay_rx(uint16_t delay)
 
 void radio_antenna_delay_tx(uint16_t delay)
 {
+	radio_saved_antenna_delay_tx = delay;
 	radio_write16(RREG(TX_ANTD), delay);
 }
 
@@ -865,6 +866,7 @@ void radio_wakeup_restore(void)
     /* Let's hope that AGC_TUNE2 is actually set - AGC_TUNE1 is mentioned
      * twice in the datasheet so we presume this is an error
      */
+    radio_antenna_delay_tx(radio_saved_antenna_delay_tx);
 }
 
 /* Note that a wakeup can cause a transfer of AON memory to core registers.
