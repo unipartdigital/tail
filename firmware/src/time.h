@@ -27,6 +27,7 @@
 #define TIME_FROM_MS(x)      (((x) * TIME_CLOCK) / (TIME_PRESCALER * 1000))
 
 #define TIME_INVALID 0xffffffff
+#define TIME_VALID(x) ((x) < 0x1000000)
 
 /* Here we list all the events which can be scheduled. Each one corresponds
  * to a function of the same name, which you must declare. That is what will
@@ -57,6 +58,8 @@ uint32_t time_add(uint32_t a, uint32_t b);
 uint32_t time_sub(uint32_t a, uint32_t b);
 void time_event_schedule_at(time_event_id index, uint32_t time);
 void time_event_schedule_in(time_event_id index, uint32_t time);
+void time_early_wakeup(time_event_fn function, uint32_t time);
+uint32_t time_to_next_event(void);
 
 #define time_event_at(event, time) time_event_schedule_at(time_event_id_##event, time)
 #define time_event_in(event, time) time_event_schedule_in(time_event_id_##event, time)

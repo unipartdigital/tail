@@ -68,6 +68,8 @@ typedef struct {
 	uint64_t *txtime_ptr;
 	bool continuous_receive;
 	bool receive_after_transmit;
+	volatile bool radio_active;
+	bool radio_sleeping;
 } device_t;
 
 device_t device = {
@@ -80,7 +82,9 @@ device_t device = {
 		.antenna_delay_rx = 0,
 		.txtime_ptr = NULL,
 		.continuous_receive = false,
-		.receive_after_transmit = false
+		.receive_after_transmit = false,
+		.radio_active = false,
+		.radio_sleeping = false
 };
 
 typedef struct {
@@ -233,6 +237,8 @@ void proto_rxdone(void);
 void proto_rxtimeout(void);
 void proto_rxerror(void);
 bool proto_despatch(uint8_t *buf, int len);
+void proto_prepare(void);
+
 
 radio_callbacks proto_callbacks = {
 		.txdone = proto_txdone,
@@ -256,10 +262,16 @@ void proto_init(void)
     device.pan = 0;
     if (config_get(config_key_pan, (uint8_t *)&device.pan, sizeof(device.pan)) <= 0)
     	device.pan = PAN_UNASSOCIATED;
+
+    device.radio_active = false;
+    device.radio_sleeping = false;
+
+    time_early_wakeup(proto_prepare, PROTO_PREPARETIME);
 }
 
 void start_rx(void)
 {
+	device.radio_active = true;
 	radio_rxstart(false);
 }
 
@@ -374,6 +386,7 @@ void rxdone_tag(void)
 	    half_ping_distance = DWTIME_TO_MILLIMETRES(half_ping);
 	    distance_valid = true;
 	}
+	device.radio_active = false;
 
 //	GPIO_PinOutToggle(gpioPortA, 1);
 }
@@ -411,6 +424,8 @@ void proto_txdone(void)
 	}
 	if (device.receive_after_transmit)
 	    start_rx();
+	else
+		device.radio_active = false;
 
 	GPIO_PinOutToggle(gpioPortA, 1);
 	debug.in_txdone = false;
@@ -428,6 +443,8 @@ void proto_rxdone(void)
 #if 1
     if (!proto_despatch(rxbuf, len) && device.continuous_receive)
        	start_rx();
+    else
+    	device.radio_active = false;
 #else
 	(void) len;
 #endif
@@ -441,6 +458,8 @@ void proto_rxtimeout(void)
 	debug.in_rxtimeout = true;
 	if (device.continuous_receive)
     	start_rx();
+	else
+		device.radio_active = false;
 	debug.in_rxtimeout = false;
 }
 
@@ -459,12 +478,14 @@ void tag_start(void)
     }
 	time_event_in(tag_start, tag_period);
 //	time_event_in(tag_start, TIME_FROM_MS(200));
+	device.radio_active = true;
 	radio_txstart(false);
 }
 
 void tag_with_period(int period)
 {
-    radio_callbacks tag_callbacks = {
+	proto_prepare();
+	radio_callbacks tag_callbacks = {
     		.txdone = txdone_tag,
     		.rxdone = rxdone_tag,
     		.rxtimeout = rxtimeout_tag,
@@ -662,13 +683,21 @@ void tagipv6_start(void)
     radio_writepayload(txbuf, offset, 0);
     radio_txprepare(offset+2, 0, false);
 
+	device.radio_active = true;
+
 	radio_txstart(false);
+}
+
+void tagipv6_txdone(void)
+{
+	device.radio_active = false;
 }
 
 void tagipv6_with_period(int period)
 {
+	proto_prepare();
     radio_callbacks tag_callbacks = {
-    		.txdone = NULL,
+    		.txdone = tagipv6_txdone,
     		.rxdone = NULL,
     		.rxtimeout = NULL,
     		.rxerror = NULL
@@ -717,6 +746,7 @@ void tag_average(int period, int count)
 
 void anchor(void)
 {
+	proto_prepare();
     radio_callbacks anchor_callbacks = {
     		.txdone = txdone,
     		.rxdone = rxdone_anchor,
@@ -739,6 +769,7 @@ void stop(void)
 	time_event_clear(range_start);
 	time_event_clear(tagipv6_start);
     radio_txrxoff();
+    device.radio_active = false;
 }
 
 #if 1
@@ -748,6 +779,7 @@ void range_start(void)
 
 	if (ranging.running && (ranging.count == 0)) {
 		ranging.done = true;
+		device.radio_active = false;
 		return;
     }
 
@@ -763,11 +795,13 @@ void range_start(void)
     device.txtime_ptr = &ranging.tx_stamp;
 
 	time_event_in(range_start, ranging.period);
+	device.radio_active = true;
 	radio_txstart(false);
 }
 
 void range_with_period(address_t *addr, int period)
 {
+	proto_prepare();
 	radio_setcallbacks(&proto_callbacks);
 
 	device.continuous_receive = false;
@@ -816,6 +850,7 @@ void range_average(address_t *address, int period, int count)
 
 void ranchor(void)
 {
+	proto_prepare();
 	radio_setcallbacks(&proto_callbacks);
 
 	device.continuous_receive = true;
@@ -841,6 +876,8 @@ void ranchor(void)
 	ranging.count = 0;
 	ranging.count_initial = 0;
 	ranging.sum = 0;
+
+	device.radio_active = true;
 
     start_rx();
 }
@@ -957,6 +994,24 @@ void proto_poll()
         if (!tag_average_running)
             write_string("***ERROR***\r\n");
     }
+    if (!device.radio_active && !device.radio_sleeping) {
+    	if (time_to_next_event() >= PROTO_PREPARETIME) {
+    	    device.radio_sleeping = true;
+    	    radio_configsleep(RADIO_SLEEP_CONFIG | RADIO_SLEEP_TANDV, RADIO_SLEEP_WAKE_WAKEUP | RADIO_SLEEP_ENABLE);
+    	    radio_entersleep();
+    	}
+    }
+}
+
+/* Called when the radio may be asleep and we need to get ready for action */
+void proto_prepare(void)
+{
+    if (!device.radio_sleeping)
+    	return;
+    device.radio_sleeping = false;
+    /* Keep the radio awake until it is used */
+    device.radio_active = true;
+    radio_wakeup();
 }
 
 void set_antenna_delay_tx(uint16_t delay)

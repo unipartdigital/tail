@@ -99,6 +99,9 @@ int main(void)
 #endif
   GPIO_PinModeSet(gpioPortA, 1, gpioModePushPull ,0);
 
+  /* Battery monitor disable - saves a couple of microamps */
+  GPIO_PinModeSet(gpioPortD, 7, gpioModePushPull, 0);
+
   int_init();
 
   delay(100);

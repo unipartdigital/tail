@@ -12,6 +12,13 @@
 #define PAN_UNASSOCIATED 0xffff
 #define PAN_BROADCAST 0xffff
 
+/* Time that we need in order to prepare for an event.
+ * Estimate this based on the radio wakeup time with a safety
+ * margin. Depending on the clock resolution there may be
+ * rounding errors.
+ */
+#define PROTO_PREPARETIME TIME_FROM_MS(10)
+
 typedef struct {
 	int type;
 	uint16_t pan;
