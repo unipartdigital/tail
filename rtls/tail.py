@@ -16,12 +16,19 @@ import time
 import sys
 
 
+def eprint(*args, **kwargs):
+    print(*args, file=sys.stderr, **kwargs)
+
+
 class Timer:
 
     def __init__(self):
         self.start = time.time()
         self.timer = self.start
         
+    def get(self):
+        return self.timer - self.start
+
     def nap(self,delta):
         self.timer += delta
         while True:
@@ -29,6 +36,7 @@ class Timer:
             if now > self.timer:
                 break
             time.sleep(self.timer - now)
+        return self.get()
 
 
 class RPC:
@@ -46,7 +54,6 @@ class RPC:
         self.thread.start()
 
     def run(self):
-        print("RPC thread starting")
         while self.running:
             rset,wset,eset = select.select([self.sock],[],[],0.1)
             if self.sock in rset:
@@ -64,7 +71,7 @@ class RPC:
             seqn = data.get('seqn')
             retf = func + '::' + str(seqn)
         except:
-            print("Invalid RPC message received")
+            eprint("Invalid RPC message received")
             return
         if retf in self.handler:
             self.handler[retf](data)
@@ -136,76 +143,123 @@ class RPC:
 
 class Blinker():
 
-    def __init__(self,rpc):
+    def __init__(self,rpc,rxs):
         self.rpc = rpc
+        self.rxs = rxs
         self.bid = 1
         self.blinks = {}
         self.waiting = {}
-        self.queue = queue.Queue()
-        self.thread = threading.Thread(target=self.run)
+        self.bqueue = queue.Queue()
+        self.pqueue = queue.Queue()
+        self.bthread = threading.Thread(target=self.blink_run)
+        self.pthread = threading.Thread(target=self.print_run)
         rpc.register('blinkRecv', self.BlinkRecv)
         rpc.register('blinkXmit', self.BlinkXmit)
-        self.thread.start()
+        self.pthread.start()
+        self.bthread.start()
 
-    def run(self):
-        print('Blink thread starting')
+    def blink_run(self):
         while True:
-            item = self.queue.get()
-            self.queue.task_done()
+            item = self.bqueue.get()
+            self.bqueue.task_done()
             if item is None:
                 break
             self.BlinkWork(**item)
 
     def stop(self):
-        self.queue.put(None)
-        self.queue.join()
+        self.bqueue.put(None)
+        self.pqueue.put(None)
+        self.bqueue.join()
+        self.pqueue.join()
 
-    def GetBlinkId(self):
+    def GetBlinkId(self,time):
         bid = self.bid
+        self.blinks[bid] = { '__time__': time }
         self.bid += 1
         return bid
 
-    def Blink(self,remote,wait=None):
-        self.queue.put({'remote':remote, 'wait':wait})
-
-    def BlinkWork(self,remote=None,wait=None):
+    def Blink(self,remote,time,wait=None):
+        bid = self.GetBlinkId(time)
+        self.bqueue.put({'remote':remote, 'wait':wait, 'bid':bid})
+        return bid
+    
+    def BlinkWork(self,remote=None,wait=None,bid=None):
         if remote is not None:
-            bid = self.GetBlinkId()
-            self.blinks[bid] = {}
             if wait is not None:
                 self.waiting[bid] = threading.Event()
-            self.rpc.send(remote, 'blink', { 'bid': bid } )
+            self.rpc.send(remote, 'blink', {'bid':bid} )
             if wait is not None:
                 self.waiting[bid].wait(wait)
                 del self.waiting[bid]
 
     def BlinkRecv(self,data):
         try:
-            args = data.get('args')
-            anc = args.get('anchor')
-            tag = args.get('tag')
-            tss = int(args.get('tss'),16)
-            bid = int(args.get('bid'))
-            self.blinks[bid][anc] = {}
-            self.blinks[bid][anc]['tag'] = tag
-            self.blinks[bid][anc]['tss'] = tss
-            self.blinks[bid][anc]['dir'] = 'RX'
+            args = data['args']
+            anc = args['anchor']
+            tag = args['tag']
+            tss = int(args['tss'],16)
+            bid = int(args['bid'])
         except:
-            print("You muppet!")
+            eprint('BlinkRecv: data missing')
+            return
+        
+        self.blinks[bid][anc] = {}
+        self.blinks[bid][anc]['tag'] = tag
+        self.blinks[bid][anc]['tss'] = tss
+        self.blinks[bid][anc]['dir'] = 'RX'
+
 
     def BlinkXmit(self,data):
         try:
-            args = data.get('args')
-            anc = args.get('anchor')
-            tag = args.get('tag')
-            tss = int(args.get('tss'),16)
-            bid = int(args.get('bid'))
-            self.blinks[bid][anc] = {}
-            self.blinks[bid][anc]['tag'] = tag
-            self.blinks[bid][anc]['tss'] = tss
-            self.blinks[bid][anc]['dir'] = 'TX'
-            if bid in self.waiting:
-                self.waiting[bid].set()
+            args = data['args']
+            anc = args['anchor']
+            tag = args['tag']
+            tss = int(args['tss'],16)
+            bid = int(args['bid'])
         except:
-            print("You muppet!")
+            eprint('BlinkXmit: data missing')
+            return
+        
+        self.blinks[bid][anc] = {}
+        self.blinks[bid][anc]['tag'] = tag
+        self.blinks[bid][anc]['tss'] = tss
+        self.blinks[bid][anc]['dir'] = 'TX'
+        if bid in self.waiting:
+            self.waiting[bid].set()
+
+
+    def print_run(self):
+        while True:
+            item = self.pqueue.get()
+            self.pqueue.task_done()
+            if item is None:
+                break
+            self.dump(**item)
+
+    def print(self,index):
+        if index in self.blinks:
+            self.pqueue.put({'index':index})
+
+    def dump(self, index=None):
+        blinks = self.blinks
+        if index in blinks:
+            msg = '{},{}'.format(index,blinks[index]['__time__'])
+            for anc in self.rxs:
+                eui = anc['EUI']
+                if eui in blinks[index]:
+                    if blinks[index][eui]['dir'] == 'TX':
+                        TX = blinks[index][eui]['tss']
+                        RX = ''
+                    else:
+                        RX = blinks[index][eui]['tss']
+                        TX = ''
+                else:
+                    RX = ''
+                    TX = ''
+                msg += ',{},{}'.format(TX,RX)
+
+            print(msg)
+            
+            del self.blinks[index]
+
 
