@@ -1,12 +1,16 @@
 #!/usr/bin/python3
 #
-# Test hack for developing RPi Tail algorithms
+# Anchor distance tool for Tail algorithm development
 #
 
-import argparse
-import socket
-import pprint
+import sys
 import math
+import queue
+import socket
+import json
+import pprint
+import argparse
+import threading
 import tail
 
 import numpy as np
@@ -14,258 +18,275 @@ import numpy.linalg as lin
 
 from numpy import dot
 
+from tail import DW1000
+from tail import eprint
+
+from config import *
+
 
 class Config():
 
-    blinks     = 100
+    blink_count  = 100
+    blink_delay  = 0.010
+    blink_wait   = 0.050
+
+    rawts        = 0
+    ewma         = 32
+
+    algo         = 'DECA'
+
+CFG = Config()
+
+VERBOSE = 0
+
+
+def DECA_TWR(anc1, anc2, delay1, delay2, blk, tmr):
     
-    rpc_port   = 61666
-    rpc_addr   = None
+    adr1 = anc1.addr
+    adr2 = anc2.addr
 
-    dw1000_attrs = (
-        'snr_threshold',
-        'fpr_threshold',
-        'noise_threshold',
-        'channel',
-        'pcode',
-        'txpsr',
-        'prf',
-        'rate',
-        'antd',
-        'xtalt',
-        'smart_power',
-    )
+    eui1 = anc1.eui
+    eui2 = anc2.eui
 
+    Tm = tmr.get()
+    
+    i1 = blk.Blink(adr1,Tm)
+    Tm = tmr.nap(delay1)
+    
+    i2 = blk.Blink(adr2,Tm)
+    Tm = tmr.nap(delay1)
+    
+    i3 = blk.Blink(adr1,Tm)
+    Tm = tmr.nap(delay2)
 
-cfg = Config()
+    T1 = blk.getTS(i1, eui1, CFG.rawts)
+    T2 = blk.getTS(i1, eui2, CFG.rawts)
+    T3 = blk.getTS(i2, eui2, CFG.rawts)
+    T4 = blk.getTS(i2, eui1, CFG.rawts)
+    T5 = blk.getTS(i3, eui1, CFG.rawts)
+    T6 = blk.getTS(i3, eui2, CFG.rawts)
+    
+    F2 = blk.getXtalPPM(i1, eui2)
+    F6 = blk.getXtalPPM(i3, eui2)
 
+    P2 = blk.getRFPower(i1, eui2)
+    
+    T41 = T4 - T1
+    T32 = T3 - T2
+    T54 = T5 - T4
+    T63 = T6 - T3
+    T51 = T5 - T1
+    T62 = T6 - T2
+    
+    Tof = (T41*T63 - T32*T54) / (T51+T62)
+    
+    if CFG.rawts:
+        Dof = Tof / DW_CLOCK_GHZ
+        Rtt = T41 / DW_CLOCK_GHZ
+    else:
+        Dof = Tof / (1<<32)
+        Rtt = T41 / (1<<32)
+        
+    Lof = Dof * C_AIR * 1E-9
+        
+    Est = (F2 + F6) / 2
+    Err = (T62 - T51) / T62
+    
+    Pwr = P2
+    
+    blk.PurgeBlink(i1)
+    blk.PurgeBlink(i2)
+    blk.PurgeBlink(i3)
+    
+    return (Lof,Dof,Rtt,Err,Est,Pwr)
 
-def findBlink(blks, anc1, anc2, start=None, search=100, skip=0):
-    skipped = 0
-    if start is not None:
-        for i in range(start,start+search):
-            if i in blks:
-                if anc1 in blks[i] and anc2 in blks[i]:
-                    if 'tss' in blks[i][anc1] and 'tss' in blks[i][anc2]:
-                        if blks[i][anc1]['dir'] == 'TX' and blks[i][anc2]['dir'] == 'RX':
-                            skipped += 1
-                            if skipped > skip:
-                                return i
-    return None
+            
+def DECA_FAST_TWR(anc1, anc2, delay1, delay2, blk, tmr):
+    
+    adr1 = anc1.addr
+    adr2 = anc2.addr
 
+    eui1 = anc1.eui
+    eui2 = anc2.eui
 
-def findFwdBwdPair(blks, anc1, anc2, start, search=100):
-    fwdi = findBlink(blks, anc1, anc2, start, search)
-    bwdi = findBlink(blks, anc2, anc1, fwdi, search)
-    return (fwdi,bwdi)
+    Tm = tmr.get()
 
-def findFwdPair(blks, anc1, anc2, start, search=100, skip=0):
-    fwd1 = findBlink(blks, anc1, anc2, start, search, 0)
-    fwd2 = findBlink(blks, anc1, anc2, start, search, skip+1)
-    return (fwd1,fwd2)
+    i1 = blk.GetBlinkId(Tm)
+    i2 = blk.GetBlinkId(Tm)
+    i3 = blk.GetBlinkId(Tm)
 
+    blk.TriggerBlink(adr2,i1,i2)
+    blk.TriggerBlink(adr1,i2,i3)
+    
+    tmr.nap(delay1)
+    
+    blk.BlinkID(adr1,i1)
+    
+    tmr.nap(delay2)
+    
+    T1 = blk.getTS(i1, eui1, CFG.rawts)
+    T2 = blk.getTS(i1, eui2, CFG.rawts)
+    T3 = blk.getTS(i2, eui2, CFG.rawts)
+    T4 = blk.getTS(i2, eui1, CFG.rawts)
+    T5 = blk.getTS(i3, eui1, CFG.rawts)
+    T6 = blk.getTS(i3, eui2, CFG.rawts)
+    
+    F2 = blk.getXtalPPM(i1, eui2)
+    F6 = blk.getXtalPPM(i3, eui2)
 
+    P2 = blk.getRFPower(i1, eui2)
+    
+    T41 = T4 - T1
+    T32 = T3 - T2
+    T54 = T5 - T4
+    T63 = T6 - T3
+    T51 = T5 - T1
+    T62 = T6 - T2
+    
+    Tof = (T41*T63 - T32*T54) / (T51+T62)
+    
+    if CFG.rawts:
+        Dof = Tof / DW_CLOCK_GHZ
+        Rtt = T41 / DW_CLOCK_GHZ
+    else:
+        Dof = Tof / (1<<32)
+        Rtt = T41 / (1<<32)
+        
+    Lof = Dof * C_AIR * 1E-9
+        
+    Est = (F2 + F6) / 2
+    Err = (T62 - T51) / T62
+    
+    Pwr = P2
+
+    blk.PurgeBlink(i1)
+    blk.PurgeBlink(i2)
+    blk.PurgeBlink(i3)
+    
+    return (Lof,Dof,Rtt,Err,Est,Pwr)
+
+            
 def main():
     
-    parser = argparse.ArgumentParser(description="RTLS server")
+    global VERBOSE, CFG
     
-    parser.add_argument('-D', '--dist', type=float, default=1)
-    parser.add_argument('-W', '--window', type=int, default=8)
-    parser.add_argument('-S', '--skip', type=int, default=0)
-    parser.add_argument('-n', '--blinks', type=int, default=cfg.blinks)
-    parser.add_argument('-p', '--port', type=int, default=cfg.rpc_port)
-    parser.add_argument('remotes', type=str, nargs='+', help="Remote addresses")
+    parser = argparse.ArgumentParser(description="RTLS server")
+
+    DW1000.AddParserArguments(parser)
+    
+    parser.add_argument('-D', '--debug', action='count', default=0)
+    parser.add_argument('-v', '--verbose', action='count', default=0)
+    parser.add_argument('-n', '--count', type=int, default=CFG.blink_count)
+    parser.add_argument('-d', '--delay', type=float, default=CFG.blink_delay)
+    parser.add_argument('-w', '--wait', type=float, default=CFG.blink_wait)
+    parser.add_argument('-p', '--port', type=int, default=RPC_PORT)
+    parser.add_argument('-E', '--ewma', type=int, default=CFG.ewma)
+    parser.add_argument('-A', '--algo', type=str, default=CFG.algo)
+    parser.add_argument('-R', '--raw', action='store_true', default=False)
+    parser.add_argument('remote', type=str, nargs='+', help="Remote address")
     
     args = parser.parse_args()
+
+    VERBOSE = args.verbose
+
+    CFG.algo = args.algo
+    CFG.ewma = args.ewma
+    CFG.rawts = args.raw
     
-    Ds = args.dist / 299700000
-    Dj = int(2*Ds*65536E9)<<16
+    CFG.blink_count = args.count
+    CFG.blink_delay = args.delay
+    CFG.blink_wait = args.wait
+
+    rpc = tail.RPC(('', args.port))
 
     remotes = [ ]
+    for host in args.remote:
+        try:
+            anchor = DW1000(host,args.port,rpc)
+            remotes.append(anchor)
+        except:
+            eprint('Remote {} exist does not'.format(host))
+
+    DW1000.HandleArguments(args,remotes)
     
-    for remote in args.remotes:
-        addr = socket.getaddrinfo(remote, args.port, socket.AF_INET6)[0][4]
-        remotes.append( { 'host': remote, 'addr': addr, 'EUI': None } )
+    if VERBOSE > 0:
+        DW1000.PrintAllRemoteAttrs(remotes)
 
-    rpc_addr = [ rem['addr'] for rem in remotes ]
-    rpc_bind = ('', args.port)
+    tmr = tail.Timer()
+    blk = tail.Blinker(rpc, args.debug)
 
-    rpc = tail.RPC(rpc_bind)
-    blk = tail.Blinker(rpc)
+    Tcnt = 0
+    Dsum = 0.0
+    Dsqr = 0.0
+    Rsum = 0.0
+    Lfil = 0.0
+    Lvar = 0.0
 
-    for addr in rpc_addr:
-        rpc.setAttr(addr, 'rate', 850)
-        rpc.setAttr(addr, 'txpsr', 1024)
-    
-    for remote in remotes:
-        addr = remote['addr']
-        remote['EUI'] = rpc.getEUI(addr)
-        print('DW1000 parameters @{} <{}>'.format(remote['host'],remote['EUI']))
-        for attr in cfg.dw1000_attrs:
-            val = rpc.getAttr(addr, attr)
-            print('  {}={}'.format(attr, val))
+    eprint('Blinker starting')
 
-    timer = tail.Timer()
-    
-    for i in range(args.blinks):
-        for addr in rpc_addr:
-            blk.Blink(addr)
-            timer.nap(0.01)
+    try:
+        for i in range(CFG.blink_count):
+
+            try:
+                if CFG.algo == 'DECA':
+                    (Lof,Dof,Rtt,Err,Est,Pwr) = DECA_TWR(remotes[0], remotes[1], CFG.blink_delay, CFG.blink_wait, blk, tmr)
+                elif CFG.algo == 'FAST':
+                    (Lof,Dof,Rtt,Err,Est,Pwr) = DECA_FAST_TWR(remotes[0], remotes[1], CFG.blink_delay, CFG.blink_wait, blk, tmr)
+                    
+                if Lof > 0 and Lof < 100:
+                    Tcnt += 1
+                    Dsum += Dof
+                    Dsqr += Dof*Dof
+                    Rsum += Rtt
+
+                    if VERBOSE > 0:
+                        Ldif = Lof - Lfil
+                        Lvar += (Ldif*Ldif - Lvar) / CFG.ewma
+                        if Tcnt < CFG.ewma:
+                            Lfil += Ldif / Tcnt
+                        else:
+                            Lfil += Ldif / CFG.ewma
+
+                        print('{:.3f}m {:.3f}m -- Dist:{:.3f}m ToF:{:.3f}ns Xerr:{:.3f}ppm Xest:{:.3f}ppm Rx:{:.1f}dBm Rtt:{:.3f}ms'.format(Lfil,math.sqrt(Lvar),Lof,Dof,Err*1E6,Est*1E6,Pwr,Rtt*1E-6))
+                        
+                else:
+                    if VERBOSE > 0:
+                        eprint('*')
+                    
+            except (ValueError,KeyError):
+                if VERBOSE > 0:
+                    eprint('?')
+                else:
+                    eprint(end='?', flush=True)
+
+            if VERBOSE == 0 and i%10 == 0:
+                eprint(end='.', flush=True)
+            
+    except KeyboardInterrupt:
+        eprint('\nStopping...')
 
     blk.stop()
     rpc.stop()
 
-    
-    ##
-    ## Add analysis code here
-    ##
-
-    DdCNT = 0
-    DdSUM = 0
-
-    CrCNT = 0
-    CrSUM = 0.0
-    CrSQR = 0.0
-
-    PaCNT = 0
-    PaSUM = 0.0
-    PaSQR = 0.0
-    
-    PbCNT = 0
-    PbSUM = 0.0
-    PbSQR = 0.0
-
-    eui1 = remotes[0]['EUI']
-    eui2 = remotes[1]['EUI']
-
-    blks = blk.blinks
-
-    mini = min(blks.keys())
-    maxi = max(blks.keys())
-
-    Pab = 1.000
-    Cor = 0.000
-
-    for i in range(mini,maxi-args.window):
-
-        Ga = [ (1,1) ]
-        Ha = [ (2)   ]
-    
-        if True:
-
-            for j in range(args.window):
-                
-                (fwd,swd) = findFwdPair(blks, eui1, eui2, i+j, 100, args.skip)
-                
-                if swd is not None:
-
-                    ##print('FWD @{} [{},{}]'.format(start,fwd,swd))
-                    
-                    J1 = blks[fwd][eui1]['tss']
-                    J2 = blks[fwd][eui2]['tss']
-                    J3 = blks[swd][eui1]['tss']
-                    J4 = blks[swd][eui2]['tss']
-                    
-                    T31 = (J3 - J1) / 4294967296E9
-                    T24 = (J2 - J4) / 4294967296E9
-                    
-                    Ga.append((T31,T24))
-                    Ha.append((0))
-                    
-        if True:
-            
-            for j in range(args.window):
-            
-                (fwd,swd) = findFwdPair(blks, eui2, eui1, i+j, 100, args.skip)
-                
-                if swd is not None:
-
-                    ##print('BWD @{} [{},{}]'.format(start,fwd,swd))
-                    
-                    J1 = blks[fwd][eui2]['tss']
-                    J2 = blks[fwd][eui1]['tss']
-                    J3 = blks[swd][eui2]['tss']
-                    J4 = blks[swd][eui1]['tss']
-                    
-                    T31 = (J3 - J1) / 4294967296E9
-                    T24 = (J2 - J4) / 4294967296E9
-                    
-                    Ga.append((T24,T31))
-                    Ha.append((0))
-
-        try:
-            GG = np.array(Ga)
-            HH = np.array(Ha)
-            SS = lin.solve(dot(GG.T,GG),dot(GG.T,HH))
-
-            Pab = SS[1] / SS[0]
-            Cor = (SS[1] - SS[0]) / SS[0]
-            C60 = int(Cor * (1<<60))
-
-        except:
-            pass
-
-        print('{0}: {1:.6f} ppm'.format(i,Cor*1E6))
+    if Tcnt > 0:
         
+        Davg = Dsum/Tcnt
+        Dvar = Dsqr/Tcnt - Davg*Davg
+        Dstd = math.sqrt(Dvar)
+        Lavg = Davg * C_AIR * 1E-9
+        Lstd = Dstd * C_AIR * 1E-9
+        Ravg = Rsum/Tcnt * 1E-6
         
-        if abs(Cor) < 10E-6:
+        print()
+        print('FINAL STATISTICS:')
+        print('  Samples:  {}'.format(Tcnt))
+        print('  Average:  {:.3f}m {:.3f}ns'.format(Lavg,Davg))
+        print('  Std.Dev:  {:.3f}m {:.3f}ns'.format(Lstd,Dstd))
+        print('  RTT.Avg:  {:.3f}ms'.format(Ravg))
 
-            CrCNT += 1
-            CrSUM += Cor
-            CrSQR += Cor*Cor
-        
-            (fwd,bwd) = findFwdBwdPair(blks, eui1, eui2, i+j, 100)
-            
-            if bwd is not None and bwd == fwd + 1:
-
-                ##print('BIDIR @{} [{},{}]'.format(start,fwd,bwd))
-                    
-                J1 = blks[fwd][eui1]['tss']
-                J2 = blks[fwd][eui2]['tss']
-                J3 = blks[bwd][eui2]['tss']
-                J4 = blks[bwd][eui1]['tss']
-                
-                #T41 = (J4 - J1) / 4294967296E9
-                #T23 = (J2 - J3) / 4294967296E9
-                T41 = (J4 - J1)
-                T23 = (J2 - J3)
-
-                #print('T41: {}'.format(T41))
-                #print('T23: {}'.format(T23))
-                #print('C60: {}'.format(C60))
-
-                DC = (C60*T23)>>60
-                DD = (T41 + T23) + DC
-
-                DdCNT += 1
-                DdSUM += DD
-                
-                #print('DC: {}'.format(DC))
-                #print('DD: {}'.format(DD))
-                #print('Dj: {}'.format(Dj))
-                
-                Pa = Dj/DD
-                Pb = Pa + Cor*Pa
-                Fa = 1/Pa
-                Fb = 1/Pb
-
-                #print('Pa: {:.12f}'.format(Pa))
-                #print('Pb: {:.12f}'.format(Pb))
-                #print('{0} Fa:{1:.6f}GHz Fb:{2:.6f}GHz'.format(i,Fa,Fb))
-                
-
-    DdAVG = DdSUM / DdCNT
-
-    CrAVG = CrSUM / CrCNT
-    CrVAR = CrSQR / CrCNT - CrAVG * CrAVG
-    CrSTD = math.sqrt(CrVAR)
-
-    Pa = Dj / DdAVG
-    Pb = Pa + CrAVG*Pa
-    Fa = 1/Pa
-    Fb = 1/Pb
-
-    print('\nAVERAGE Fa:{:.6f}GHz Fb:{:.6f}GHz Cor:{:.3f}ppm'.format(Fa,Fb,CrAVG*1E6))
+    else:
+        print()
+        print('NO SUITABLE SAMPLES')
 
 
 if __name__ == "__main__":

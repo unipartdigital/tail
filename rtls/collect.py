@@ -3,22 +3,22 @@
 # Blink data collector for Tail algorithm development
 #
 
-import argparse
-import socket
-import pprint
-import threading
-import queue
-import json
-import math
-import tail
 import sys
+import math
+import queue
+import socket
+import json
+import argparse
+import threading
+import tail
 
 import numpy as np
 import numpy.linalg as lin
 
 from numpy import dot
-
-from tail import eprint
+from pprint import pprint
+from tail import eprint, DW1000
+from config import *
 
 
 class Config():
@@ -26,80 +26,88 @@ class Config():
     blink_time   = 1.0
     blink_delay  = 0.01
     blink_count  = 100
-    
-    rpc_port   = 61666
 
-    dw1000_rate  = 6800
-    dw1000_txpsr = 256
-    dw1000_xtalt = 0x0f
-    dw1000_antd  = 0x403b
+CFG = Config()
 
-    dw1000_attrs = (
-        'snr_threshold',
-        'fpr_threshold',
-        'noise_threshold',
-        'channel',
-        'pcode',
-        'txpsr',
-        'prf',
-        'rate',
-        'antd',
-        'xtalt',
-        'smart_power',
-    )
+VERBOSE = 0
 
 
-cfg = Config()
+pqueue = queue.Queue()
+
+def print_id(index):
+    pqueue.put(index)
+
+def print_stop():
+    pqueue.put(None)
+    pqueue.join()
+
+def print_blink(index, anchors, blinker):
+    bs = blinker.blinks
+    if index in bs:
+        msg = '{},{}'.format(index,bs[index].get('__time__',''))
+        for anc in anchors:
+            eui = anc.eui
+            if eui in bs[index]:
+                TI = bs[index][eui]['tsi']
+                if bs[index][eui]['dir'] == 'TX':
+                    TX = bs[index][eui]['tss']
+                    RX = ''
+                else:
+                    RX = bs[index][eui]['tss']
+                    TX = ''
+            else:
+                RX = ''
+                TX = ''
+                TI = {}
+            msg += ',{},{}'.format(TX,RX)
+            for attr in DW1000_TSINFO_ATTRS:
+                msg += ',{}'.format(TI.get(attr,''))
+            print(msg)
+        blinker.PurgeBlink(index)
+
+def print_thread(blinker,anchors):
+    while True:
+        item = pqueue.get()
+        pqueue.task_done()
+        if item is None:
+            break
+        print_blink(item, anchors, blinker)
 
 
-def getEUIs(blks,index,direc):
-    euis = []
-    if index is not None:
-        if index in blks:
-            for anc in blks[index]:
-                if 'dir' in blks[index][anc]:
-                    if blks[index][anc]['dir'] == direc:
-                        euis.append(anc)
-    return euis
-                    
-
-def getTS(blks,index,eui,direc):
-    if blks[index][eui]['dir'] == direc:
-        return blks[index][eui]['tss']
-    raise ValueError
-    
 
 def main():
     
     parser = argparse.ArgumentParser(description="RTLS server")
 
+    DW1000.AddParserArguments(parser)
+    
+    parser.add_argument('-D', '--debug', action='count', default=0)
+    parser.add_argument('-v', '--verbose', action='count')
     parser.add_argument('-t', '--time', type=float, default=0)
     parser.add_argument('-d', '--delay', type=float, default=0)
     parser.add_argument('-n', '--blinks', type=int, default=0)
-    parser.add_argument('-p', '--port', type=int, default=cfg.rpc_port)
-    
-    parser.add_argument('--rate', type=int, default=cfg.dw1000_rate)
-    parser.add_argument('--txpsr', type=int, default=cfg.dw1000_txpsr)
-    parser.add_argument('--xtalt', type=int, default=None)
-    parser.add_argument('--antd', type=int, default=None)
-    
-    parser.add_argument('remotes', type=str, nargs='+', help="Remote addresses")
+    parser.add_argument('-p', '--port', type=int, default=RPC_PORT)
+    parser.add_argument('remote', type=str, nargs='+', help="Remote address")
     
     args = parser.parse_args()
 
+    VERBOSE = args.verbose
+    
+    rpc = tail.RPC(('', args.port))
+
     txs = [ ]
     rxs = [ ]
-    
-    for host in args.remotes:
-        xmit = host.startswith('*') or host.endswith('*')
-        host = host.strip('*').rstrip('*')
-        addr = socket.getaddrinfo(host, args.port, socket.AF_INET6)[0][4]
-        if xmit:
-            txs.append( { 'host': host, 'addr': addr, 'EUI': None } )
-        rxs.append( { 'host': host, 'addr': addr, 'EUI': None } )
-    
-    txs_addr = [ rem['addr'] for rem in txs ]
-    rxs_addr = [ rem['addr'] for rem in rxs ]
+    for host in args.remote:
+        try:
+            xmit = host.startswith('*') or host.endswith('*')
+            host = host.strip('*').rstrip('*')
+            remo = DW1000(host,args.port,rpc)
+            rxs.append(remo)
+            if xmit:
+                txs.append(remo)
+        except:
+            eprint('Remote {} exist does not'.format(host))
+
     
     if args.time > 0:
         if args.delay > 0:
@@ -109,48 +117,35 @@ def main():
             blink_count = args.blinks // len(txs)
             blink_delay = args.time / args.blinks
         else:
-            blink_delay = cfg.blink_delay
+            blink_delay = CFG.blink_delay
             blink_count = int(args.time / blink_delay / len(txs))
-            
+
     elif args.delay > 0:
         blink_delay = args.delay
         if args.blinks > 0:
             blink_count = args.blinks // len(txs)
         else:
-            blink_count = int(cfg.blink_time / blink_delay / len(txs))
-            
+            blink_count = int(CFG.blink_time / blink_delay / len(txs))
+
     elif args.blinks > 0:
         blink_count = args.blinks // len(txs)
-        blink_delay = cfg.blink_time / blink_count
+        blink_delay = CFG.blink_time / blink_count
 
     else:
-        blink_count = cfg.blink_count // len(txs)
-        blink_delay = cfg.blink_delay
+        blink_count = CFG.blink_count // len(txs)
+        blink_delay = CFG.blink_delay
 
 
-    rpc = tail.RPC(('', args.port))
+    DW1000.HandleArguments(args,rxs)
 
-    for remote in rxs:
-        remote['EUI'] = rpc.getEUI(remote['addr'])
-        
-    for addr in rxs_addr:
-        rpc.setAttr(addr, 'rate', args.rate)
-        rpc.setAttr(addr, 'txpsr', args.txpsr)
-        if args.xtalt is not None:
-            rpc.setAttr(addr, 'xtalt', args.xtalt)
-        if args.antd is not None:
-            rpc.setAttr(addr, 'antd', args.antd)
-        
-    for remote in rxs:
-        addr = remote['addr']
-        eprint('DW1000 parameters @{} <{}>'.format(remote['host'],remote['EUI']))
-        for attr in cfg.dw1000_attrs:
-            val = rpc.getAttr(addr, attr)
-            eprint('  {}={}'.format(attr, val))
+    if VERBOSE:
+        DW1000.PrintAllRemoteAttrs(rxs)
 
-    
-    blk = tail.Blinker(rpc,rxs)
+    blk = tail.Blinker(rpc, args.debug)
     tmr = tail.Timer()
+
+    thr = threading.Thread(target=print_thread, kwargs={'blinker':blk,'anchors':rxs})
+    thr.start()
 
     done = 0
     index = 0
@@ -159,25 +154,22 @@ def main():
 
     try:
         for i in range(blink_count):
-        
+            
+            for remo in txs:
+            
+                timer = tmr.nap(blink_delay)
+                index = blk.Blink(remo.addr,timer)
+                
+                done = index-100
+                print_id(done)
+                
             if i % 100 == 0:
                 eprint(end='.', flush=True)
             
-            for addr in txs_addr:
-            
-                timer = tmr.nap(blink_delay)
-                index = blk.Blink(addr, '{:.6f}'.format(timer))
-                
-                if index > 100:
-                    done = index-100
-                    blk.print(done)
-    
-        tmr.nap(1.0)
+        tmr.nap(1)
 
         for i in range(done,index):
-            blk.print(i)
-
-        eprint('\nDone')
+            print_id(i)
 
     except KeyboardInterrupt:
         eprint('\nStopping...')
@@ -185,6 +177,9 @@ def main():
     blk.stop()
     rpc.stop()
 
+    print_stop()
+    
+    eprint('\nDone')
     
 
 if __name__ == "__main__":

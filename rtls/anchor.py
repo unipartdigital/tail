@@ -1,9 +1,8 @@
 #!/usr/bin/python3
 #
-# Anchor daemon for Tail algorithm testing
+# Anchor daemon for Tail algorithm development
 #
 
-import pprint
 import argparse
 import ipaddress
 import netifaces
@@ -15,10 +14,12 @@ import array
 import ctypes
 import json
 
+from pprint import pprint
 from ctypes import *
 
 
 class Config():
+    debug         = 0
     if_name       = 'lowpan0'
     if_addr       = None
     if_index      = 0
@@ -34,6 +35,8 @@ class Config():
     dw1000_sysfs  = '/sys/devices/platform/soc/3f204000.spi/spi_master/spi0/spi0.0/dw1000/'
 
 cfg = Config()
+
+responses = {}
 
 
 for name,value in (
@@ -58,10 +61,17 @@ for name,value in (
         setattr(socket, name, value)
 
 
+def eprint(*args, **kwargs):
+    print(*args, file=sys.stderr, **kwargs)
+
+
 class Timespec(Structure):
 
     _fields_ = [("tv_sec", c_long),
                 ("tv_nsec", c_long)]
+
+    def __iter__(self):
+        return ((x[0], getattr(self,x[0])) for x in self._fields_)
 
     def __int__(self):
         return ((self.tv_sec * 1000000000 + self.tv_nsec) << 32)
@@ -80,6 +90,9 @@ class Timehires(Structure):
         ("tv_frac", c_uint32),
         ("__res", c_uint32) ]
 
+    def __iter__(self):
+        return ((x[0], getattr(self,x[0])) for x in self._fields_)
+
     def __int__(self):
         return ((self.tv_nsec << 32) | self.tv_frac)
 
@@ -90,13 +103,41 @@ class Timehires(Structure):
         return bool(self.tv_nsec or self.tv_frac)
 
 
+class TimestampInfo(Structure):
+
+    _fields_ = [
+        ("rawts", c_uint64),
+        ("lqi", c_uint16),
+        ("snr", c_uint16),
+        ("fpr", c_uint16),
+        ("noise", c_uint16),
+        ("rxpacc", c_uint16),
+        ("fp_index", c_uint16),
+        ("fp_ampl1", c_uint16),
+        ("fp_ampl2", c_uint16),
+        ("fp_ampl3", c_uint16),
+        ("cir_pwr", c_uint32),
+        ("fp_pwr", c_uint32),
+        ("ttcko", c_uint32),
+        ("ttcki", c_uint32),
+    ]
+
+    def __iter__(self):
+        return ((x[0], getattr(self,x[0])) for x in self._fields_)
+
+
 class Timestamp(Structure):
 
     _fields_ = [
         ("sw", Timespec),
         ("legacy", Timespec),
         ("hw", Timespec),
-        ("hires", Timehires) ]
+        ("hires", Timehires),
+        ("tsinfo", TimestampInfo),
+    ]
+
+    def __iter__(self):
+        return ((x[0], getattr(self,x[0])) for x in self._fields_)
 
 
 def SetDWAttr(attr, data):
@@ -105,9 +146,9 @@ def SetDWAttr(attr, data):
         fd.write(str(data))
         fd.close()
         ret = 0
-        print('SetDWAttr({}, {})'.format(attr,data))
+        #eprint('SetDWAttr({}, {})'.format(attr,data))
     except:
-        print('FAIL! SetDWAttr {} := {}'.format(attr,data))
+        #eprint('FAIL! SetDWAttr {} := {}'.format(attr,data))
         ret = -1
     return ret
 
@@ -117,9 +158,9 @@ def GetDWAttr(attr):
         fd = open(cfg.dw1000_sysfs + attr, 'r')
         val = fd.read().rstrip()
         fd.close()
-        print('GetDWAttr({}) = {}'.format(attr,val))
+        #eprint('GetDWAttr({}) = {}'.format(attr,val))
     except:
-        print('FAIL! GetDWAttr {}'.format(attr))
+        #eprint('FAIL! GetDWAttr {}'.format(attr))
         val = ''
     return val
 
@@ -131,7 +172,7 @@ def GetTagEUI(addr):
         tag[0] ^= 0x02
         return tag.hex()
     else:
-        return '0'
+        return None
 
 
 def GetAnclTs(ancl):
@@ -151,6 +192,11 @@ def RecvBlink(bsock, rsock):
     except:
         eui = GetTagEUI(rem[0].partition('%')[0])
         bid = None
+    global responses
+    if bid in responses:
+        pid = responses.pop(bid)
+        msg = struct.pack('!16sI', cfg.anchor_eui.encode(), pid)
+        bsock.sendto(msg, cfg.blink_send)
     tss = GetAnclTs(ancl)
     func = 'blinkRecv'
     argv = {
@@ -158,10 +204,11 @@ def RecvBlink(bsock, rsock):
         'bid'     : bid,
         'tag'     : eui,
         'tss'     : str(tss.hires),
+        'tsi'     : dict(tss.tsinfo),
     }
     SendRPC(rsock,func,argv,0)
-    
-    
+
+
 def RecvStamp(bsock, rsock):
     (data, ancl, _, _) = bsock.recvmsg(4096, 1024, socket.MSG_ERRQUEUE)
     try:
@@ -177,6 +224,7 @@ def RecvStamp(bsock, rsock):
         'bid'     : bid,
         'tag'     : eui,
         'tss'     : str(tss.hires),
+        'tsi'     : dict(tss.tsinfo),
     }
     SendRPC(rsock,func,argv,0)
 
@@ -186,6 +234,14 @@ def RPCBlink(rpc,bsock):
     bid = args.get('bid', 0)
     msg = struct.pack('!16sI', cfg.anchor_eui.encode(), bid)
     bsock.sendto(msg, cfg.blink_send)
+
+
+def RPCAutoBlink(rpc,bsock):
+    global responses
+    args = rpc['args']
+    recv = args['recv']
+    xmit = args['xmit']
+    responses[recv] = xmit
 
 
 def RPCGetEUI(rpc,rsock):
@@ -206,7 +262,7 @@ def RPCGetAttr(rpc,rsock):
     argv = { 'attr': args['attr'], 'value': data }
     seqn = seqn
     SendRPC(rsock, func, argv, seqn)
-    
+
 
 def RPCSetAttr(rpc,rsock):
     args = rpc['args']
@@ -227,20 +283,22 @@ def SendRPC(sock, func, args, seqn):
     res = json.dumps(msg)
     sock.sendto(res.encode(), cfg.server_send)
 
-    
+
 def RecvRPC(bsock, rsock):
     (data, remote) = rsock.recvfrom(4096)
     rpc = json.loads(data.decode())
     func = rpc.get('func', 'none')
     if func == 'blink':
         RPCBlink(rpc,bsock)
+    elif func == 'autoBlink':
+        RPCAutoBlink(rpc,bsock)
     elif func == 'setAttr':
         RPCSetAttr(rpc,rsock)
     elif func == 'getAttr':
         RPCGetAttr(rpc,rsock)
     elif func == 'getEUI':
         RPCGetEUI(rpc,rsock)
-        
+
 
 def SocketLoop():
     
@@ -260,7 +318,7 @@ def SocketLoop():
     bsock.setsockopt(socket.SOL_SOCKET, socket.SO_TIMESTAMPING,
                      socket.SOF_TIMESTAMPING_RX_HARDWARE |
                      socket.SOF_TIMESTAMPING_TX_HARDWARE |
-                     socket.SOF_TIMESTAMPING_RAW_HARDWARE )
+                     socket.SOF_TIMESTAMPING_RAW_HARDWARE)
     
     bsock.bind(cfg.blink_bind)
     
@@ -285,10 +343,12 @@ def SocketLoop():
 
 
 def main():
+    
     global cfg
     
     parser = argparse.ArgumentParser(description="Anchor daemon")
     
+    parser.add_argument('-D', '--debug', action='count', default=0)
     parser.add_argument('-i', '--interface', type=str, default=cfg.if_name)
     parser.add_argument('-p', '--port', type=int, default=cfg.server_port)
     parser.add_argument('-s', '--server', type=str)
@@ -297,12 +357,14 @@ def main():
 
     server = socket.getaddrinfo(args.server, args.port, socket.AF_INET6)[0][4]
 
+    cfg.debug = args.debug
+    
     cfg.if_name   = args.interface
     cfg.if_addr   = netifaces.ifaddresses(args.interface)
     cfg.if_index  = socket.if_nametoindex(args.interface)
     
-    cfg.anchor_eui   = cfg.if_addr.get(netifaces.AF_PACKET)[0]['addr'].replace(':', '')
     cfg.anchor_link  = cfg.if_addr.get(netifaces.AF_INET6)[0]['addr']
+    cfg.anchor_eui   = cfg.if_addr.get(netifaces.AF_PACKET)[0]['addr'].replace(':', '')
     cfg.anchor_ip    = cfg.anchor_link.split('%')[0]
 
     cfg.blink_bind  = ('', cfg.blink_port, 0, cfg.if_index)

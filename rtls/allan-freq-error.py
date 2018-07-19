@@ -11,10 +11,7 @@ import tail
 import sys
 import csv
 
-import numpy as np
-import numpy.linalg as lin
-
-from numpy import dot
+import matplotlib.pyplot as plt
 
 
 verbose = 0
@@ -176,15 +173,26 @@ def main():
             skip *= mult
             if int(skip) != ranges[-1]:
                 ranges.append(int(skip))
-    
+
+        Xx = []
+        Yy = []
+        
         for skip in ranges:
             (TmAVG,CrAVG,AlDEV,AlMAX,fails) = Allan(data,cols,1,index,skip)
+            Xx.append(TmAVG)
+            Yy.append(AlDEV)
+            
             print('Period {:.3f}ms Error:{:.6f}ppm Allan.dev:{:.6f} Allan.max:{:.6f} fail:{:.1f}% [{}] '.format(TmAVG*1E3,CrAVG*1E6,AlDEV*1E6,AlMAX*1E6,100*fails/count,fails))
 
+        fg,ax = plt.subplots(figsize=(12,10))
+        ax.set_title('Allan Deviation')
+        ax.loglog(Xx,Yy,'k.-')
+        
+        plt.show()
+        
     else:
-            
+        
         (TmAVG,CrAVG,AlDEV,AlMAX,fails) = Allan(data,cols,1,index,args.skip)
-            
         print('Period {:.3f}ms Error:{:.6f}ppm Allan.dev:{:.6f} Allan.max:{:.6f} fail:{:.1f}% [{}] '.format(TmAVG*1E3,CrAVG*1E6,AlDEV*1E6,AlMAX*1E6,100*fails/count,fails))
 
 
