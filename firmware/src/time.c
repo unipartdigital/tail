@@ -134,9 +134,10 @@ void time_event_poll(void)
 	int i;
 
 	if (early_wakeup_fn && TIME_VALID(early_wakeup_time)) {
-		if (time_ge(now, early_wakeup_time))
+		if (time_ge(now, early_wakeup_time)) {
 			time_early_wakeup_set_next(now+1);
 		    early_wakeup_fn();
+		}
 	}
 
 	for (i = 0; i < ARRAY_SIZE(time_event_time); i++) {
