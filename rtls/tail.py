@@ -174,7 +174,7 @@ class Blinker():
 
     def GetBlinkId(self,time):
         bid = self.bid
-        self.blinks[bid] = { '__time__': time }
+        self.blinks[bid] = { '__time__': '{:.6f}'.format(time) }
         self.bid += 1
         return bid
 

@@ -166,7 +166,7 @@ def main():
             for addr in txs_addr:
             
                 timer = tmr.nap(blink_delay)
-                index = blk.Blink(addr, '{:.6f}'.format(timer))
+                index = blk.Blink(addr, timer)
                 
                 if index > 100:
                     done = index-100
