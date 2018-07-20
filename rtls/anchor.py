@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 #
-# Anchor daemon for Tail algorithm testing
+# Anchor daemon for Tail algorithm development
 #
 
 import pprint
@@ -160,8 +160,8 @@ def RecvBlink(bsock, rsock):
         'tss'     : str(tss.hires),
     }
     SendRPC(rsock,func,argv,0)
-    
-    
+
+
 def RecvStamp(bsock, rsock):
     (data, ancl, _, _) = bsock.recvmsg(4096, 1024, socket.MSG_ERRQUEUE)
     try:
@@ -206,7 +206,7 @@ def RPCGetAttr(rpc,rsock):
     argv = { 'attr': args['attr'], 'value': data }
     seqn = seqn
     SendRPC(rsock, func, argv, seqn)
-    
+
 
 def RPCSetAttr(rpc,rsock):
     args = rpc['args']
@@ -227,7 +227,7 @@ def SendRPC(sock, func, args, seqn):
     res = json.dumps(msg)
     sock.sendto(res.encode(), cfg.server_send)
 
-    
+
 def RecvRPC(bsock, rsock):
     (data, remote) = rsock.recvfrom(4096)
     rpc = json.loads(data.decode())
@@ -240,7 +240,7 @@ def RecvRPC(bsock, rsock):
         RPCGetAttr(rpc,rsock)
     elif func == 'getEUI':
         RPCGetEUI(rpc,rsock)
-        
+
 
 def SocketLoop():
     
@@ -260,7 +260,7 @@ def SocketLoop():
     bsock.setsockopt(socket.SOL_SOCKET, socket.SO_TIMESTAMPING,
                      socket.SOF_TIMESTAMPING_RX_HARDWARE |
                      socket.SOF_TIMESTAMPING_TX_HARDWARE |
-                     socket.SOF_TIMESTAMPING_RAW_HARDWARE )
+                     socket.SOF_TIMESTAMPING_RAW_HARDWARE)
     
     bsock.bind(cfg.blink_bind)
     
@@ -301,8 +301,8 @@ def main():
     cfg.if_addr   = netifaces.ifaddresses(args.interface)
     cfg.if_index  = socket.if_nametoindex(args.interface)
     
-    cfg.anchor_eui   = cfg.if_addr.get(netifaces.AF_PACKET)[0]['addr'].replace(':', '')
     cfg.anchor_link  = cfg.if_addr.get(netifaces.AF_INET6)[0]['addr']
+    cfg.anchor_eui   = cfg.if_addr.get(netifaces.AF_PACKET)[0]['addr'].replace(':', '')
     cfg.anchor_ip    = cfg.anchor_link.split('%')[0]
 
     cfg.blink_bind  = ('', cfg.blink_port, 0, cfg.if_index)

@@ -11,11 +11,6 @@ import tail
 import sys
 import csv
 
-import numpy as np
-import numpy.linalg as lin
-
-from numpy import dot
-
 
 verbose = 0
 

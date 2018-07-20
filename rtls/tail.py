@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 #
-# Test hack for developing RPi Tail algorithms
+# Helper functions/classes/code for Tail algorithm development
 #
 
 import pprint
@@ -25,10 +25,10 @@ class Timer:
     def __init__(self):
         self.start = time.time()
         self.timer = self.start
-        
+    
     def get(self):
         return self.timer - self.start
-
+    
     def nap(self,delta):
         self.timer += delta
         while True:
@@ -95,11 +95,11 @@ class RPC:
         
     def getSeqNum(self):
         self.lock.acquire()
-        rid = self.seqnum
+        seqn = self.seqnum
         self.seqnum += 1
         self.lock.release()
-        return rid
-                
+        return seqn
+    
     def initRet(self,func,seqn):
         self.pending[seqn] = {}
         self.pending[seqn]['data'] = {}
@@ -131,13 +131,13 @@ class RPC:
         return data.get('args',{})
 
     def getAttr(self,rem,attr):
-        return self.call(rem, 'getAttr', { 'attr': attr } ).get('value',None)
+        return self.call(rem, 'getAttr', { 'attr': attr }).get('value',None)
 
     def setAttr(self,rem,attr,val):
-        return self.call(rem, 'setAttr', { 'attr': attr, 'value': val } ).get('value',None)
+        return self.call(rem, 'setAttr', { 'attr': attr, 'value': val }).get('value',None)
 
     def getEUI(self,rem):
-        return self.call(rem, 'getEUI', { } ).get('value',None)
+        return self.call(rem, 'getEUI', { }).get('value',None)
 
 
 
@@ -158,6 +158,12 @@ class Blinker():
         self.pthread.start()
         self.bthread.start()
 
+    def stop(self):
+        self.bqueue.put(None)
+        self.pqueue.put(None)
+        self.bqueue.join()
+        self.pqueue.join()
+
     def blink_run(self):
         while True:
             item = self.bqueue.get()
@@ -165,12 +171,6 @@ class Blinker():
             if item is None:
                 break
             self.BlinkWork(**item)
-
-    def stop(self):
-        self.bqueue.put(None)
-        self.pqueue.put(None)
-        self.bqueue.join()
-        self.pqueue.join()
 
     def GetBlinkId(self,time):
         bid = self.bid
@@ -224,6 +224,7 @@ class Blinker():
         self.blinks[bid][anc]['tag'] = tag
         self.blinks[bid][anc]['tss'] = tss
         self.blinks[bid][anc]['dir'] = 'TX'
+        
         if bid in self.waiting:
             self.waiting[bid].set()
 
@@ -237,8 +238,7 @@ class Blinker():
             self.dump(**item)
 
     def print(self,index):
-        if index in self.blinks:
-            self.pqueue.put({'index':index})
+        self.pqueue.put({'index':index})
 
     def dump(self, index=None):
         blinks = self.blinks
