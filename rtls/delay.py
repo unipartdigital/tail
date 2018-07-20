@@ -23,8 +23,10 @@ from tail import eprint
 
 class Config():
 
-    shake_delay  = 0.010
-    blink_delay  = 0.100
+    Cns = 0.29970
+    
+    blink_delay  = 0.010
+    blink_speed  = 100
     blink_count  = 100
     
     rpc_port   = 61666
@@ -32,7 +34,7 @@ class Config():
     dw1000_rate  = 6800
     dw1000_txpsr = 256
     dw1000_xtalt = 0x0f
-    dw1000_antd  = 0x403b
+    dw1000_antd  = 0x402e
 
     dw1000_attrs = (
         'snr_threshold',
@@ -75,21 +77,22 @@ def main():
 
     parser.add_argument('-n', '--count', type=int, default=cfg.blink_count)
     parser.add_argument('-d', '--delay', type=float, default=cfg.blink_delay)
-    parser.add_argument('-D', '--shake', type=float, default=cfg.shake_delay)
+    parser.add_argument('-s', '--speed', type=float, default=cfg.blink_speed)
     parser.add_argument('-p', '--port', type=int, default=cfg.rpc_port)
     
     parser.add_argument('--rate', type=int, default=cfg.dw1000_rate)
     parser.add_argument('--txpsr', type=int, default=cfg.dw1000_txpsr)
-    parser.add_argument('--xtalt', type=int, default=None)
-    parser.add_argument('--antd', type=int, default=None)
+    parser.add_argument('--xtalt', type=str, default=None)
+    parser.add_argument('--antd', type=str, default=None)
     
     parser.add_argument('remotes', type=str, nargs='+', help="Remote addresses")
     
     args = parser.parse_args()
 
-    blink_count = args.count
     blink_delay = args.delay
-    shake_delay = args.shake
+    blink_count = args.count
+
+    blink_wait = max((1.0 / args.speed) - 3*blink_delay,0)
 
     remotes = [ ]
     
@@ -108,9 +111,9 @@ def main():
         rpc.setAttr(addr, 'rate', args.rate)
         rpc.setAttr(addr, 'txpsr', args.txpsr)
         if args.xtalt is not None:
-            rpc.setAttr(addr, 'xtalt', args.xtalt)
+            rpc.setAttr(addr, 'xtalt', int(args.xtalt,0))
         if args.antd is not None:
-            rpc.setAttr(addr, 'antd', args.antd)
+            rpc.setAttr(addr, 'antd', int(args.antd,0))
         
     for remote in remotes:
         addr = remote['addr']
@@ -122,8 +125,10 @@ def main():
     blk = tail.Blinker(rpc,remotes)
     tmr = tail.Timer()
 
-    done = 0
-    index = 0
+    Tcnt = 0
+    Tsum = 0
+    Dsum = 0.0
+    Dsqr = 0.0
 
     ADR1 = remotes[0]['addr']
     ADR2 = remotes[1]['addr']
@@ -139,13 +144,13 @@ def main():
             #if i % 100 == 0:
             #    eprint(end='.', flush=True)
             
-            Tm = tmr.get()
+            Tm = tmr.nap(blink_wait)
             I1 = blk.Blink(ADR1, Tm)
 
-            Tm = tmr.nap(shake_delay)
+            Tm = tmr.nap(blink_delay)
             I2 = blk.Blink(ADR2, Tm)
 
-            Tm = tmr.nap(shake_delay)
+            Tm = tmr.nap(blink_delay)
             I3 = blk.Blink(ADR1, Tm)
 
             Tm = tmr.nap(blink_delay)
@@ -163,14 +168,31 @@ def main():
                 T54 = T5 - T4
                 T63 = T6 - T3
 
-                eprint('{} {} {}'.format(T41,T32,T54,T63))
+                Tof = (T41*T63 - T32*T54) / (T41+T32+T54+T63)
+                Dof = Tof / (1<<32)
+                Lof = Dof * cfg.Cns
+
+                if Lof > 0 and Lof < 50:
+                    Tcnt += 1
+                    Tsum += Tof
+                    Dsum += Dof
+                    Dsqr += Dof*Dof
+                    print('{:.3f}m {:.3f}ns'.format(Lof,Dof))
                 
             except (ValueError,KeyError):
                 eprint('?')
             
-        tmr.nap(1.0)
-        
-        eprint('\nDone')
+        Tavg = Tsum/Tcnt
+        Davg = Dsum/Tcnt
+        Dvar = Dsqr/Tcnt - Davg*Davg
+        Dstd = math.sqrt(Dvar)
+        Lavg = Davg * cfg.Cns
+        Lstd = Dstd * cfg.Cns
+
+        print('FINAL STATISTICS:')
+        print('  Samples:  {}'.format(Tcnt))
+        print('  Average:  {:.3f}m {:.3f}ns'.format(Lavg,Davg))
+        print('  Std.Dev:  {:.3f}m {:.3f}ns'.format(Lstd,Dstd))
 
     except KeyboardInterrupt:
         eprint('\nStopping...')
