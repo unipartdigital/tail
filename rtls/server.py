@@ -22,7 +22,7 @@ class Config():
     dw1000_rate  = 6800
     dw1000_txpsr = 256
     dw1000_xtalt = 0x0f
-    dw1000_antd  = 0x403b
+    dw1000_antd  = 0x402c
 
     dw1000_attrs = (
         'snr_threshold',

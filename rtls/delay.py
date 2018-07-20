@@ -23,7 +23,8 @@ from tail import eprint
 
 class Config():
 
-    Cns = 0.29970
+    Cns = 0.299705
+    #Cns = 0.299792458
     
     blink_delay  = 0.010
     blink_speed  = 100
@@ -34,7 +35,7 @@ class Config():
     dw1000_rate  = 6800
     dw1000_txpsr = 256
     dw1000_xtalt = 0x0f
-    dw1000_antd  = 0x402e
+    dw1000_antd  = 0x402c
 
     dw1000_attrs = (
         'snr_threshold',
