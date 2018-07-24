@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 #
-# Anchor distance tool for Tail algorithm development
+# Blink data collector for Tail algorithm development
 #
 
 import argparse
@@ -23,11 +23,8 @@ from tail import eprint
 
 class Config():
 
-    Cns = 0.299705
-    #Cns = 0.299792458
-    
-    blink_delay  = 0.010
-    blink_speed  = 100
+    blink_time   = 1.0
+    blink_delay  = 0.01
     blink_count  = 100
     
     rpc_port   = 61666
@@ -76,9 +73,9 @@ def main():
     
     parser = argparse.ArgumentParser(description="RTLS server")
 
-    parser.add_argument('-n', '--count', type=int, default=cfg.blink_count)
-    parser.add_argument('-d', '--delay', type=float, default=cfg.blink_delay)
-    parser.add_argument('-s', '--speed', type=float, default=cfg.blink_speed)
+    parser.add_argument('-t', '--time', type=float, default=0)
+    parser.add_argument('-d', '--delay', type=float, default=0)
+    parser.add_argument('-n', '--blinks', type=int, default=0)
     parser.add_argument('-p', '--port', type=int, default=cfg.rpc_port)
     
     parser.add_argument('--rate', type=int, default=cfg.dw1000_rate)
@@ -90,25 +87,53 @@ def main():
     
     args = parser.parse_args()
 
-    blink_delay = args.delay
-    blink_count = args.count
-
-    blink_wait = max((1.0 / args.speed) - 3*blink_delay,0)
-
-    remotes = [ ]
+    txs = [ ]
+    rxs = [ ]
     
     for host in args.remotes:
+        xmit = host.startswith('*') or host.endswith('*')
+        host = host.strip('*').rstrip('*')
         addr = socket.getaddrinfo(host, args.port, socket.AF_INET6)[0][4]
-        remotes.append( { 'host': host, 'addr': addr, 'EUI': None } )
+        if xmit:
+            txs.append( { 'host': host, 'addr': addr, 'EUI': None } )
+        rxs.append( { 'host': host, 'addr': addr, 'EUI': None } )
     
-    rem_addr = [ rem['addr'] for rem in remotes ]
+    txs_addr = [ rem['addr'] for rem in txs ]
+    rxs_addr = [ rem['addr'] for rem in rxs ]
     
+    if args.time > 0:
+        if args.delay > 0:
+            blink_delay = args.delay
+            blink_count = int(args.time / args.delay)
+        elif args.blinks > 0:
+            blink_count = args.blinks
+            blink_delay = args.time / args.blinks
+        else:
+            blink_delay = cfg.blink_delay
+            blink_count = int(args.time / blink_delay)
+            
+    elif args.delay > 0:
+        blink_delay = args.delay
+        if args.blinks > 0:
+            blink_count = args.blinks
+        else:
+            blink_count = int(cfg.blink_time / blink_delay)
+            
+    elif args.blinks > 0:
+        blink_count = args.blinks
+        blink_delay = cfg.blink_time / blink_count
+
+    else:
+        blink_count = cfg.blink_count
+        blink_delay = cfg.blink_delay
+
+
     rpc = tail.RPC(('', args.port))
 
-    for remote in remotes:
+    for remote in rxs:
         remote['EUI'] = rpc.getEUI(remote['addr'])
         
-    for addr in rem_addr:
+    for addr in rxs_addr:
         rpc.setAttr(addr, 'rate', args.rate)
         rpc.setAttr(addr, 'txpsr', args.txpsr)
         if args.xtalt is not None:
@@ -116,84 +141,49 @@ def main():
         if args.antd is not None:
             rpc.setAttr(addr, 'antd', int(args.antd,0))
         
-    for remote in remotes:
+    for remote in rxs:
         addr = remote['addr']
         eprint('DW1000 parameters @{} <{}>'.format(remote['host'],remote['EUI']))
         for attr in cfg.dw1000_attrs:
             val = rpc.getAttr(addr, attr)
             eprint('  {}={}'.format(attr, val))
 
-    blk = tail.Blinker(rpc,remotes)
+    
+    blk = tail.Blinker(rpc,rxs)
     tmr = tail.Timer()
 
-    Tcnt = 0
-    Tsum = 0
-    Dsum = 0.0
-    Dsqr = 0.0
+    done = 0
+    index = 0
 
-    ADR1 = remotes[0]['addr']
-    ADR2 = remotes[1]['addr']
-
-    EUI1 = remotes[0]['EUI']
-    EUI2 = remotes[1]['EUI']
+    addr1 = txs_addr[0]
+    addr2 = rxs_addr[0]
 
     eprint('Blinker starting')
 
     try:
         for i in range(blink_count):
         
-            #if i % 100 == 0:
-            #    eprint(end='.', flush=True)
+            if i % 100 == 0:
+                eprint(end='.', flush=True)
             
-            Tm = tmr.nap(blink_wait)
-            I1 = blk.Blink(ADR1,Tm)
-
-            Tm = tmr.nap(blink_delay)
-            I2 = blk.Blink(ADR2,Tm)
-
-            Tm = tmr.nap(blink_delay)
-            I3 = blk.Blink(ADR1,Tm)
-
-            Tm = tmr.nap(blink_delay)
-
-            try:
-                T1 = getTS(blk.blinks, I1, EUI1, 'TX')
-                T2 = getTS(blk.blinks, I1, EUI2, 'RX')
-                T3 = getTS(blk.blinks, I2, EUI2, 'TX')
-                T4 = getTS(blk.blinks, I2, EUI1, 'RX')
-                T5 = getTS(blk.blinks, I3, EUI1, 'TX')
-                T6 = getTS(blk.blinks, I3, EUI2, 'RX')
-
-                T41 = T4 - T1
-                T32 = T3 - T2
-                T54 = T5 - T4
-                T63 = T6 - T3
-
-                Tof = (T41*T63 - T32*T54) / (T41+T32+T54+T63)
-                Dof = Tof / (1<<32)
-                Lof = Dof * cfg.Cns
-
-                if Lof > 0 and Lof < 50:
-                    Tcnt += 1
-                    Tsum += Tof
-                    Dsum += Dof
-                    Dsqr += Dof*Dof
-                    print('{:.3f}m {:.3f}ns'.format(Lof,Dof))
+            timer = tmr.nap(blink_delay)
                 
-            except (ValueError,KeyError):
-                eprint('?')
-            
-        Tavg = Tsum/Tcnt
-        Davg = Dsum/Tcnt
-        Dvar = Dsqr/Tcnt - Davg*Davg
-        Dstd = math.sqrt(Dvar)
-        Lavg = Davg * cfg.Cns
-        Lstd = Dstd * cfg.Cns
+            id1 = blk.GetBlinkId(timer)
+            id2 = blk.GetBlinkId(timer)
 
-        print('FINAL STATISTICS:')
-        print('  Samples:  {}'.format(Tcnt))
-        print('  Average:  {:.3f}m {:.3f}ns'.format(Lavg,Davg))
-        print('  Std.Dev:  {:.3f}m {:.3f}ns'.format(Lstd,Dstd))
+            blk.PingPong(addr2,id1,id2)
+            blk.BlinkID(addr1,id1)
+
+            index = id2
+            
+            if index > 100:
+                done = index-100
+                blk.print(done)
+    
+        tmr.nap(0.1)
+
+        for i in range(done,index):
+            blk.print(i)
 
     except KeyboardInterrupt:
         eprint('\nStopping...')
@@ -201,6 +191,7 @@ def main():
     blk.stop()
     rpc.stop()
 
+    eprint('\nDone')
     
 
 if __name__ == "__main__":

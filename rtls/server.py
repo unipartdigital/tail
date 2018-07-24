@@ -96,17 +96,17 @@ def main():
     try:
         for i in range(blink_count):
             for addr in rem_addr:
-                time = tmr.nap(blink_delay)
-                index = blk.Blink(addr,time)
+                timex = tmr.nap(blink_delay)
+                index = blk.Blink(addr,timex)
                 eprint(end='.', flush=True)
-
-        eprint('\nDone')
 
     except KeyboardInterrupt:
         eprint('\nStopping...')
 
     blk.stop()
     rpc.stop()
+
+    eprint('\nDone')
 
     ##
     ## Add analysis code here

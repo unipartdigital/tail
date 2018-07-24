@@ -149,28 +149,15 @@ class Blinker():
         self.bid = 1
         self.blinks = {}
         self.waiting = {}
-        self.bqueue = queue.Queue()
         self.pqueue = queue.Queue()
-        self.bthread = threading.Thread(target=self.blink_run)
         self.pthread = threading.Thread(target=self.print_run)
         rpc.register('blinkRecv', self.BlinkRecv)
         rpc.register('blinkXmit', self.BlinkXmit)
         self.pthread.start()
-        self.bthread.start()
 
     def stop(self):
-        self.bqueue.put(None)
         self.pqueue.put(None)
-        self.bqueue.join()
         self.pqueue.join()
-
-    def blink_run(self):
-        while True:
-            item = self.bqueue.get()
-            self.bqueue.task_done()
-            if item is None:
-                break
-            self.BlinkWork(**item)
 
     def GetBlinkId(self,time):
         bid = self.bid
@@ -178,20 +165,25 @@ class Blinker():
         self.bid += 1
         return bid
 
-    def Blink(self,remote,time,wait=None):
+    def Blink(self,remote,time):
         bid = self.GetBlinkId(time)
-        self.bqueue.put({'remote':remote, 'wait':wait, 'bid':bid})
+        self.rpc.send(remote, 'blink', {'bid':bid} )
         return bid
-    
-    def BlinkWork(self,remote=None,wait=None,bid=None):
-        if remote is not None:
-            if wait is not None:
-                self.waiting[bid] = threading.Event()
-            self.rpc.send(remote, 'blink', {'bid':bid} )
-            if wait is not None:
-                self.waiting[bid].wait(wait)
-                del self.waiting[bid]
 
+    def BlinkID(self,remote,bid):
+        self.rpc.send(remote, 'blink', {'bid':bid} )
+   
+    def BlinkWait(self,remote,bid,wait=1.0):
+        self.waiting[bid] = threading.Event()
+        self.Blink(self,remote,bid)
+        self.waiting[bid].wait(wait)
+        del self.waiting[bid]
+
+    
+    def PingPong(self,remote,bid,pid):
+        self.rpc.send(remote, 'pingPong', {'ping':bid, 'pong':pid})
+
+    
     def BlinkRecv(self,data):
         try:
             args = data['args']
@@ -200,7 +192,7 @@ class Blinker():
             tss = int(args['tss'],16)
             bid = int(args['bid'])
         except:
-            eprint('BlinkRecv: data missing')
+            #eprint('BlinkRecv: data missing')
             return
 
         if bid in self.blinks:
@@ -218,7 +210,7 @@ class Blinker():
             tss = int(args['tss'],16)
             bid = int(args['bid'])
         except:
-            eprint('BlinkXmit: data missing')
+            #eprint('BlinkXmit: data missing')
             return
 
         if bid in self.blinks:
@@ -247,7 +239,7 @@ class Blinker():
     def dump(self, index=None):
         blinks = self.blinks
         if index in blinks:
-            msg = '{},{}'.format(index,blinks[index]['__time__'])
+            msg = '{},{}'.format(index,blinks[index].get('__time__',''))
             for anc in self.rxs:
                 eui = anc['EUI']
                 if eui in blinks[index]:

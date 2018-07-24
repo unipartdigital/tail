@@ -35,6 +35,8 @@ class Config():
 
 cfg = Config()
 
+PingPong = {}
+
 
 for name,value in (
         ('SO_TIMESTAMPING', 37),
@@ -151,6 +153,11 @@ def RecvBlink(bsock, rsock):
     except:
         eui = GetTagEUI(rem[0].partition('%')[0])
         bid = None
+    global PingPong
+    if bid in PingPong:
+        pid = PingPong.pop(bid)
+        msg = struct.pack('!16sI', cfg.anchor_eui.encode(), pid)
+        bsock.sendto(msg, cfg.blink_send)
     tss = GetAnclTs(ancl)
     func = 'blinkRecv'
     argv = {
@@ -187,6 +194,15 @@ def RPCBlink(rpc,bsock):
     msg = struct.pack('!16sI', cfg.anchor_eui.encode(), bid)
     bsock.sendto(msg, cfg.blink_send)
 
+
+def RPCPingPong(rpc,bsock):
+    global PingPong
+    args = rpc['args']
+    bid = args.get('bid', 0)
+    ping = args.get('ping', 0)
+    pong = args.get('pong', 0)
+    PingPong[ping] = pong
+    
 
 def RPCGetEUI(rpc,rsock):
     args = rpc['args']
@@ -234,6 +250,8 @@ def RecvRPC(bsock, rsock):
     func = rpc.get('func', 'none')
     if func == 'blink':
         RPCBlink(rpc,bsock)
+    elif func == 'pingPong':
+        RPCPingPong(rpc,bsock)
     elif func == 'setAttr':
         RPCSetAttr(rpc,rsock)
     elif func == 'getAttr':

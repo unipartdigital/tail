@@ -166,18 +166,16 @@ def main():
             for addr in txs_addr:
             
                 timer = tmr.nap(blink_delay)
-                index = blk.Blink(addr, timer)
+                index = blk.Blink(addr,timer)
                 
                 if index > 100:
                     done = index-100
                     blk.print(done)
     
-        tmr.nap(1.0)
+        tmr.nap(0.1)
 
         for i in range(done,index):
             blk.print(i)
-
-        eprint('\nDone')
 
     except KeyboardInterrupt:
         eprint('\nStopping...')
@@ -185,6 +183,7 @@ def main():
     blk.stop()
     rpc.stop()
 
+    eprint('\nDone')
     
 
 if __name__ == "__main__":
