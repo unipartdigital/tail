@@ -25,6 +25,8 @@ class Config():
 
     Cns = 0.299705
     #Cns = 0.299792458
+
+    ewma = 32
     
     blink_delay  = 0.010
     blink_speed  = 100
@@ -80,6 +82,7 @@ def main():
     parser.add_argument('-d', '--delay', type=float, default=cfg.blink_delay)
     parser.add_argument('-s', '--speed', type=float, default=cfg.blink_speed)
     parser.add_argument('-p', '--port', type=int, default=cfg.rpc_port)
+    parser.add_argument('-E', '--ewma', type=int, default=cfg.ewma)
     
     parser.add_argument('--rate', type=int, default=cfg.dw1000_rate)
     parser.add_argument('--txpsr', type=int, default=cfg.dw1000_txpsr)
@@ -90,6 +93,8 @@ def main():
     
     args = parser.parse_args()
 
+    ewma = args.ewma
+    
     blink_delay = args.delay
     blink_count = args.count
 
@@ -117,10 +122,9 @@ def main():
             rpc.setAttr(addr, 'antd', int(args.antd,0))
         
     for remote in remotes:
-        addr = remote['addr']
         eprint('DW1000 parameters @{} <{}>'.format(remote['host'],remote['EUI']))
         for attr in cfg.dw1000_attrs:
-            val = rpc.getAttr(addr, attr)
+            val = rpc.getAttr(remote['addr'], attr)
             eprint('  {}={}'.format(attr, val))
 
     blk = tail.Blinker(rpc,remotes)
@@ -130,6 +134,7 @@ def main():
     Tsum = 0
     Dsum = 0.0
     Dsqr = 0.0
+    Lfil = 0.0
 
     ADR1 = remotes[0]['addr']
     ADR2 = remotes[1]['addr']
@@ -142,47 +147,59 @@ def main():
     try:
         for i in range(blink_count):
         
-            #if i % 100 == 0:
-            #    eprint(end='.', flush=True)
-            
             Tm = tmr.nap(blink_wait)
-            I1 = blk.Blink(ADR1,Tm)
+            i1 = blk.Blink(ADR1,Tm)
 
             Tm = tmr.nap(blink_delay)
-            I2 = blk.Blink(ADR2,Tm)
+            i2 = blk.Blink(ADR2,Tm)
 
             Tm = tmr.nap(blink_delay)
-            I3 = blk.Blink(ADR1,Tm)
+            i3 = blk.Blink(ADR1,Tm)
 
             Tm = tmr.nap(blink_delay)
 
             try:
-                T1 = getTS(blk.blinks, I1, EUI1, 'TX')
-                T2 = getTS(blk.blinks, I1, EUI2, 'RX')
-                T3 = getTS(blk.blinks, I2, EUI2, 'TX')
-                T4 = getTS(blk.blinks, I2, EUI1, 'RX')
-                T5 = getTS(blk.blinks, I3, EUI1, 'TX')
-                T6 = getTS(blk.blinks, I3, EUI2, 'RX')
+                T1 = getTS(blk.blinks, i1, EUI1, 'TX')
+                T2 = getTS(blk.blinks, i1, EUI2, 'RX')
+                T3 = getTS(blk.blinks, i2, EUI2, 'TX')
+                T4 = getTS(blk.blinks, i2, EUI1, 'RX')
+                T5 = getTS(blk.blinks, i3, EUI1, 'TX')
+                T6 = getTS(blk.blinks, i3, EUI2, 'RX')
 
                 T41 = T4 - T1
                 T32 = T3 - T2
                 T54 = T5 - T4
                 T63 = T6 - T3
+                T51 = T5 - T1
+                T62 = T6 - T2
 
-                Tof = (T41*T63 - T32*T54) / (T41+T32+T54+T63)
+                Frt = (T51 - T62) / T51
+                Tof = (T41*T63 - T32*T54) / (T51+T62)
                 Dof = Tof / (1<<32)
                 Lof = Dof * cfg.Cns
 
-                if Lof > 0 and Lof < 50:
+                if Lof > 0 and Lof < 100:
                     Tcnt += 1
                     Tsum += Tof
                     Dsum += Dof
                     Dsqr += Dof*Dof
-                    print('{:.3f}m {:.3f}ns'.format(Lof,Dof))
+                    if Tcnt < ewma:
+                        Lfil += (Lof - Lfil) / Tcnt
+                    else:
+                        Lfil += (Lof - Lfil) / ewma
+                    
+                    print('{:.3f}m -- {:.3f}m {:.3f}ns {:.3f}ppm'.format(Lfil,Lof,Dof,Frt*1E6))
                 
             except (ValueError,KeyError):
                 eprint('?')
             
+    except KeyboardInterrupt:
+        eprint('\nStopping...')
+
+    blk.stop()
+    rpc.stop()
+
+    try:
         Tavg = Tsum/Tcnt
         Davg = Dsum/Tcnt
         Dvar = Dsqr/Tcnt - Davg*Davg
@@ -195,13 +212,9 @@ def main():
         print('  Average:  {:.3f}m {:.3f}ns'.format(Lavg,Davg))
         print('  Std.Dev:  {:.3f}m {:.3f}ns'.format(Lstd,Dstd))
 
-    except KeyboardInterrupt:
-        eprint('\nStopping...')
+    except:
+        pass
 
-    blk.stop()
-    rpc.stop()
-
-    
 
 if __name__ == "__main__":
     main()
