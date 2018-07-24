@@ -202,11 +202,12 @@ class Blinker():
         except:
             eprint('BlinkRecv: data missing')
             return
-        
-        self.blinks[bid][anc] = {}
-        self.blinks[bid][anc]['tag'] = tag
-        self.blinks[bid][anc]['tss'] = tss
-        self.blinks[bid][anc]['dir'] = 'RX'
+
+        if bid in self.blinks:
+            self.blinks[bid][anc] = {}
+            self.blinks[bid][anc]['tag'] = tag
+            self.blinks[bid][anc]['tss'] = tss
+            self.blinks[bid][anc]['dir'] = 'RX'
 
 
     def BlinkXmit(self,data):
@@ -219,15 +220,18 @@ class Blinker():
         except:
             eprint('BlinkXmit: data missing')
             return
-        
-        self.blinks[bid][anc] = {}
-        self.blinks[bid][anc]['tag'] = tag
-        self.blinks[bid][anc]['tss'] = tss
-        self.blinks[bid][anc]['dir'] = 'TX'
+
+        if bid in self.blinks:
+            self.blinks[bid][anc] = {}
+            self.blinks[bid][anc]['tag'] = tag
+            self.blinks[bid][anc]['tss'] = tss
+            self.blinks[bid][anc]['dir'] = 'TX'
         
         if bid in self.waiting:
             self.waiting[bid].set()
 
+    def BlinkDump(self,data):
+        pprint.pprint(data)
 
     def print_run(self):
         while True:

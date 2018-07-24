@@ -54,8 +54,8 @@ def main():
     
     parser.add_argument('--rate', type=int, default=cfg.dw1000_rate)
     parser.add_argument('--txpsr', type=int, default=cfg.dw1000_txpsr)
-    parser.add_argument('--xtalt', type=int, default=None)
-    parser.add_argument('--antd', type=int, default=None)
+    parser.add_argument('--xtalt', type=str, default=None)
+    parser.add_argument('--antd', type=str, default=None)
     
     args = parser.parse_args()
 
@@ -79,9 +79,9 @@ def main():
         rpc.setAttr(addr, 'rate', args.rate)
         rpc.setAttr(addr, 'txpsr', args.txpsr)
         if args.xtalt is not None:
-            rpc.setAttr(addr, 'xtalt', args.xtalt)
+            rpc.setAttr(addr, 'xtalt', int(args.xtalt,0))
         if args.antd is not None:
-            rpc.setAttr(addr, 'antd', args.antd)
+            rpc.setAttr(addr, 'antd', int(args.antd,0))
         
     for remote in remotes:
         addr = remote['addr']
