@@ -15,23 +15,9 @@ class Config():
 
     rpc_port   = 61666
 
-    dw1000_attrs = (
-        'channel',
-        'rate',
-        'prf',
-        'pcode',
-        'txpsr',
-        'antd',
-        'xtalt',
-        'smart_power',
-        'snr_threshold',
-        'fpr_threshold',
-        'noise_threshold',
-    )
-
-    dw1000_defaults = {
+    dw1000_attrs = {
         'channel'	  : 7,
-        'rate'		  : 6800,	
+        'rate'		  : 6800,
         'prf'		  : 64,
         'pcode'		  : 20,
         'txpsr'		  : 64,
@@ -86,8 +72,8 @@ def main():
 
     if args.reset:
         for addr in rem_addr:
-            for attr in cfg.dw1000_defaults:
-                rpc.setAttr(addr, attr, cfg.dw1000_defaults[attr])
+            for attr in cfg.dw1000_attrs:
+                rpc.setAttr(addr, attr, cfg.dw1000_attrs[attr])
 
     for addr in rem_addr:
         if args.channel is not None:
