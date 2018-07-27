@@ -65,6 +65,9 @@ class Timespec(Structure):
     _fields_ = [("tv_sec", c_long),
                 ("tv_nsec", c_long)]
 
+    def __iter__(self):
+        return ((x[0], getattr(self,x[0])) for x in self._fields_)
+
     def __int__(self):
         return ((self.tv_sec * 1000000000 + self.tv_nsec) << 32)
 
@@ -82,6 +85,9 @@ class Timehires(Structure):
         ("tv_frac", c_uint32),
         ("__res", c_uint32) ]
 
+    def __iter__(self):
+        return ((x[0], getattr(self,x[0])) for x in self._fields_)
+
     def __int__(self):
         return ((self.tv_nsec << 32) | self.tv_frac)
 
@@ -92,13 +98,39 @@ class Timehires(Structure):
         return bool(self.tv_nsec or self.tv_frac)
 
 
+class TimestampInfo(Structure):
+
+    _fields_ = [
+        ("cycle_ts", c_uint64),
+        ("rxpacc", c_uint16),
+        ("noise", c_uint16),
+        ("fp_ampl1", c_uint16),
+        ("fp_ampl2", c_uint16),
+        ("fp_ampl3", c_uint16),
+        ("fp_index", c_uint16),
+        ("cir_pwr", c_uint32),
+        ("fp_pwr", c_uint32),
+        ("snr", c_uint16),
+        ("fpr", c_uint16),
+        ("lqi", c_uint16),
+    ]
+
+    def __iter__(self):
+        return ((x[0], getattr(self,x[0])) for x in self._fields_)
+
+
 class Timestamp(Structure):
 
     _fields_ = [
         ("sw", Timespec),
         ("legacy", Timespec),
         ("hw", Timespec),
-        ("hires", Timehires) ]
+        ("hires", Timehires),
+        ("tsinfo", TimestampInfo),
+    ]
+
+    def __iter__(self):
+        return ((x[0], getattr(self,x[0])) for x in self._fields_)
 
 
 def SetDWAttr(attr, data):
@@ -165,6 +197,7 @@ def RecvBlink(bsock, rsock):
         'bid'     : bid,
         'tag'     : eui,
         'tss'     : str(tss.hires),
+        'tsi'     : dict(tss.tsinfo),
     }
     SendRPC(rsock,func,argv,0)
 
@@ -184,6 +217,7 @@ def RecvStamp(bsock, rsock):
         'bid'     : bid,
         'tag'     : eui,
         'tss'     : str(tss.hires),
+        'tsi'     : dict(tss.tsinfo),
     }
     SendRPC(rsock,func,argv,0)
 

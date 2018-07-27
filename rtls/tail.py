@@ -143,6 +143,21 @@ class RPC:
 
 class Blinker():
 
+    tsinfo_attrs = (
+        'cycle_ts',
+        'noise',
+        'rxpacc',
+        'fp_ampl1',
+        'fp_ampl2',
+        'fp_ampl3',
+        'fp_index',
+        'fp_pwr',
+        'cir_pwr',
+        'snr',
+        'fpr',
+        'lqi',
+    )
+
     def __init__(self,rpc,rxs):
         self.rpc = rpc
         self.rxs = rxs
@@ -187,10 +202,11 @@ class Blinker():
     def BlinkRecv(self,data):
         try:
             args = data['args']
-            anc = args['anchor']
-            tag = args['tag']
-            tss = int(args['tss'],16)
-            bid = int(args['bid'])
+            anc = args.get('anchor')
+            tag = args.get('tag')
+            tsi = args.get('tsi',None)
+            tss = int(args.get('tss'),16)
+            bid = int(args.get('bid'))
         except:
             #eprint('BlinkRecv: data missing')
             return
@@ -199,16 +215,18 @@ class Blinker():
             self.blinks[bid][anc] = {}
             self.blinks[bid][anc]['tag'] = tag
             self.blinks[bid][anc]['tss'] = tss
+            self.blinks[bid][anc]['tsi'] = tsi
             self.blinks[bid][anc]['dir'] = 'RX'
 
 
     def BlinkXmit(self,data):
         try:
             args = data['args']
-            anc = args['anchor']
-            tag = args['tag']
-            tss = int(args['tss'],16)
-            bid = int(args['bid'])
+            anc = args.get('anchor')
+            tag = args.get('tag')
+            tsi = args.get('tsi',None)
+            tss = int(args.get('tss'),16)
+            bid = int(args.get('bid'))
         except:
             #eprint('BlinkXmit: data missing')
             return
@@ -217,6 +235,7 @@ class Blinker():
             self.blinks[bid][anc] = {}
             self.blinks[bid][anc]['tag'] = tag
             self.blinks[bid][anc]['tss'] = tss
+            self.blinks[bid][anc]['tsi'] = tsi
             self.blinks[bid][anc]['dir'] = 'TX'
         
         if bid in self.waiting:
@@ -243,6 +262,7 @@ class Blinker():
             for anc in self.rxs:
                 eui = anc['EUI']
                 if eui in blinks[index]:
+                    TI = blinks[index][eui]['tsi']
                     if blinks[index][eui]['dir'] == 'TX':
                         TX = blinks[index][eui]['tss']
                         RX = ''
@@ -252,7 +272,10 @@ class Blinker():
                 else:
                     RX = ''
                     TX = ''
+                    TI = {}
                 msg += ',{},{}'.format(TX,RX)
+                for attr in self.tsinfo_attrs:
+                    msg += ',{}'.format(TI.get(attr,''))
 
             print(msg)
             

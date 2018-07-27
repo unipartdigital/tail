@@ -40,7 +40,7 @@ class Config():
         'prf'		  : 64,
         'pcode'		  : 20,
         'txpsr'		  : 64,
-        'antd'		  : 0x4028,
+        'antd'		  : 0x402a,
         'xtalt'		  : 0x0f,
         'smart_power'     : 1,
         'snr_threshold'   : 1,
@@ -62,9 +62,12 @@ def getEUIs(blks,index,direc):
     return euis
                     
 
-def getTS(blks,index,eui,direc):
+def getTS(blks,index,eui,direc,raw=False):
     if blks[index][eui]['dir'] == direc:
-        return blks[index][eui]['tss']
+        if raw:
+            return blks[index][eui]['tsi']['cycle_ts']
+        else:
+            return blks[index][eui]['tss']
     raise ValueError
     
 
@@ -77,6 +80,8 @@ def main():
     parser.add_argument('-s', '--speed', type=float, default=cfg.blink_speed)
     parser.add_argument('-p', '--port', type=int, default=cfg.rpc_port)
     parser.add_argument('-E', '--ewma', type=int, default=cfg.ewma)
+    
+    parser.add_argument('-R', '--raw', action='store_true', default=False)
     
     parser.add_argument('--reset', action='store_true', default=False)
     
@@ -97,7 +102,8 @@ def main():
     args = parser.parse_args()
 
     ewma = args.ewma
-    
+    rawts = args.raw
+
     blink_delay = args.delay
     blink_count = args.count
 
@@ -189,12 +195,12 @@ def main():
             Tm = tmr.nap(blink_delay)
 
             try:
-                T1 = getTS(blk.blinks, i1, EUI1, 'TX')
-                T2 = getTS(blk.blinks, i1, EUI2, 'RX')
-                T3 = getTS(blk.blinks, i2, EUI2, 'TX')
-                T4 = getTS(blk.blinks, i2, EUI1, 'RX')
-                T5 = getTS(blk.blinks, i3, EUI1, 'TX')
-                T6 = getTS(blk.blinks, i3, EUI2, 'RX')
+                T1 = getTS(blk.blinks, i1, EUI1, 'TX', rawts)
+                T2 = getTS(blk.blinks, i1, EUI2, 'RX', rawts)
+                T3 = getTS(blk.blinks, i2, EUI2, 'TX', rawts)
+                T4 = getTS(blk.blinks, i2, EUI1, 'RX', rawts)
+                T5 = getTS(blk.blinks, i3, EUI1, 'TX', rawts)
+                T6 = getTS(blk.blinks, i3, EUI2, 'RX', rawts)
 
                 T41 = T4 - T1
                 T32 = T3 - T2
@@ -205,7 +211,10 @@ def main():
 
                 Frt = (T51 - T62) / T51
                 Tof = (T41*T63 - T32*T54) / (T51+T62)
-                Dof = Tof / (1<<32)
+                if rawts:
+                    Dof = Tof / 63.8976
+                else:
+                    Dof = Tof / (1<<32)
                 Lof = Dof * cfg.Cns
 
                 if Lof > 0 and Lof < 100:
