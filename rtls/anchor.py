@@ -101,18 +101,20 @@ class Timehires(Structure):
 class TimestampInfo(Structure):
 
     _fields_ = [
-        ("cycle_ts", c_uint64),
-        ("rxpacc", c_uint16),
+        ("rawts", c_uint64),
+        ("lqi", c_uint16),
+        ("snr", c_uint16),
+        ("fpr", c_uint16),
         ("noise", c_uint16),
+        ("rxpacc", c_uint16),
+        ("fp_index", c_uint16),
         ("fp_ampl1", c_uint16),
         ("fp_ampl2", c_uint16),
         ("fp_ampl3", c_uint16),
-        ("fp_index", c_uint16),
         ("cir_pwr", c_uint32),
         ("fp_pwr", c_uint32),
-        ("snr", c_uint16),
-        ("fpr", c_uint16),
-        ("lqi", c_uint16),
+        ("ttcko", c_uint32),
+        ("ttcki", c_uint32),
     ]
 
     def __iter__(self):
