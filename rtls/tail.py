@@ -20,6 +20,80 @@ def eprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
 
 
+
+class DW1000:
+
+    ATTRS = {
+        'channel'	  : 7,
+        'rate'		  : 6800,
+        'prf'		  : 64,
+        'pcode'		  : 20,
+        'txpsr'		  : 64,
+        'antd'		  : None,
+        'xtalt'		  : None,
+        'tx_power'        : None,
+        'smart_power'     : 1,
+        'snr_threshold'   : 1,
+        'fpr_threshold'   : 1,
+        'noise_threshold' : 256,
+    }
+
+
+    def AddParserOptions(parser):
+        parser.add_argument('--reset', action='store_true', default=False)
+        parser.add_argument('--channel',		type=str, default=None)
+        parser.add_argument('--rate',			type=str, default=None)
+        parser.add_argument('--prf',			type=str, default=None)
+        parser.add_argument('--pcode',			type=str, default=None)
+        parser.add_argument('--txpsr',			type=str, default=None)
+        parser.add_argument('--antd',			type=str, default=None)
+        parser.add_argument('--xtalt',			type=str, default=None)
+        parser.add_argument('--tx_power',		type=str, default=None)
+        parser.add_argument('--smart_power',		type=str, default=None)
+        parser.add_argument('--snr_threshold',		type=str, default=None)
+        parser.add_argument('--fpr_threshold',		type=str, default=None)
+        parser.add_argument('--noise_threshold',	type=str, default=None)
+
+    def HandleArguments(args, rpc, remaddrs):
+        if args.reset:
+            for addr in remaddrs:
+                for attr in DW1000.ATTRS:
+                    if DW1000.ATTRS[attr] is not None:
+                        rpc.setAttr(addr, attr, DW1000.ATTRS[attr])
+        
+        for addr in remaddrs:
+            if args.channel is not None:
+                rpc.setAttr(addr, 'channel', args.channel)
+            if args.rate is not None:
+                rpc.setAttr(addr, 'rate', args.rate)
+            if args.prf is not None:
+                rpc.setAttr(addr, 'prf', args.prf)
+            if args.pcode is not None:
+                rpc.setAttr(addr, 'pcode', args.pcode)
+            if args.txpsr is not None:
+                rpc.setAttr(addr, 'txpsr', args.txpsr)
+            if args.antd is not None:
+                rpc.setAttr(addr, 'antd', int(args.antd,0))
+            if args.xtalt is not None:
+                rpc.setAttr(addr, 'xtalt', int(args.xtalt,0))
+            if args.tx_power is not None:
+                rpc.setAttr(addr, 'tx_power', int(args.tx_power,16))
+            if args.smart_power is not None:
+                rpc.setAttr(addr, 'smart_power', args.smart_power)
+            if args.snr_threshold is not None:
+                rpc.setAttr(addr, 'snr_threshold', args.snr_threshold)
+            if args.fpr_threshold is not None:
+                rpc.setAttr(addr, 'fpr_threshold', args.fpr_threshold)
+            if args.noise_threshold is not None:
+                rpc.setAttr(addr, 'noise_threshold', args.noise_threshold)
+
+    def PrintRemoteAttrs(rpc,addr):
+        for attr in DW1000.ATTRS:
+            val = rpc.getAttr(addr, attr)
+            eprint('  {:20s}: {}'.format(attr, val))
+        
+    
+
 class Timer:
 
     def __init__(self):
@@ -144,18 +218,20 @@ class RPC:
 class Blinker():
 
     tsinfo_attrs = (
-        'cycle_ts',
+        'rawts',
+        'lqi',
+        'snr',
+        'fpr',
         'noise',
         'rxpacc',
+        'fp_index',
         'fp_ampl1',
         'fp_ampl2',
         'fp_ampl3',
-        'fp_index',
-        'fp_pwr',
         'cir_pwr',
-        'snr',
-        'fpr',
-        'lqi',
+        'fp_pwr',
+        'ttcko',
+        'ttcki',
     )
 
     def __init__(self,rpc,rxs):
