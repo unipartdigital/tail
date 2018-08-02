@@ -3,96 +3,98 @@
 # Helper functions/classes/code for Tail algorithm development
 #
 
-import pprint
-import ipaddress
-import netifaces
+import sys
+import math
+import time
+import queue
+import json
+import ctypes
 import socket
 import select
-import ctypes
-import json
+import ipaddress
+import netifaces
 import threading
-import queue
-import time
-import sys
+
+from pprint import pprint
+from config import *
 
 
 def eprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
 
 
-
 class DW1000:
 
-    ATTRS = {
-        'channel'	  : 7,
-        'rate'		  : 6800,
-        'prf'		  : 64,
-        'pcode'		  : 20,
-        'txpsr'		  : 64,
-        'antd'		  : None,
-        'xtalt'		  : None,
-        'tx_power'        : None,
-        'smart_power'     : 1,
-        'snr_threshold'   : 1,
-        'fpr_threshold'   : 1,
-        'noise_threshold' : 256,
-    }
+    # Order is important
+    ATTRS = (
+        'channel',
+        'pcode',
+        'prf',
+        'rate',
+        'txpsr',
+        'smart_power',
+        'tx_power',
+        'xtalt',
+        'antd',
+        'snr_threshold',
+        'fpr_threshold',
+        'noise_threshold',
+    )
 
+    def __init__(self,host,port,rpc):
+        self.rpc  = rpc
+        self.host = host
+        self.addr = socket.getaddrinfo(host, port, socket.AF_INET6)[0][4]
+        self.eui  = rpc.getEUI(self.addr)
 
-    def AddParserOptions(parser):
-        parser.add_argument('--reset', action='store_true', default=False)
-        parser.add_argument('--channel',		type=str, default=None)
-        parser.add_argument('--rate',			type=str, default=None)
-        parser.add_argument('--prf',			type=str, default=None)
-        parser.add_argument('--pcode',			type=str, default=None)
-        parser.add_argument('--txpsr',			type=str, default=None)
-        parser.add_argument('--antd',			type=str, default=None)
-        parser.add_argument('--xtalt',			type=str, default=None)
-        parser.add_argument('--tx_power',		type=str, default=None)
-        parser.add_argument('--smart_power',		type=str, default=None)
-        parser.add_argument('--snr_threshold',		type=str, default=None)
-        parser.add_argument('--fpr_threshold',		type=str, default=None)
-        parser.add_argument('--noise_threshold',	type=str, default=None)
+    def GetAttr(self,attr):
+        return self.rpc.getAttr(self.addr,attr)
 
-    def HandleArguments(args, rpc, remaddrs):
-        if args.reset:
-            for addr in remaddrs:
-                for attr in DW1000.ATTRS:
-                    if DW1000.ATTRS[attr] is not None:
-                        rpc.setAttr(addr, attr, DW1000.ATTRS[attr])
-        
-        for addr in remaddrs:
-            if args.channel is not None:
-                rpc.setAttr(addr, 'channel', args.channel)
-            if args.rate is not None:
-                rpc.setAttr(addr, 'rate', args.rate)
-            if args.prf is not None:
-                rpc.setAttr(addr, 'prf', args.prf)
-            if args.pcode is not None:
-                rpc.setAttr(addr, 'pcode', args.pcode)
-            if args.txpsr is not None:
-                rpc.setAttr(addr, 'txpsr', args.txpsr)
-            if args.antd is not None:
-                rpc.setAttr(addr, 'antd', int(args.antd,0))
-            if args.xtalt is not None:
-                rpc.setAttr(addr, 'xtalt', int(args.xtalt,0))
-            if args.tx_power is not None:
-                rpc.setAttr(addr, 'tx_power', int(args.tx_power,16))
-            if args.smart_power is not None:
-                rpc.setAttr(addr, 'smart_power', args.smart_power)
-            if args.snr_threshold is not None:
-                rpc.setAttr(addr, 'snr_threshold', args.snr_threshold)
-            if args.fpr_threshold is not None:
-                rpc.setAttr(addr, 'fpr_threshold', args.fpr_threshold)
-            if args.noise_threshold is not None:
-                rpc.setAttr(addr, 'noise_threshold', args.noise_threshold)
+    def SetAttr(self,attr,value):
+        return self.rpc.setAttr(self.addr,attr,value)
 
-    def PrintRemoteAttrs(rpc,addr):
+    def GetAttrDefault(self,attr):
+        if self.eui in DW1000_DEVICE_CONFIG and attr in DW1000_DEVICE_CONFIG[self.eui]:
+            val = DW1000_DEVICE_CONFIG[eui][attr]
+        elif attr in DW1000_DEFAULT_CONFIG:
+            val = DW1000_DEFAULT_CONFIG[attr]
+        else:
+            val = None
+        return val
+
+    def PrintAttrs(self):
+        eprint('{} <{}>'.format(self.host,self.eui))
         for attr in DW1000.ATTRS:
-            val = rpc.getAttr(addr, attr)
-            eprint('  {:20s}: {}'.format(attr, val))
-        
+            value = self.GetAttr(attr)
+            eprint('  {:20s}: {}'.format(attr, value))
     
+
+    def PrintAllRemoteAttrs(remotes):
+        eprint('DW1000 Attributes:')
+        for remote in remotes:
+            eprint()
+            remote.PrintAttrs()
+        eprint()
+                
+    def AddParserArguments(parser):
+        parser.add_argument('--reset', action='store_true', default=False)
+        for attr in DW1000.ATTRS:
+            parser.add_argument('--' + attr, type=str, default=None)
+
+    def HandleArguments(args,remotes):
+        for rem in remotes:
+            for attr in DW1000.ATTRS:
+                val = None
+                if getattr(args,attr) is not None:
+                    if getattr(args,attr) == 'def':
+                        val = rem.GetAttrDefault(attr)
+                    else:
+                        val = int(getattr(args,attr),0)
+                elif args.reset:
+                    val = rem.GetAttrDefault(attr)
+                if val is not None:
+                    rem.setAttr(attr, val)
+                    
 
 class Timer:
 
@@ -204,78 +206,90 @@ class RPC:
         data = self.waitRet(func,seqn,wait)
         return data.get('args',{})
 
-    def getAttr(self,rem,attr):
-        return self.call(rem, 'getAttr', { 'attr': attr }).get('value',None)
+    def getAttr(self,addr,attr):
+        return self.call(addr, 'getAttr', { 'attr': attr }).get('value',None)
 
-    def setAttr(self,rem,attr,val):
-        return self.call(rem, 'setAttr', { 'attr': attr, 'value': val }).get('value',None)
+    def setAttr(self,addr,attr,val):
+        return self.call(addr, 'setAttr', { 'attr': attr, 'value': val }).get('value',None)
 
-    def getEUI(self,rem):
-        return self.call(rem, 'getEUI', { }).get('value',None)
+    def getEUI(self,addr):
+        return self.call(addr, 'getEUI', { }).get('value',None)
 
 
 
 class Blinker():
 
-    tsinfo_attrs = (
-        'rawts',
-        'lqi',
-        'snr',
-        'fpr',
-        'noise',
-        'rxpacc',
-        'fp_index',
-        'fp_ampl1',
-        'fp_ampl2',
-        'fp_ampl3',
-        'cir_pwr',
-        'fp_pwr',
-        'ttcko',
-        'ttcki',
-    )
-
-    def __init__(self,rpc,rxs):
+    def __init__(self,rpc,anchors=None):
+        self.DEBUG = 0
         self.rpc = rpc
-        self.rxs = rxs
         self.bid = 1
         self.blinks = {}
-        self.waiting = {}
-        self.pqueue = queue.Queue()
-        self.pthread = threading.Thread(target=self.print_run)
         rpc.register('blinkRecv', self.BlinkRecv)
         rpc.register('blinkXmit', self.BlinkXmit)
-        self.pthread.start()
 
     def stop(self):
-        self.pqueue.put(None)
-        self.pqueue.join()
+        pass
 
-    def GetBlinkId(self,time):
+    def getEUIs(self,index,direc):
+        euis = []
+        if index is not None:
+            if index in self.blinks:
+                for anc in self.blinks[index]:
+                    if 'dir' in self.blinks[index][anc]:
+                        if self.blinks[index][anc]['dir'] == direc:
+                            euis.append(anc)
+        return euis
+
+    def getTS(self,index,eui,raw=False):
+        if raw:
+            return self.blinks[index][eui]['tsi']['rawts']
+        else:
+            return self.blinks[index][eui]['tss']
+        raise ValueError
+
+    def getXtalPPM(self,index,eui):
+        if self.blinks[index][eui]['dir'] == 'RX':
+            TTCKI = self.blinks[index][eui]['tsi']['ttcki']
+            TTCKO = self.blinks[index][eui]['tsi']['ttcko']
+            if TTCKO & 0x040000:
+                TTCKO -= 0x080000
+            if TTCKI != 0:
+                return TTCKO / TTCKI
+        raise ValueError
+
+    def getRFPower(self,index,eui):
+        if self.blinks[index][eui]['dir'] == 'RX':
+            CIRPWR = self.blinks[index][eui]['tsi']['cir_pwr']
+            RXPACC = self.blinks[index][eui]['tsi']['rxpacc']
+            if RXPACC > 0 and CIRPWR > 0:
+                Plin = (CIRPWR << 17) / (RXPACC*RXPACC)
+                Plog = 10*math.log10(Plin) - 121.74
+                return Plog
+        raise ValueError
+
+    def GetBlinkId(self,time=0.0):
         bid = self.bid
         self.blinks[bid] = { '__time__': '{:.6f}'.format(time) }
         self.bid += 1
         return bid
 
-    def Blink(self,remote,time):
+    def PurgeBlink(self,bid):
+        del self.blinks[bid]
+
+    def Blink(self,addr,time):
         bid = self.GetBlinkId(time)
-        self.rpc.send(remote, 'blink', {'bid':bid} )
+        self.rpc.send(addr, 'blink', {'bid':bid} )
         return bid
 
-    def BlinkID(self,remote,bid):
-        self.rpc.send(remote, 'blink', {'bid':bid} )
+    def BlinkID(self,addr,bid):
+        self.rpc.send(addr, 'blink', {'bid':bid} )
    
-    def BlinkWait(self,remote,bid,wait=1.0):
-        self.waiting[bid] = threading.Event()
-        self.Blink(self,remote,bid)
-        self.waiting[bid].wait(wait)
-        del self.waiting[bid]
+    def TriggerBlink(self,addr,bid,pid):
+        self.rpc.send(addr, 'autoBlink', {'recv':bid, 'xmit':pid})
 
-    
-    def PingPong(self,remote,bid,pid):
-        self.rpc.send(remote, 'pingPong', {'ping':bid, 'pong':pid})
-
-    
     def BlinkRecv(self,data):
+        if self.DEBUG > 0:
+            pprint(data)
         try:
             args = data['args']
             anc = args.get('anchor')
@@ -284,9 +298,8 @@ class Blinker():
             tss = int(args.get('tss'),16)
             bid = int(args.get('bid'))
         except:
-            #eprint('BlinkRecv: data missing')
+            eprint('BlinkRecv: data missing')
             return
-
         if bid in self.blinks:
             self.blinks[bid][anc] = {}
             self.blinks[bid][anc]['tag'] = tag
@@ -294,8 +307,9 @@ class Blinker():
             self.blinks[bid][anc]['tsi'] = tsi
             self.blinks[bid][anc]['dir'] = 'RX'
 
-
     def BlinkXmit(self,data):
+        if self.DEBUG > 0:
+            pprint(data)
         try:
             args = data['args']
             anc = args.get('anchor')
@@ -304,57 +318,15 @@ class Blinker():
             tss = int(args.get('tss'),16)
             bid = int(args.get('bid'))
         except:
-            #eprint('BlinkXmit: data missing')
+            eprint('BlinkXmit: data missing')
             return
-
         if bid in self.blinks:
             self.blinks[bid][anc] = {}
             self.blinks[bid][anc]['tag'] = tag
             self.blinks[bid][anc]['tss'] = tss
             self.blinks[bid][anc]['tsi'] = tsi
             self.blinks[bid][anc]['dir'] = 'TX'
-        
-        if bid in self.waiting:
-            self.waiting[bid].set()
 
     def BlinkDump(self,data):
-        pprint.pprint(data)
-
-    def print_run(self):
-        while True:
-            item = self.pqueue.get()
-            self.pqueue.task_done()
-            if item is None:
-                break
-            self.dump(**item)
-
-    def print(self,index):
-        self.pqueue.put({'index':index})
-
-    def dump(self, index=None):
-        blinks = self.blinks
-        if index in blinks:
-            msg = '{},{}'.format(index,blinks[index].get('__time__',''))
-            for anc in self.rxs:
-                eui = anc['EUI']
-                if eui in blinks[index]:
-                    TI = blinks[index][eui]['tsi']
-                    if blinks[index][eui]['dir'] == 'TX':
-                        TX = blinks[index][eui]['tss']
-                        RX = ''
-                    else:
-                        RX = blinks[index][eui]['tss']
-                        TX = ''
-                else:
-                    RX = ''
-                    TX = ''
-                    TI = {}
-                msg += ',{},{}'.format(TX,RX)
-                for attr in self.tsinfo_attrs:
-                    msg += ',{}'.format(TI.get(attr,''))
-
-            print(msg)
-            
-            del self.blinks[index]
-
+        pprint(data)
 

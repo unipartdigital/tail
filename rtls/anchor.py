@@ -35,7 +35,7 @@ class Config():
 
 cfg = Config()
 
-PingPong = {}
+responses = {}
 
 
 for name,value in (
@@ -58,6 +58,10 @@ for name,value in (
         ('SOF_TIMESTAMPING_OPT_TX_SWHW',  (1<<14))):
     if not hasattr(socket, name):
         setattr(socket, name, value)
+
+
+def eprint(*args, **kwargs):
+    print(*args, file=sys.stderr, **kwargs)
 
 
 class Timespec(Structure):
@@ -141,9 +145,9 @@ def SetDWAttr(attr, data):
         fd.write(str(data))
         fd.close()
         ret = 0
-        print('SetDWAttr({}, {})'.format(attr,data))
+        #eprint('SetDWAttr({}, {})'.format(attr,data))
     except:
-        print('FAIL! SetDWAttr {} := {}'.format(attr,data))
+        eprint('FAIL! SetDWAttr {} := {}'.format(attr,data))
         ret = -1
     return ret
 
@@ -153,9 +157,9 @@ def GetDWAttr(attr):
         fd = open(cfg.dw1000_sysfs + attr, 'r')
         val = fd.read().rstrip()
         fd.close()
-        print('GetDWAttr({}) = {}'.format(attr,val))
+        #eprint('GetDWAttr({}) = {}'.format(attr,val))
     except:
-        print('FAIL! GetDWAttr {}'.format(attr))
+        eprint('FAIL! GetDWAttr {}'.format(attr))
         val = ''
     return val
 
@@ -187,9 +191,9 @@ def RecvBlink(bsock, rsock):
     except:
         eui = GetTagEUI(rem[0].partition('%')[0])
         bid = None
-    global PingPong
-    if bid in PingPong:
-        pid = PingPong.pop(bid)
+    global responses
+    if bid in responses:
+        pid = responses.pop(bid)
         msg = struct.pack('!16sI', cfg.anchor_eui.encode(), pid)
         bsock.sendto(msg, cfg.blink_send)
     tss = GetAnclTs(ancl)
@@ -231,14 +235,13 @@ def RPCBlink(rpc,bsock):
     bsock.sendto(msg, cfg.blink_send)
 
 
-def RPCPingPong(rpc,bsock):
-    global PingPong
+def RPCAutoBlink(rpc,bsock):
+    global responses
     args = rpc['args']
-    bid = args.get('bid', 0)
-    ping = args.get('ping', 0)
-    pong = args.get('pong', 0)
-    PingPong[ping] = pong
-    
+    recv = args['recv']
+    xmit = args['xmit']
+    responses[recv] = xmit
+
 
 def RPCGetEUI(rpc,rsock):
     args = rpc['args']
@@ -286,8 +289,8 @@ def RecvRPC(bsock, rsock):
     func = rpc.get('func', 'none')
     if func == 'blink':
         RPCBlink(rpc,bsock)
-    elif func == 'pingPong':
-        RPCPingPong(rpc,bsock)
+    elif func == 'autoBlink':
+        RPCAutoBlink(rpc,bsock)
     elif func == 'setAttr':
         RPCSetAttr(rpc,rsock)
     elif func == 'getAttr':
@@ -339,6 +342,7 @@ def SocketLoop():
 
 
 def main():
+    
     global cfg
     
     parser = argparse.ArgumentParser(description="Anchor daemon")

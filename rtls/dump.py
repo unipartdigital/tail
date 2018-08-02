@@ -11,21 +11,14 @@ import tail
 
 from tail import eprint
 
-
-class Config():
-
-    rpc_port   = 61666
-
-
-
-cfg = Config()
+from config import *
 
 
 def main():
     
     parser = argparse.ArgumentParser(description="RTLS server")
     
-    parser.add_argument('-p', '--port', type=int, default=cfg.rpc_port)
+    parser.add_argument('-p', '--port', type=int, default=RPC_PORT)
     
     args = parser.parse_args()
 
