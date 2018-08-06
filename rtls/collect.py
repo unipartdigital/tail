@@ -81,6 +81,7 @@ def main():
 
     DW1000.AddParserArguments(parser)
     
+    parser.add_argument('-D', '--debug', action='count', default=0)
     parser.add_argument('-v', '--verbose', action='count')
     parser.add_argument('-t', '--time', type=float, default=0)
     parser.add_argument('-d', '--delay', type=float, default=0)
@@ -140,7 +141,7 @@ def main():
     if VERBOSE:
         DW1000.PrintAllRemoteAttrs(rxs)
 
-    blk = tail.Blinker(rpc,rxs)
+    blk = tail.Blinker(rpc, args.debug)
     tmr = tail.Timer()
 
     thr = threading.Thread(target=print_thread, kwargs={'blinker':blk,'anchors':rxs})

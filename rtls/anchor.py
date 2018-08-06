@@ -3,7 +3,6 @@
 # Anchor daemon for Tail algorithm development
 #
 
-import pprint
 import argparse
 import ipaddress
 import netifaces
@@ -15,10 +14,12 @@ import array
 import ctypes
 import json
 
+from pprint import pprint
 from ctypes import *
 
 
 class Config():
+    debug         = 0
     if_name       = 'lowpan0'
     if_addr       = None
     if_index      = 0
@@ -147,7 +148,7 @@ def SetDWAttr(attr, data):
         ret = 0
         #eprint('SetDWAttr({}, {})'.format(attr,data))
     except:
-        eprint('FAIL! SetDWAttr {} := {}'.format(attr,data))
+        #eprint('FAIL! SetDWAttr {} := {}'.format(attr,data))
         ret = -1
     return ret
 
@@ -159,7 +160,7 @@ def GetDWAttr(attr):
         fd.close()
         #eprint('GetDWAttr({}) = {}'.format(attr,val))
     except:
-        eprint('FAIL! GetDWAttr {}'.format(attr))
+        #eprint('FAIL! GetDWAttr {}'.format(attr))
         val = ''
     return val
 
@@ -171,7 +172,7 @@ def GetTagEUI(addr):
         tag[0] ^= 0x02
         return tag.hex()
     else:
-        return '0'
+        return None
 
 
 def GetAnclTs(ancl):
@@ -347,6 +348,7 @@ def main():
     
     parser = argparse.ArgumentParser(description="Anchor daemon")
     
+    parser.add_argument('-D', '--debug', action='count', default=0)
     parser.add_argument('-i', '--interface', type=str, default=cfg.if_name)
     parser.add_argument('-p', '--port', type=int, default=cfg.server_port)
     parser.add_argument('-s', '--server', type=str)
@@ -355,6 +357,8 @@ def main():
 
     server = socket.getaddrinfo(args.server, args.port, socket.AF_INET6)[0][4]
 
+    cfg.debug = args.debug
+    
     cfg.if_name   = args.interface
     cfg.if_addr   = netifaces.ifaddresses(args.interface)
     cfg.if_index  = socket.if_nametoindex(args.interface)

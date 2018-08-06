@@ -219,8 +219,8 @@ class RPC:
 
 class Blinker():
 
-    def __init__(self,rpc,anchors=None):
-        self.DEBUG = 0
+    def __init__(self,rpc,debug=0):
+        self.DEBUG = debug
         self.rpc = rpc
         self.bid = 1
         self.blinks = {}

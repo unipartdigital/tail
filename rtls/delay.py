@@ -187,7 +187,6 @@ def main():
     
     args = parser.parse_args()
 
-    DEBUG = args.debug
     VERBOSE = args.verbose
 
     CFG.algo = args.algo
@@ -214,9 +213,7 @@ def main():
         DW1000.PrintAllRemoteAttrs(remotes)
 
     tmr = tail.Timer()
-
-    blk = tail.Blinker(rpc,remotes)
-    blk.DEBUG = DEBUG
+    blk = tail.Blinker(rpc, args.debug)
 
     Tcnt = 0
     Dsum = 0.0

@@ -29,7 +29,7 @@ class Config():
     
     blink_count  = 100
     blink_delay  = 0.010
-    blink_wait   = 0.050
+    blink_wait   = 0.010
 
 CFG = Config()
 
@@ -49,7 +49,7 @@ def xtalt_ppm(blk, tx, rxs, tmr):
     Fcnt = 0.0
     Fsum = 0.0
     
-    if VERBOSE > 0:
+    if VERBOSE > 2:
         print('BLINK @{}'.format(tx.eui))
 
     for rx in rxs:
@@ -75,11 +75,11 @@ def xtalt_ppm(blk, tx, rxs, tmr):
             Fcnt += 1
             Fsum += Err
 
-            if VERBOSE > 0:
+            if VERBOSE > 2:
                 print('    {}: {:7.3f}ppm {:7.3f}ppm {:6.1f}dBm'.format(rx.eui,Err*1E6,Est*1E6,Pwr))
                 
         except (ValueError,KeyError):
-            if VERBOSE > 0:
+            if VERBOSE > 2:
                 print('    {}:   ?'.format(rx.eui))
 
     if Fcnt > 0:
@@ -138,48 +138,52 @@ def main():
 
     DW1000.HandleArguments(args,remotes)
 
-    if VERBOSE > 0:
+    if VERBOSE > 1:
         DW1000.PrintAllRemoteAttrs(remotes)
 
     tmr = tail.Timer()
     blk = tail.Blinker(rpc, args.debug)
-    
-    Pcnt = 0
-    Psum = 0
-    
-    eprint('Blinker starting')
 
     try:
-        for i in range(CFG.blink_count):
+        
+        for tx in xmitters:
+            print()
+            print('Calibrating {} <{}>'.format(tx.host,tx.eui))
+            xtalt = int(tx.GetAttr('xtalt'))
+            while True:
+                Pcnt = 0
+                Psum = 0
+                tx.SetAttr('xtalt', xtalt)
+                for i in range(CFG.blink_count):
+                    Fppm = xtalt_ppm(blk,tx,rceivers,tmr)
+                    if Fppm is not None:
+                        Pcnt += 1
+                        Psum += Fppm
+                if Pcnt > 0:
+                    Pavg = Psum/Pcnt * 1E6
+                    if VERBOSE > 0:
+                        print('    XTALT:{} {:.3f}ppm'.format(xtalt,Pavg))
+                    if Pavg > 8.0:
+                        xtalt -= int(Pavg/4)
+                    elif Pavg > 1.8:
+                        xtalt -= 1
+                    elif Pavg < -8.0:
+                        xtalt -= int(Pavg/4)
+                    elif Pavg < -1.8:
+                        xtalt += 1
+                    else:
+                        break
+                else:
+                    break
 
-            Fppm = xtalt_ppm(blk, xmitters[0], rceivers, tmr)
-
-            if Fppm is not None:
-                
-                Pcnt += 1
-                Psum += Fppm
-            
-                if VERBOSE > 0:
-                    print('    =================================================')
-                    print('             AVERAGE: {:7.3f}ppm'.format(Fppm*1E6))
-                    print()
-
+            print('Calibration for {}: XTALT:{}'.format(tx.host,xtalt))
+        
     except KeyboardInterrupt:
         eprint('\nStopping...')
 
     blk.stop()
     rpc.stop()
 
-    if Pcnt > 0:
-        
-        Pavg = Psum/Pcnt
-        
-        print()
-        print('FINAL STATISTICS:')
-        print('  Samples:  {}'.format(Pcnt))
-        print('  Average:  {:.3f}ppm'.format(Pavg*1E6))
-        
-    eprint('\nDone')
     
 
 if __name__ == "__main__":

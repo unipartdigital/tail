@@ -24,7 +24,7 @@ def main():
 
     rpc = tail.RPC(('',args.port))
 
-    blk = tail.Blinker(rpc,[])
+    blk = tail.Blinker(rpc)
     rpc.register('blinkRecv', blk.BlinkDump)
     rpc.register('blinkXmit', blk.BlinkDump)
 
