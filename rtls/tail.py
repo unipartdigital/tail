@@ -54,8 +54,8 @@ class DW1000:
         return self.rpc.setAttr(self.addr,attr,value)
 
     def GetAttrDefault(self,attr):
-        if self.eui in DW1000_DEVICE_CONFIG and attr in DW1000_DEVICE_CONFIG[self.eui]:
-            val = DW1000_DEVICE_CONFIG[eui][attr]
+        if self.eui in DW1000_DEVICE_CALIB and attr in DW1000_DEVICE_CALIB[self.eui]:
+            val = DW1000_DEVICE_CALIB[self.eui][attr]
         elif attr in DW1000_DEFAULT_CONFIG:
             val = DW1000_DEFAULT_CONFIG[attr]
         else:
@@ -86,14 +86,14 @@ class DW1000:
             for attr in DW1000.ATTRS:
                 val = None
                 if getattr(args,attr) is not None:
-                    if getattr(args,attr) == 'def':
+                    if getattr(args,attr) == 'cal':
                         val = rem.GetAttrDefault(attr)
                     else:
                         val = int(getattr(args,attr),0)
                 elif args.reset:
                     val = rem.GetAttrDefault(attr)
                 if val is not None:
-                    rem.setAttr(attr, val)
+                    rem.SetAttr(attr, val)
                     
 
 class Timer:

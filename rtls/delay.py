@@ -26,10 +26,9 @@ from config import *
 
 class Config():
 
-    blink_delay  = 0.010
-    blink_speed  = 100
     blink_count  = 100
-    blink_wait   = None
+    blink_delay  = 0.010
+    blink_wait   = 0.050
 
     rawts        = 0
     ewma         = 32
@@ -55,10 +54,10 @@ def DECA_TWR(anc1, anc2, delay1, delay2, blk, tmr):
     Tm = tmr.nap(delay1)
     
     i2 = blk.Blink(adr2,Tm)
-    Tm = tmr.nap(delay2)
+    Tm = tmr.nap(delay1)
     
     i3 = blk.Blink(adr1,Tm)
-    Tm = tmr.nap(CFG.blink_wait)
+    Tm = tmr.nap(delay2)
 
     T1 = blk.getTS(i1, eui1, CFG.rawts)
     T2 = blk.getTS(i1, eui2, CFG.rawts)
@@ -179,7 +178,7 @@ def main():
     parser.add_argument('-v', '--verbose', action='count', default=0)
     parser.add_argument('-n', '--count', type=int, default=CFG.blink_count)
     parser.add_argument('-d', '--delay', type=float, default=CFG.blink_delay)
-    parser.add_argument('-s', '--speed', type=float, default=CFG.blink_speed)
+    parser.add_argument('-w', '--wait', type=float, default=CFG.blink_wait)
     parser.add_argument('-p', '--port', type=int, default=RPC_PORT)
     parser.add_argument('-E', '--ewma', type=int, default=CFG.ewma)
     parser.add_argument('-A', '--algo', type=str, default=CFG.algo)
@@ -195,9 +194,9 @@ def main():
     CFG.ewma = args.ewma
     CFG.rawts = args.raw
     
-    CFG.blink_delay = args.delay
     CFG.blink_count = args.count
-    CFG.blink_wait = max( (1.0/args.speed)-2*args.delay, 0.01 )
+    CFG.blink_delay = args.delay
+    CFG.blink_wait = args.wait
 
     rpc = tail.RPC(('', args.port))
 
@@ -214,9 +213,9 @@ def main():
     if VERBOSE > 0:
         DW1000.PrintAllRemoteAttrs(remotes)
 
-    blk = tail.Blinker(rpc,remotes)
     tmr = tail.Timer()
 
+    blk = tail.Blinker(rpc,remotes)
     blk.DEBUG = DEBUG
 
     Tcnt = 0
@@ -233,9 +232,9 @@ def main():
 
             try:
                 if CFG.algo == 'DECA':
-                    (Lof,Dof,Rtt,Err,Est,Pwr) = DECA_TWR(remotes[0], remotes[1], CFG.blink_delay, CFG.blink_delay, blk, tmr)
+                    (Lof,Dof,Rtt,Err,Est,Pwr) = DECA_TWR(remotes[0], remotes[1], CFG.blink_delay, CFG.blink_wait, blk, tmr)
                 elif CFG.algo == 'FAST':
-                    (Lof,Dof,Rtt,Err,Est,Pwr) = DECA_FAST_TWR(remotes[0], remotes[1], 0.01, CFG.blink_delay, blk, tmr)
+                    (Lof,Dof,Rtt,Err,Est,Pwr) = DECA_FAST_TWR(remotes[0], remotes[1], CFG.blink_delay, CFG.blink_wait, blk, tmr)
                     
                 if Lof > 0 and Lof < 100:
                     Tcnt += 1

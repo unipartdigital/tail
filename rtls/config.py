@@ -44,7 +44,7 @@ DW1000_DEFAULT_CONFIG = {
     'noise_threshold' : 4096,
 }
 
-DW1000_DEVICE_CONFIG = {
+DW1000_DEVICE_CALIB = {
     '70b3d5b1e0000001': {
         'xtalt'	   : 16,
         'antd'     : 0x403b,

@@ -25,9 +25,9 @@ from config import *
 
 class Config():
 
-    blink_delay  = 0.010
-    blink_speed  = 10
     blink_count  = 100
+    blink_delay  = 0.010
+    blink_wait   = 0.050
 
 CFG = Config()
 
@@ -41,33 +41,43 @@ def main():
     parser = argparse.ArgumentParser(description="RTLS server")
 
     DW1000.AddParserArguments(parser)
-    
+
+    parser.add_argument('-D', '--debug', action='count', default=0)
     parser.add_argument('-v', '--verbose', action='count', default=0)
     parser.add_argument('-n', '--count', type=int, default=CFG.blink_count)
     parser.add_argument('-d', '--delay', type=float, default=CFG.blink_delay)
-    parser.add_argument('-s', '--speed', type=float, default=CFG.blink_speed)
+    parser.add_argument('-w', '--wait', type=float, default=CFG.blink_wait)
     parser.add_argument('-p', '--port', type=int, default=RPC_PORT)
     parser.add_argument('-R', '--raw', action='store_true', default=False)
     parser.add_argument('remote', type=str, nargs='+', help="Remote address")
     
     args = parser.parse_args()
-    
+
+    DEBUG = args.debug
     VERBOSE = args.verbose
     
     rawts = args.raw
 
-    blink_delay = args.delay
     blink_count = args.count
-
-    blink_wait = max( (1.0 / args.speed) - 3*blink_delay, 0.01 )
+    blink_delay = args.delay
+    blink_wait = args.wait
 
     rpc = tail.RPC(('', args.port))
     
     remotes = [ ]
+    xmiters = [ ]
+    recvers = [ ]
+    
     for host in args.remote:
         try:
+            xmit = host.startswith('*') or host.endswith('*')
+            host = host.strip('*').rstrip('*')
             anchor = DW1000(host,args.port,rpc)
             remotes.append(anchor)
+            if xmit:
+                xmiters.append(anchor)
+            else:
+                recvers.append(anchor)
         except:
             eprint('Remote {} exist does not'.format(host))
 
@@ -76,11 +86,12 @@ def main():
     if VERBOSE > 0:
         DW1000.PrintAllRemoteAttrs(remotes)
 
-    blk = tail.Blinker(rpc,remotes)
     tmr = tail.Timer()
 
-    tx = remotes[0]
-    rxs = remotes[1:]
+    blk = tail.Blinker(rpc)
+    blk.DEBUG = DEBUG
+    
+    tx = xmiters[0]
         
     Tcnt = 0
     Tsum = 0
@@ -104,7 +115,7 @@ def main():
             if VERBOSE > 0:
                 print('BLINK @{}'.format(tx.eui))
 
-            for rx in rxs:
+            for rx in recvers:
                 
                 try:
                     T1 = blk.getTS(i1, tx.eui, rawts)
@@ -150,17 +161,13 @@ def main():
     blk.stop()
     rpc.stop()
 
-    try:
+    if Tcnt > 0:
         Tavg = Tsum/Tcnt
-
         print()
         print('FINAL STATISTICS:')
         print('  Samples:  {}'.format(Tcnt))
         print('  Average:  {:.3f}ppm'.format(Tavg*1E6))
         
-    except:
-        pass
-
     eprint('\nDone')
     
 
