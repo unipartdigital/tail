@@ -50,7 +50,7 @@ def xtalt_ppm(blk, tx, rxs, tmr):
     Fsum = 0.0
     
     if VERBOSE > 0:
-        print('BLINK @{}'.format(tx.eui))
+        print('BLINK {} <{}>'.format(tx.host,tx.eui))
 
     for rx in rxs:
         try:
@@ -76,11 +76,11 @@ def xtalt_ppm(blk, tx, rxs, tmr):
             Fsum += Err
 
             if VERBOSE > 0:
-                print('    {}: {:7.3f}ppm {:7.3f}ppm {:6.1f}dBm'.format(rx.eui,Err*1E6,Est*1E6,Pwr))
+                print('    {:<8s} <{:s}>   {:7.3f}ppm {:7.3f}ppm {:6.1f}dBm'.format(rx.host,rx.eui,Err*1E6,Est*1E6,Pwr))
                 
         except (ValueError,KeyError):
             if VERBOSE > 0:
-                print('    {}:   ?'.format(rx.eui))
+                print('     {:<8s} <{:s}>   ?'.format(rx.host,rx.eui))
 
     if Fcnt > 0:
         Fppm = Fsum/Fcnt
@@ -160,8 +160,8 @@ def main():
                 Psum += Fppm
             
                 if VERBOSE > 0:
-                    print('    =================================================')
-                    print('             AVERAGE: {:7.3f}ppm'.format(Fppm*1E6))
+                    print('    =============================================================')
+                    print('    AVERAGE                       {:7.3f}ppm'.format(Fppm*1E6))
                     print()
 
     except KeyboardInterrupt:
