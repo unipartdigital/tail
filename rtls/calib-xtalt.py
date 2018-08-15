@@ -25,7 +25,7 @@ from config import *
 
 class Config():
 
-    rawts        = False
+    rawts        = True
     
     blink_count  = 100
     blink_delay  = 0.010
@@ -50,7 +50,7 @@ def xtalt_ppm(blk, tx, rxs, tmr):
     Fsum = 0.0
     
     if VERBOSE > 2:
-        print('BLINK @{}'.format(tx.eui))
+        eprint('BLINK @{}'.format(tx.eui))
 
     for rx in rxs:
         try:
@@ -76,11 +76,11 @@ def xtalt_ppm(blk, tx, rxs, tmr):
             Fsum += Err
 
             if VERBOSE > 2:
-                print('    {}: {:7.3f}ppm {:7.3f}ppm {:6.1f}dBm'.format(rx.eui,Err*1E6,Est*1E6,Pwr))
+                eprint('    {}: {:7.3f}ppm {:7.3f}ppm {:6.1f}dBm'.format(rx.eui,Err*1E6,Est*1E6,Pwr))
                 
         except (ValueError,KeyError):
             if VERBOSE > 2:
-                print('    {}:   ?'.format(rx.eui))
+                eprint('    {}:   ?'.format(rx.eui))
 
     if Fcnt > 0:
         Fppm = Fsum/Fcnt
@@ -104,15 +104,12 @@ def main():
     parser.add_argument('-d', '--delay', type=float, default=CFG.blink_delay)
     parser.add_argument('-w', '--wait', type=float, default=CFG.blink_wait)
     parser.add_argument('-p', '--port', type=int, default=RPC_PORT)
-    parser.add_argument('-R', '--raw', action='store_true', default=False)
     parser.add_argument('remote', type=str, nargs='+', help="Remote address")
     
     args = parser.parse_args()
     
     VERBOSE = args.verbose
     
-    CFG.rawts = args.raw
-
     CFG.blink_count = args.count
     CFG.blink_delay = args.delay
     CFG.blink_wait = args.wait
@@ -147,8 +144,8 @@ def main():
     try:
         
         for tx in xmitters:
-            print()
-            print('Calibrating {} <{}>'.format(tx.host,tx.eui))
+            if VERBOSE > 0:
+                eprint('Calibrating {} <{}>'.format(tx.host,tx.eui))
             xtalt = int(tx.GetAttr('xtalt'))
             while True:
                 Pcnt = 0
@@ -162,7 +159,7 @@ def main():
                 if Pcnt > 0:
                     Pavg = Psum/Pcnt * 1E6
                     if VERBOSE > 0:
-                        print('    XTALT:{} {:.3f}ppm'.format(xtalt,Pavg))
+                        eprint('    XTALT:{} {:.3f}ppm'.format(xtalt,Pavg))
                     if Pavg > 8.0:
                         xtalt -= int(Pavg/4)
                     elif Pavg > 1.8:
@@ -176,7 +173,10 @@ def main():
                 else:
                     break
 
-            print('Calibration for {}: XTALT:{}'.format(tx.host,xtalt))
+            if VERBOSE > 0:
+                eprint('Calibration for {}:'.format(tx.host))
+            
+            print(xtalt)
         
     except KeyboardInterrupt:
         eprint('\nStopping...')
