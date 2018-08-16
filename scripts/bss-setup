@@ -1,0 +1,26 @@
+#!/bin/bash
+
+RATE=850
+TXPSR=1024
+CHANNEL=7
+PCODE=20
+PRF=64
+
+TX_POWER=0xd1d1d1d1
+SMART_POWER=0
+
+ANTD=${ANTD:-cal}
+XTALT=${XTALT:-cal}
+
+DWLIST='bss1 bss2 bss3 bss4 bss5 bss6 bss7 bss8'
+
+./dwattr.py ${DWLIST} 			\
+	    --channel ${CHANNEL} 	\
+	    --pcode ${PCODE}		\
+	    --prf ${PRF} 		\
+	    --rate ${RATE} 		\
+	    --txpsr ${TXPSR} 		\
+	    --antd ${ANTD} 		\
+	    --xtalt ${XTALT}		\
+	    --smart_power ${SMART_POWER} \
+	    --tx_power ${TX_POWER} 	\
