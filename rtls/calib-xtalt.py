@@ -36,22 +36,25 @@ CFG = Config()
 VERBOSE = 0
 
 
-def xtalt_ppm(blk, tx, rxs, tmr):
-    
-    tm = tmr.get()
-            
-    i1 = blk.Blink(tx.addr,tm)
-    tm = tmr.nap(CFG.blink_delay)
-    
-    i2 = blk.Blink(tx.addr,tm)
-    tm = tmr.nap(CFG.blink_wait)
-    
-    Fcnt = 0.0
-    Fsum = 0.0
+def xtalt_ppm(blk, tx, rxs, rems, tmr):
     
     if VERBOSE > 2:
         eprint('BLINK @{}'.format(tx.eui))
 
+    tm = tmr.sync()
+    i1 = blk.Blink(tx.addr,tm)
+    tm = tmr.nap(CFG.blink_delay)
+    i2 = blk.Blink(tx.addr,tm)
+
+    try:
+        blk.WaitBlinks((i1,i2),rems,CFG.blink_wait)
+        
+    except (TimeoutError):
+        pass
+    
+    Fcnt = 0.0
+    Fsum = 0.0
+    
     for rx in rxs:
         try:
             T1 = blk.getTS(i1, tx.eui, CFG.rawts)
@@ -152,7 +155,7 @@ def main():
                 Psum = 0
                 tx.SetAttr('xtalt', xtalt)
                 for i in range(CFG.blink_count):
-                    Fppm = xtalt_ppm(blk,tx,rceivers,tmr)
+                    Fppm = xtalt_ppm(blk,tx,rceivers,remotes,tmr)
                     if Fppm is not None:
                         Pcnt += 1
                         Psum += Fppm
