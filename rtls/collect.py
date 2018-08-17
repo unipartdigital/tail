@@ -23,9 +23,9 @@ from config import *
 
 class Config():
 
-    blink_time   = 1.0
-    blink_delay  = 0.01
     blink_count  = 100
+    blink_time   = 1.0
+    blink_delay  = 0.010
 
 CFG = Config()
 
@@ -44,16 +44,16 @@ def print_stop():
 def print_blink(index, anchors, blinker):
     bs = blinker.blinks
     if index in bs:
-        msg = '{},{}'.format(index,bs[index].get('__time__',''))
+        msg = '{},{}'.format(index,bs[index]['time'])
         for anc in anchors:
             eui = anc.eui
-            if eui in bs[index]:
-                TI = bs[index][eui]['tsi']
-                if bs[index][eui]['dir'] == 'TX':
-                    TX = bs[index][eui]['tss']
+            if eui in bs[index]['anchors']:
+                TI = bs[index]['anchors'][eui]['tsi']
+                if bs[index]['anchors'][eui]['dir'] == 'TX':
+                    TX = bs[index]['anchors'][eui]['tss']
                     RX = ''
                 else:
-                    RX = bs[index][eui]['tss']
+                    RX = bs[index]['anchors'][eui]['tss']
                     TX = ''
             else:
                 RX = ''
@@ -154,20 +154,15 @@ def main():
 
     try:
         for i in range(blink_count):
-            
-            for remo in txs:
-            
+            for tx in txs:
                 timer = tmr.nap(blink_delay)
-                index = blk.Blink(remo.addr,timer)
-                
+                index = blk.Blink(tx.addr,timer)
                 done = index-100
                 print_id(done)
-                
             if i % 100 == 0:
                 eprint(end='.', flush=True)
-            
+        
         tmr.nap(1)
-
         for i in range(done,index):
             print_id(i)
 
@@ -176,7 +171,6 @@ def main():
 
     blk.stop()
     rpc.stop()
-
     print_stop()
     
     eprint('\nDone')

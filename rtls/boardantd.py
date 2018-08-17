@@ -28,9 +28,10 @@ class Config():
 
     blink_count  = 100
     blink_delay  = 0.010
-    blink_wait   = 0.050
+    blink_wait   = 0.250
 
-    rawts        = 0
+    rawts        = True
+    weighted     = False
 
     algo         = 'DECA'
 
@@ -49,17 +50,18 @@ ANCHORS = (
     'bss8',
 )
 
+NANC = len(ANCHORS)
+
 IGNORE = [
     (4,5),
     (6,7),
 ]
 
 
-def norm(x):
-    return math.sqrt(x[0]*x[0] + x[1]*x[1] + x[2]*x[2])
-
 def eucl(x,y):
-    return math.sqrt((x[0]-y[0])*(x[0]-y[0]) + (x[1]-y[1])*(x[1]-y[1]) + (x[2]-y[2])*(x[2]-y[2]))
+    return math.sqrt((x[0]-y[0])*(x[0]-y[0]) +
+                     (x[1]-y[1])*(x[1]-y[1]) +
+                     (x[2]-y[2])*(x[2]-y[2]))
 
 
 def DECA_TWR(anc1, anc2, delay1, delay2, blk, tmr):
@@ -70,7 +72,7 @@ def DECA_TWR(anc1, anc2, delay1, delay2, blk, tmr):
     eui1 = anc1.eui
     eui2 = anc2.eui
 
-    Tm = tmr.get()
+    Tm = tmr.sync()
     
     i1 = blk.Blink(adr1,Tm)
     Tm = tmr.nap(delay1)
@@ -79,8 +81,9 @@ def DECA_TWR(anc1, anc2, delay1, delay2, blk, tmr):
     Tm = tmr.nap(delay1)
     
     i3 = blk.Blink(adr1,Tm)
-    Tm = tmr.nap(delay2)
 
+    blk.WaitBlinks((i1,i2,i3),(anc1,anc2),delay2)
+    
     T1 = blk.getTS(i1, eui1, CFG.rawts)
     T2 = blk.getTS(i1, eui2, CFG.rawts)
     T3 = blk.getTS(i2, eui2, CFG.rawts)
@@ -144,7 +147,7 @@ def DECA_FAST_TWR(anc1, anc2, delay1, delay2, blk, tmr):
     
     blk.BlinkID(adr1,i1)
     
-    tmr.nap(delay2)
+    blk.WaitBlinks((i1,i2,i3),(anc1,anc2),delay2)
     
     T1 = blk.getTS(i1, eui1, CFG.rawts)
     T2 = blk.getTS(i1, eui2, CFG.rawts)
@@ -203,15 +206,19 @@ def main():
     parser.add_argument('-w', '--wait', type=float, default=CFG.blink_wait)
     parser.add_argument('-p', '--port', type=int, default=RPC_PORT)
     parser.add_argument('-A', '--algo', type=str, default=CFG.algo)
-    parser.add_argument('-R', '--raw', action='store_true', default=False)
+    parser.add_argument('-W', '--weighted', action='store_true', default=False)
     
     args = parser.parse_args()
 
     VERBOSE = args.verbose
 
-    CFG.algo = args.algo
-    CFG.rawts = args.raw
-    
+    if args.algo == 'FAST':
+        algo = DECA_FAST_TWR
+    else:
+        algo = DECA_TWR
+
+    CFG.weighted = args.weighted
+        
     CFG.blink_count = args.count
     CFG.blink_delay = args.delay
     CFG.blink_wait = args.wait
@@ -219,7 +226,7 @@ def main():
     rpc = tail.RPC(('',args.port))
 
     remotes = { }
-    for i in range(8):
+    for i in range(NANC):
         try:
             remotes[i] = DW1000(ANCHORS[i],args.port,rpc)
         except:
@@ -234,12 +241,12 @@ def main():
     blk = tail.Blinker(rpc, args.debug)
 
     try:
-        dist = np.zeros((8,8))
-        dvar = np.zeros((8,8))
-        derr = np.zeros((8,8))
-        for i1 in range(8):
+        dist = np.zeros((NANC,NANC))
+        dvar = np.zeros((NANC,NANC))
+        derr = np.zeros((NANC,NANC))
+        for i1 in range(NANC):
             rem1 = remotes[i1]
-            for i2 in range(8):
+            for i2 in range(NANC):
                 rem2 = remotes[i2]
                 if (i1,i2) in IGNORE:
                     dist[i1,i2] = 0.0
@@ -252,15 +259,12 @@ def main():
                         Lsqr = 0.0
                         for i in range(CFG.blink_count):
                             try:
-                                if CFG.algo == 'DECA':
-                                    (Lof,Dof,Rtt,Err,Est,Pwr) = DECA_TWR(rem1, rem2, CFG.blink_delay, CFG.blink_wait, blk, tmr)
-                                elif CFG.algo == 'FAST':
-                                    (Lof,Dof,Rtt,Err,Est,Pwr) = DECA_FAST_TWR(rem1, rem2, CFG.blink_delay, CFG.blink_wait, blk, tmr)
+                                (Lof,Dof,Rtt,Err,Est,Pwr) = algo(rem1, rem2, CFG.blink_delay, CFG.blink_wait, blk, tmr)
                                 if Lof > 0 and Lof < 20:
                                     Tcnt += 1
                                     Lsum += Lof
                                     Lsqr += Lof*Lof
-                            except (ValueError,KeyError):
+                            except (ValueError,KeyError,TimeoutError):
                                 eprint(end='?', flush=True)
                             if i%10 == 0:
                                 eprint(end='.', flush=True)
@@ -286,43 +290,49 @@ def main():
                 
         #print(dist)
 
-        L = 28 - len(IGNORE)
+        L = int((NANC-1)*(NANC/2)) - len(IGNORE)
 
-        A = np.zeros((L,8))
+        A = np.zeros((L,NANC))
         G = np.zeros((L))
         C = np.zeros((L))
         k = 0
-        for i1 in range(8):
-            for i2 in range(i1+1,8):
+        for i1 in range(NANC):
+            for i2 in range(i1+1,NANC):
                 if (i1,i2) not in IGNORE:
-                    print('adding {},{}'.format(i1,i2))
                     A[k,i1] = 1
                     A[k,i2] = 1
                     G[k] = dvar[i1,i2]
                     C[k] = derr[i1,i2]
                     k += 1
 
-        GG = np.diag(1/G)
-        AA = dot(dot(A.T,GG),A)
-        AC = dot(dot(A.T,GG),C)
-        AB = lin.solve(AA,AC)
+        if CFG.weighted:
+            GG = np.diag(1/np.sqrt(G))
+            AA = dot(GG,A)
+            CC = dot(C,GG)
+        else:
+            AA = A
+            CC = C
+        
+        AX = lin.lstsq(AA,CC)
+        AB = AX[0]
+        
         ANTD = (AB/C_AIR) * DW_CLOCK_GHZ * 1E9
-
         print(ANTD)
 
-        for i in range(8):
+        for i in range(NANC):
             antd = remotes[i].GetAttr('antd')
-            newd = int(antd,0) + int(ANTD[i])
+            corr = int(ANTD[i])
+            newd = int(antd,0) + corr 
             remotes[i].SetAttr('antd', newd)
             antd = remotes[i].GetAttr('antd')
-            print('{} <{}> antd={}'.format(remotes[i].host, remotes[i].eui, antd))
+            print('{} <{}> correction={:+2d} => antd={}'.format(
+                remotes[i].host, remotes[i].eui, corr, antd))
 
     except KeyboardInterrupt:
         eprint('\nStopping...')
 
     blk.stop()
     rpc.stop()
-
 
 
 if __name__ == "__main__":

@@ -28,7 +28,7 @@ class Config():
 
     blink_count  = 100
     blink_delay  = 0.010
-    blink_wait   = 0.050
+    blink_wait   = 0.250
 
     rawts        = 0
     ewma         = 32
@@ -41,14 +41,14 @@ VERBOSE = 0
 
 
 def DECA_TWR(anc1, anc2, delay1, delay2, blk, tmr):
-    
+
     adr1 = anc1.addr
     adr2 = anc2.addr
 
     eui1 = anc1.eui
     eui2 = anc2.eui
 
-    Tm = tmr.get()
+    Tm = tmr.sync()
     
     i1 = blk.Blink(adr1,Tm)
     Tm = tmr.nap(delay1)
@@ -57,8 +57,9 @@ def DECA_TWR(anc1, anc2, delay1, delay2, blk, tmr):
     Tm = tmr.nap(delay1)
     
     i3 = blk.Blink(adr1,Tm)
-    Tm = tmr.nap(delay2)
-
+    
+    blk.WaitBlinks((i1,i2,i3),(anc1,anc2),delay2)
+    
     T1 = blk.getTS(i1, eui1, CFG.rawts)
     T2 = blk.getTS(i1, eui2, CFG.rawts)
     T3 = blk.getTS(i2, eui2, CFG.rawts)
@@ -109,7 +110,7 @@ def DECA_FAST_TWR(anc1, anc2, delay1, delay2, blk, tmr):
     eui1 = anc1.eui
     eui2 = anc2.eui
 
-    Tm = tmr.get()
+    Tm = tmr.sync()
 
     i1 = blk.GetBlinkId(Tm)
     i2 = blk.GetBlinkId(Tm)
@@ -122,7 +123,7 @@ def DECA_FAST_TWR(anc1, anc2, delay1, delay2, blk, tmr):
     
     blk.BlinkID(adr1,i1)
     
-    tmr.nap(delay2)
+    blk.WaitBlinks((i1,i2,i3),(anc1,anc2),delay2)
     
     T1 = blk.getTS(i1, eui1, CFG.rawts)
     T2 = blk.getTS(i1, eui2, CFG.rawts)
@@ -189,6 +190,11 @@ def main():
 
     VERBOSE = args.verbose
 
+    if args.algo == 'FAST':
+        algo = DECA_FAST_TWR
+    else:
+        algo = DECA_TWR
+        
     CFG.algo = args.algo
     CFG.ewma = args.ewma
     CFG.rawts = args.raw
@@ -226,19 +232,13 @@ def main():
 
     try:
         for i in range(CFG.blink_count):
-
             try:
-                if CFG.algo == 'DECA':
-                    (Lof,Dof,Rtt,Err,Est,Pwr) = DECA_TWR(remotes[0], remotes[1], CFG.blink_delay, CFG.blink_wait, blk, tmr)
-                elif CFG.algo == 'FAST':
-                    (Lof,Dof,Rtt,Err,Est,Pwr) = DECA_FAST_TWR(remotes[0], remotes[1], CFG.blink_delay, CFG.blink_wait, blk, tmr)
-                    
+                (Lof,Dof,Rtt,Err,Est,Pwr) = algo(remotes[0], remotes[1], CFG.blink_delay, CFG.blink_wait, blk, tmr)
                 if Lof > 0 and Lof < 100:
                     Tcnt += 1
                     Dsum += Dof
                     Dsqr += Dof*Dof
                     Rsum += Rtt
-
                     if VERBOSE > 0:
                         Ldif = Lof - Lfil
                         Lvar += (Ldif*Ldif - Lvar) / CFG.ewma
@@ -246,19 +246,17 @@ def main():
                             Lfil += Ldif / Tcnt
                         else:
                             Lfil += Ldif / CFG.ewma
-
                         print('{:.3f}m {:.3f}m -- Dist:{:.3f}m ToF:{:.3f}ns Xerr:{:.3f}ppm Xest:{:.3f}ppm Rx:{:.1f}dBm Rtt:{:.3f}ms'.format(Lfil,math.sqrt(Lvar),Lof,Dof,Err*1E6,Est*1E6,Pwr,Rtt*1E-6))
-                        
                 else:
                     if VERBOSE > 0:
                         eprint('*')
-                    
-            except (ValueError,KeyError):
+                    else:
+                        eprint(end='*', flush=True)
+            except (ValueError,KeyError,TimeoutError):
                 if VERBOSE > 0:
                     eprint('?')
                 else:
                     eprint(end='?', flush=True)
-
             if VERBOSE == 0 and i%10 == 0:
                 eprint(end='.', flush=True)
             
@@ -269,14 +267,12 @@ def main():
     rpc.stop()
 
     if Tcnt > 0:
-        
         Davg = Dsum/Tcnt
         Dvar = Dsqr/Tcnt - Davg*Davg
         Dstd = math.sqrt(Dvar)
         Lavg = Davg * C_AIR * 1E-9
         Lstd = Dstd * C_AIR * 1E-9
         Ravg = Rsum/Tcnt * 1E-6
-        
         print()
         print('FINAL STATISTICS:')
         print('  Samples:  {}'.format(Tcnt))

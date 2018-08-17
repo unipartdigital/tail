@@ -101,7 +101,7 @@ class Timer:
     def __init__(self):
         self.start = time.time()
         self.timer = self.start
-    
+
     def get(self):
         return self.timer - self.start
     
@@ -112,6 +112,10 @@ class Timer:
             if now > self.timer:
                 break
             time.sleep(self.timer - now)
+        return self.get()
+
+    def sync(self):
+        self.timer = time.time()
         return self.get()
 
 
@@ -234,23 +238,22 @@ class Blinker():
         euis = []
         if index is not None:
             if index in self.blinks:
-                for anc in self.blinks[index]:
-                    if 'dir' in self.blinks[index][anc]:
-                        if self.blinks[index][anc]['dir'] == direc:
-                            euis.append(anc)
+                for eui in self.blinks[index]['anchors']:
+                    if self.blinks[index]['anchors'][eui]['dir'] == direc:
+                        euis.append(eui)
         return euis
 
     def getTS(self,index,eui,raw=False):
         if raw:
-            return self.blinks[index][eui]['tsi']['rawts']
+            return self.blinks[index]['anchors'][eui]['tsi']['rawts']
         else:
-            return self.blinks[index][eui]['tss']
+            return self.blinks[index]['anchors'][eui]['tss']
         raise ValueError
 
     def getXtalPPM(self,index,eui):
-        if self.blinks[index][eui]['dir'] == 'RX':
-            TTCKI = self.blinks[index][eui]['tsi']['ttcki']
-            TTCKO = self.blinks[index][eui]['tsi']['ttcko']
+        if self.blinks[index]['anchors'][eui]['dir'] == 'RX':
+            TTCKI = self.blinks[index]['anchors'][eui]['tsi']['ttcki']
+            TTCKO = self.blinks[index]['anchors'][eui]['tsi']['ttcko']
             if TTCKO & 0x040000:
                 TTCKO -= 0x080000
             if TTCKI != 0:
@@ -258,9 +261,9 @@ class Blinker():
         raise ValueError
 
     def getRFPower(self,index,eui):
-        if self.blinks[index][eui]['dir'] == 'RX':
-            CIRPWR = self.blinks[index][eui]['tsi']['cir_pwr']
-            RXPACC = self.blinks[index][eui]['tsi']['rxpacc']
+        if self.blinks[index]['anchors'][eui]['dir'] == 'RX':
+            CIRPWR = self.blinks[index]['anchors'][eui]['tsi']['cir_pwr']
+            RXPACC = self.blinks[index]['anchors'][eui]['tsi']['rxpacc']
             if RXPACC > 0 and CIRPWR > 0:
                 Plin = (CIRPWR << 17) / (RXPACC*RXPACC)
                 Plog = 10*math.log10(Plin) - 121.74
@@ -269,7 +272,11 @@ class Blinker():
 
     def GetBlinkId(self,time=0.0):
         bid = self.bid
-        self.blinks[bid] = { '__time__': '{:.6f}'.format(time) }
+        self.blinks[bid] = {
+            'time'    : '{:.6f}'.format(time),
+            'wait'    : threading.Condition(),
+            'anchors' : {},
+        }
         self.bid += 1
         return bid
 
@@ -287,12 +294,27 @@ class Blinker():
     def TriggerBlink(self,addr,bid,pid):
         self.rpc.send(addr, 'autoBlink', {'recv':bid, 'xmit':pid})
 
+    def BlinksReceivedFor(self,bid,ancs):
+        for anc in ancs:
+            if anc.eui not in self.blinks[bid]['anchors']:
+                return False
+        return True
+        
+    def WaitBlinks(self,bids,ancs,wait=0.1):
+        until = time.time() + wait
+        for bid in bids:
+            if bid in self.blinks:
+                with self.blinks[bid]['wait']:
+                    while not self.BlinksReceivedFor(bid,ancs):
+                        if not self.blinks[bid]['wait'].wait(until-time.time()):
+                            raise TimeoutError
+    
     def BlinkRecv(self,data):
         if self.DEBUG > 0:
             pprint(data)
         try:
             args = data['args']
-            anc = args.get('anchor')
+            eui = args.get('anchor')
             tag = args.get('tag')
             tsi = args.get('tsi',None)
             tss = int(args.get('tss'),16)
@@ -301,18 +323,20 @@ class Blinker():
             eprint('BlinkRecv: data missing')
             return
         if bid in self.blinks:
-            self.blinks[bid][anc] = {}
-            self.blinks[bid][anc]['tag'] = tag
-            self.blinks[bid][anc]['tss'] = tss
-            self.blinks[bid][anc]['tsi'] = tsi
-            self.blinks[bid][anc]['dir'] = 'RX'
+            with self.blinks[bid]['wait']:
+                self.blinks[bid]['anchors'][eui] = {}
+                self.blinks[bid]['anchors'][eui]['tag'] = tag
+                self.blinks[bid]['anchors'][eui]['tss'] = tss
+                self.blinks[bid]['anchors'][eui]['tsi'] = tsi
+                self.blinks[bid]['anchors'][eui]['dir'] = 'RX'
+                self.blinks[bid]['wait'].notify_all()
 
     def BlinkXmit(self,data):
         if self.DEBUG > 0:
             pprint(data)
         try:
             args = data['args']
-            anc = args.get('anchor')
+            eui = args.get('anchor')
             tag = args.get('tag')
             tsi = args.get('tsi',None)
             tss = int(args.get('tss'),16)
@@ -321,11 +345,13 @@ class Blinker():
             eprint('BlinkXmit: data missing')
             return
         if bid in self.blinks:
-            self.blinks[bid][anc] = {}
-            self.blinks[bid][anc]['tag'] = tag
-            self.blinks[bid][anc]['tss'] = tss
-            self.blinks[bid][anc]['tsi'] = tsi
-            self.blinks[bid][anc]['dir'] = 'TX'
+            with self.blinks[bid]['wait']:
+                self.blinks[bid]['anchors'][eui] = {}
+                self.blinks[bid]['anchors'][eui]['tag'] = tag
+                self.blinks[bid]['anchors'][eui]['tss'] = tss
+                self.blinks[bid]['anchors'][eui]['tsi'] = tsi
+                self.blinks[bid]['anchors'][eui]['dir'] = 'TX'
+                self.blinks[bid]['wait'].notify_all()
 
     def BlinkDump(self,data):
         pprint(data)
