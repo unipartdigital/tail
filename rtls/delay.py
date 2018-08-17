@@ -15,6 +15,7 @@ import tail
 
 import numpy as np
 import numpy.linalg as lin
+import matplotlib.pyplot as plot
 
 from numpy import dot
 
@@ -30,42 +31,43 @@ class Config():
     blink_delay  = 0.010
     blink_wait   = 0.250
 
-    rawts        = 0
-    ewma         = 32
-
     algo         = 'DECA'
+
+    ewma         = 32
+    range        = 1.000
+    binsize      = 0.030
 
 CFG = Config()
 
 VERBOSE = 0
+DEBUG = 0
 
 
-def DECA_TWR(anc1, anc2, delay1, delay2, blk, tmr):
+def DECA_TWR(blk, tmr, remote, delay, rawts=False):
 
-    adr1 = anc1.addr
-    adr2 = anc2.addr
-
-    eui1 = anc1.eui
-    eui2 = anc2.eui
+    adr1 = remote[0].addr
+    adr2 = remote[1].addr
+    eui1 = remote[0].eui
+    eui2 = remote[1].eui
 
     Tm = tmr.sync()
     
     i1 = blk.Blink(adr1,Tm)
-    Tm = tmr.nap(delay1)
+    Tm = tmr.nap(delay[0])
     
     i2 = blk.Blink(adr2,Tm)
-    Tm = tmr.nap(delay1)
+    Tm = tmr.nap(delay[1])
     
     i3 = blk.Blink(adr1,Tm)
     
-    blk.WaitBlinks((i1,i2,i3),(anc1,anc2),delay2)
+    blk.WaitBlinks((i1,i2,i3),remote,delay[2])
     
-    T1 = blk.getTS(i1, eui1, CFG.rawts)
-    T2 = blk.getTS(i1, eui2, CFG.rawts)
-    T3 = blk.getTS(i2, eui2, CFG.rawts)
-    T4 = blk.getTS(i2, eui1, CFG.rawts)
-    T5 = blk.getTS(i3, eui1, CFG.rawts)
-    T6 = blk.getTS(i3, eui2, CFG.rawts)
+    T1 = blk.getTS(i1, eui1, rawts)
+    T2 = blk.getTS(i1, eui2, rawts)
+    T3 = blk.getTS(i2, eui2, rawts)
+    T4 = blk.getTS(i2, eui1, rawts)
+    T5 = blk.getTS(i3, eui1, rawts)
+    T6 = blk.getTS(i3, eui2, rawts)
     
     F2 = blk.getXtalPPM(i1, eui2)
     F6 = blk.getXtalPPM(i3, eui2)
@@ -81,7 +83,7 @@ def DECA_TWR(anc1, anc2, delay1, delay2, blk, tmr):
     
     Tof = (T41*T63 - T32*T54) / (T51+T62)
     
-    if CFG.rawts:
+    if rawts:
         Dof = Tof / DW_CLOCK_GHZ
         Rtt = T41 / DW_CLOCK_GHZ
     else:
@@ -102,13 +104,12 @@ def DECA_TWR(anc1, anc2, delay1, delay2, blk, tmr):
     return (Lof,Dof,Rtt,Err,Est,Pwr)
 
             
-def DECA_FAST_TWR(anc1, anc2, delay1, delay2, blk, tmr):
+def DECA_FAST_TWR(blk, tmr, remote, delay, rawts=False):
     
-    adr1 = anc1.addr
-    adr2 = anc2.addr
-
-    eui1 = anc1.eui
-    eui2 = anc2.eui
+    adr1 = remote[0].addr
+    adr2 = remote[1].addr
+    eui1 = remote[0].eui
+    eui2 = remote[1].eui
 
     Tm = tmr.sync()
 
@@ -119,18 +120,18 @@ def DECA_FAST_TWR(anc1, anc2, delay1, delay2, blk, tmr):
     blk.TriggerBlink(adr2,i1,i2)
     blk.TriggerBlink(adr1,i2,i3)
     
-    tmr.nap(delay1)
+    tmr.nap(delay[0])
     
     blk.BlinkID(adr1,i1)
     
-    blk.WaitBlinks((i1,i2,i3),(anc1,anc2),delay2)
+    blk.WaitBlinks((i1,i2,i3),remote,delay[2])
     
-    T1 = blk.getTS(i1, eui1, CFG.rawts)
-    T2 = blk.getTS(i1, eui2, CFG.rawts)
-    T3 = blk.getTS(i2, eui2, CFG.rawts)
-    T4 = blk.getTS(i2, eui1, CFG.rawts)
-    T5 = blk.getTS(i3, eui1, CFG.rawts)
-    T6 = blk.getTS(i3, eui2, CFG.rawts)
+    T1 = blk.getTS(i1, eui1, rawts)
+    T2 = blk.getTS(i1, eui2, rawts)
+    T3 = blk.getTS(i2, eui2, rawts)
+    T4 = blk.getTS(i2, eui1, rawts)
+    T5 = blk.getTS(i3, eui1, rawts)
+    T6 = blk.getTS(i3, eui2, rawts)
     
     F2 = blk.getXtalPPM(i1, eui2)
     F6 = blk.getXtalPPM(i3, eui2)
@@ -146,7 +147,7 @@ def DECA_FAST_TWR(anc1, anc2, delay1, delay2, blk, tmr):
     
     Tof = (T41*T63 - T32*T54) / (T51+T62)
     
-    if CFG.rawts:
+    if rawts:
         Dof = Tof / DW_CLOCK_GHZ
         Rtt = T41 / DW_CLOCK_GHZ
     else:
@@ -169,40 +170,46 @@ def DECA_FAST_TWR(anc1, anc2, delay1, delay2, blk, tmr):
             
 def main():
     
-    global VERBOSE, CFG
+    global VERBOSE, DEBUG
     
-    parser = argparse.ArgumentParser(description="RTLS server")
+    parser = argparse.ArgumentParser(description="TWR delay tool")
 
     DW1000.AddParserArguments(parser)
     
-    parser.add_argument('-D', '--debug', action='count', default=0)
-    parser.add_argument('-v', '--verbose', action='count', default=0)
-    parser.add_argument('-n', '--count', type=int, default=CFG.blink_count)
-    parser.add_argument('-d', '--delay', type=float, default=CFG.blink_delay)
-    parser.add_argument('-w', '--wait', type=float, default=CFG.blink_wait)
-    parser.add_argument('-p', '--port', type=int, default=RPC_PORT)
-    parser.add_argument('-E', '--ewma', type=int, default=CFG.ewma)
-    parser.add_argument('-A', '--algo', type=str, default=CFG.algo)
-    parser.add_argument('-R', '--raw', action='store_true', default=False)
+    parser.add_argument('-D', '--debug', action='count', default=0, help='Enable debug prints')
+    parser.add_argument('-v', '--verbose', action='count', default=0, help='Increase verbosity')
+    parser.add_argument('-n', '--count', type=int, default=CFG.blink_count, help='Number of blinks')
+    parser.add_argument('-d', '--delay', type=float, default=CFG.blink_delay, help='Delay between blinks')
+    parser.add_argument('-w', '--wait', type=float, default=CFG.blink_wait, help='Time to wait timestamp reception')
+    parser.add_argument('-p', '--port', type=int, default=RPC_PORT, help='UDP port')
+    parser.add_argument('-A', '--algo', type=str, default=CFG.algo, help='TWR algorithm')
+    parser.add_argument('-H', '--hist', action='store_true', default=False, help='Print histogram')
+    parser.add_argument('-P', '--plot', action='store_true', default=False, help='Plot histogram')
+    parser.add_argument('-R', '--raw', action='store_true', default=False, help='Use raw timestamps')
+    parser.add_argument('--ewma', type=int, default=CFG.ewma)
+    parser.add_argument('--range', type=float, default=CFG.range)
+    parser.add_argument('--binsize', type=float, default=CFG.binsize)
+    parser.add_argument('--delay1', type=float, default=None)
+    parser.add_argument('--delay2', type=float, default=None)
     parser.add_argument('remote', type=str, nargs='+', help="Remote address")
     
     args = parser.parse_args()
 
     VERBOSE = args.verbose
+    DEBUG = args.debug
 
     if args.algo == 'FAST':
         algo = DECA_FAST_TWR
     else:
         algo = DECA_TWR
         
-    CFG.algo = args.algo
-    CFG.ewma = args.ewma
-    CFG.rawts = args.raw
-    
-    CFG.blink_count = args.count
-    CFG.blink_delay = args.delay
-    CFG.blink_wait = args.wait
-
+    delay1 = args.delay
+    delay2 = args.delay
+    if args.delay1 is not None:
+        delay1 = args.delay1
+    if args.delay2 is not None:
+        delay1 = args.delay2
+        
     rpc = tail.RPC(('', args.port))
 
     remotes = [ ]
@@ -222,30 +229,29 @@ def main():
     blk = tail.Blinker(rpc, args.debug)
 
     Tcnt = 0
-    Dsum = 0.0
-    Dsqr = 0.0
     Rsum = 0.0
     Lfil = 0.0
     Lvar = 0.0
 
+    delays = []
+
     eprint('Blinker starting')
 
     try:
-        for i in range(CFG.blink_count):
+        for i in range(args.count):
             try:
-                (Lof,Dof,Rtt,Err,Est,Pwr) = algo(remotes[0], remotes[1], CFG.blink_delay, CFG.blink_wait, blk, tmr)
+                (Lof,Dof,Rtt,Err,Est,Pwr) = algo(blk, tmr, remotes, (delay1,delay2,args.wait), rawts=args.raw)
                 if Lof > 0 and Lof < 100:
+                    delays.append(Dof)
                     Tcnt += 1
-                    Dsum += Dof
-                    Dsqr += Dof*Dof
                     Rsum += Rtt
                     if VERBOSE > 0:
                         Ldif = Lof - Lfil
-                        Lvar += (Ldif*Ldif - Lvar) / CFG.ewma
-                        if Tcnt < CFG.ewma:
+                        Lvar += (Ldif*Ldif - Lvar) / args.ewma
+                        if Tcnt < args.ewma:
                             Lfil += Ldif / Tcnt
                         else:
-                            Lfil += Ldif / CFG.ewma
+                            Lfil += Ldif / args.ewma
                         print('{:.3f}m {:.3f}m -- Dist:{:.3f}m ToF:{:.3f}ns Xerr:{:.3f}ppm Xest:{:.3f}ppm Rx:{:.1f}dBm Rtt:{:.3f}ms'.format(Lfil,math.sqrt(Lvar),Lof,Dof,Err*1E6,Est*1E6,Pwr,Rtt*1E-6))
                 else:
                     if VERBOSE > 0:
@@ -267,19 +273,60 @@ def main():
     rpc.stop()
 
     if Tcnt > 0:
-        Davg = Dsum/Tcnt
-        Dvar = Dsqr/Tcnt - Davg*Davg
+        Davg = np.mean(delays)
+        Dvar = np.var(delays)
         Dstd = math.sqrt(Dvar)
+        Dmed = np.median(delays)
         Lavg = Davg * C_AIR * 1E-9
         Lstd = Dstd * C_AIR * 1E-9
+        Lmed = Dmed * C_AIR * 1E-9
         Ravg = Rsum/Tcnt * 1E-6
+
         print()
         print('FINAL STATISTICS:')
         print('  Samples:  {}'.format(Tcnt))
         print('  Average:  {:.3f}m {:.3f}ns'.format(Lavg,Davg))
         print('  Std.Dev:  {:.3f}m {:.3f}ns'.format(Lstd,Dstd))
+        print('  Median:   {:.3f}m {:.3f}ns'.format(Lmed,Dmed))
         print('  RTT.Avg:  {:.3f}ms'.format(Ravg))
 
+        if args.hist or args.plot:
+            
+            Hbin = args.binsize
+            if args.range > 0:
+                Hrng = args.range
+            else:
+                Hrng = -2.0 * args.range * Dstd
+
+            Hmin = Davg - Hrng/2
+            Hmax = Davg + Hrng/2
+            Hcnt = int(Hrng/Hbin) + 1
+            bins = [ (N/Hcnt)*Hrng + Hmin for N in range(Hcnt+1) ]
+        
+            (hist,edges) = np.histogram(delays,bins=bins)
+
+            if args.hist:
+                print()
+                print('HISTOGRAM:')
+                for i in range(len(hist)):
+                    print('   {:.3f}: {:d}'.format(edges[i],hist[i]))
+
+            if args.plot:
+                fig,ax = plot.subplots(figsize=(15,10),dpi=80)
+                ax.set_title('Delay distribution')
+                ax.set_xlabel('Delay [ns]')
+                ax.set_ylabel('Samples')
+                ax.text(0.80, 0.95, r'$\mu$={:.3f}m'.format(Lavg), transform=ax.transAxes, size='x-large')
+                ax.text(0.80, 0.90, r'$\sigma$={:.3f}m'.format(Lstd), transform=ax.transAxes, size='x-large')
+                ax.text(0.80, 0.85, r'M={:.3f}m'.format(Lmed), transform=ax.transAxes, size='x-large')
+                ax.text(0.90, 0.95, r'$\mu$={:.3f}ns'.format(Davg), transform=ax.transAxes, size='x-large')
+                ax.text(0.90, 0.90, r'$\sigma$={:.3f}ns'.format(Dstd), transform=ax.transAxes, size='x-large')
+                ax.text(0.90, 0.85, r'M={:.3f}ns'.format(Dmed), transform=ax.transAxes, size='x-large')
+                ax.grid(True)
+                ax.hist(delays,bins)
+                fig.tight_layout()
+                plot.show()
+        
     else:
         print()
         print('NO SUITABLE SAMPLES')
