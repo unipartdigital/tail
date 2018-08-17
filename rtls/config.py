@@ -48,12 +48,12 @@ DW1000_DEFAULT_CONFIG = {
     'rate'	      : 6800,
     'txpsr'	      : 256,
     'smart_power'     : 0,
-    'tx_power'        : 0x00d1d100,
+    'tx_power'        : 0xd1d1d1d1,
     'xtalt'	      : 15,
     'antd'            : 0x4030,
-    'snr_threshold'   : 1,
-    'fpr_threshold'   : 1,
-    'noise_threshold' : 4096,
+    'snr_threshold'   : 0,
+    'fpr_threshold'   : 0,
+    'noise_threshold' : 65535,
 }
 
 DW1000_DEVICE_CALIB = {
@@ -123,7 +123,7 @@ DW1000_DEVICE_CALIB = {
     },
     '70b3d5b1e0000011': {
         'xtalt'	   : 17,
-        'antd'     : 0x4014,
+        'antd'     : 0x401e,
     },
     '70b3d5b1e0000012': {
         'xtalt'	   : 23,		# Unstable
@@ -131,31 +131,31 @@ DW1000_DEVICE_CALIB = {
     },
     '70b3d5b1e0000013': {
         'xtalt'	   : 16,
-        'antd'     : 0x4028,
+        'antd'     : 0x402f,
     },
     '70b3d5b1e0000014': {
         'xtalt'	   : 17,
-        'antd'     : 0x4042,
+        'antd'     : 0x4049,
     },
     '70b3d5b1e0000015': {
         'xtalt'	   : 15,
-        'antd'     : 0x403a,
+        'antd'     : 0x4040,
     },
     '70b3d5b1e0000016': {
         'xtalt'	   : 18,
-        'antd'     : 0x4045,
+        'antd'     : 0x404a,
     },
     '70b3d5b1e0000017': {
         'xtalt'	   : 16,
-        'antd'     : 0x4037,
+        'antd'     : 0x4032,
     },
     '70b3d5b1e0000018': {
         'xtalt'	   : 15,
-        'antd'     : 0x4018,
+        'antd'     : 0x4023,
     },
     '70b3d5b1e0000019': {
         'xtalt'	   : 16,
-        'antd'     : 0x4016,
+        'antd'     : 0x4018,
     },
 }
         
