@@ -24,13 +24,14 @@ def main():
     parser = argparse.ArgumentParser(description="DW1000 attrbute tool")
 
     DW1000.AddParserArguments(parser)
+    DW1000.AddPrintArguments(parser)
     
-    parser.add_argument('-v', '--verbose', action='count', default=1)
+    parser.add_argument('-v', '--verbose', action='count', default=0)
     parser.add_argument('-p', '--port', type=int, default=RPC_PORT)
     parser.add_argument('remote', type=str, nargs='+', help="Remote address")
     
     args = parser.parse_args()
-
+    
     VERBOSE = args.verbose
     
     rpc = tail.RPC(('',args.port))
@@ -44,7 +45,8 @@ def main():
             eprint('Remote {} exist does not'.format(host))
 
     DW1000.HandleArguments(args,remotes)
-    
+    DW1000.HandlePrintArguments(args,remotes)
+
     if VERBOSE > 0:
         DW1000.PrintAllRemoteAttrs(remotes)
 

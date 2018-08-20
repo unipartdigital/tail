@@ -8,7 +8,14 @@ RPC_PORT = 61666
 C_ABS = 299792458
 C_AIR = 299705000
 
-DW_CLOCK_GHZ = 63.8976
+DW1000_CLOCK_GHZ = 63.8976
+DW1000_CLOCK_HZ  = DW1000_CLOCK_GHZ * 1E9
+
+DW1000_64PRF_ANTD_NS = 514.4620
+DW1000_16PRF_ANTD_NS = 513.9067
+
+DW1000_64PRF_ANTD_DEFAULT = int(DW1000_64PRF_ANTD_NS * DW1000_CLOCK_GHZ / 2)
+DW1000_16PRF_ANTD_DEFAULT = int(DW1000_16PRF_ANTD_NS * DW1000_CLOCK_GHZ / 2)
 
 
 QS_BOARD_ROOM_COORD = (
@@ -50,7 +57,20 @@ DW1000_DEFAULT_CONFIG = {
     'smart_power'     : 0,
     'tx_power'        : 0xd1d1d1d1,
     'xtalt'	      : 15,
-    'antd'            : 0x4030,
+    'antd'            : DW1000_64PRF_ANTD_DEFAULT,
+    'snr_threshold'   : 0,
+    'fpr_threshold'   : 0,
+    'noise_threshold' : 65535,
+}
+
+DW1000_CALIB_CONFIG = {
+    'channel'	      : 7,
+    'pcode'	      : 20,
+    'prf'	      : 64,
+    'rate'	      : 850,
+    'txpsr'	      : 1024,
+    'smart_power'     : 0,
+    'tx_power'        : 0xb1b1b1b1,
     'snr_threshold'   : 0,
     'fpr_threshold'   : 0,
     'noise_threshold' : 65535,

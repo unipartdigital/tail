@@ -19,8 +19,15 @@ from pprint import pprint
 from config import *
 
 
+
+def prints(*args, **kwargs):
+    print(*args, end='', flush=True, **kwargs)
+
 def eprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
+
+def eprints(*args, **kwargs):
+    print(*args, file=sys.stderr, end='', flush=True, **kwargs)
 
 
 class DW1000:
@@ -68,14 +75,27 @@ class DW1000:
             value = self.GetAttr(attr)
             eprint('  {:20s}: {}'.format(attr, value))
     
-
     def PrintAllRemoteAttrs(remotes):
-        eprint('DW1000 Attributes:')
         for remote in remotes:
-            eprint()
             remote.PrintAttrs()
-        eprint()
                 
+    def AddPrintArguments(parser):
+        parser.add_argument('--print-eui', action='store_true', default=False, help='Print EUI64 value')
+        for attr in DW1000.ATTRS:
+            parser.add_argument('--print-'+attr, action='store_true', default=False, help='Print attribute <{}> value'.format(attr))
+
+    def HandlePrintArguments(args,remotes):
+        ret = False
+        for rem in remotes:
+            if getattr(args, 'print_eui'):
+                print(rem.eui)
+            for attr in DW1000.ATTRS:
+                if getattr(args, 'print_'+attr):
+                    val = rem.GetAttr(attr)
+                    ret = True
+                    print(val)
+        return ret
+    
     def AddParserArguments(parser):
         parser.add_argument('--reset', action='store_true', default=False)
         for attr in DW1000.ATTRS:

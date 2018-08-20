@@ -84,8 +84,8 @@ def DECA_TWR(blk, tmr, remote, delay, rawts=False):
     Tof = (T41*T63 - T32*T54) / (T51+T62)
     
     if rawts:
-        Dof = Tof / DW_CLOCK_GHZ
-        Rtt = T41 / DW_CLOCK_GHZ
+        Dof = Tof / DW1000_CLOCK_GHZ
+        Rtt = T41 / DW1000_CLOCK_GHZ
     else:
         Dof = Tof / (1<<32)
         Rtt = T41 / (1<<32)
@@ -148,8 +148,8 @@ def DECA_FAST_TWR(blk, tmr, remote, delay, rawts=False):
     Tof = (T41*T63 - T32*T54) / (T51+T62)
     
     if rawts:
-        Dof = Tof / DW_CLOCK_GHZ
-        Rtt = T41 / DW_CLOCK_GHZ
+        Dof = Tof / DW1000_CLOCK_GHZ
+        Rtt = T41 / DW1000_CLOCK_GHZ
     else:
         Dof = Tof / (1<<32)
         Rtt = T41 / (1<<32)
