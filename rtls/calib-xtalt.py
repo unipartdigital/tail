@@ -136,9 +136,14 @@ def main():
         except:
             eprint('Remote {} exist does not'.format(host))
 
+
+    for rem in remotes:
+        for attr in DW1000_CALIB_CONFIG:
+            rem.SetAttr(attr, DW1000_CALIB_CONFIG[attr])
+    
     DW1000.HandleArguments(args,remotes)
 
-    if VERBOSE > 1:
+    if VERBOSE > 2:
         DW1000.PrintAllRemoteAttrs(remotes)
 
     tmr = tail.Timer()

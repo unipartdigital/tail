@@ -106,8 +106,8 @@ def DECA_TWR(anc1, anc2, delay1, delay2, blk, tmr):
     Tof = (T41*T63 - T32*T54) / (T51+T62)
     
     if CFG.rawts:
-        Dof = Tof / DW_CLOCK_GHZ
-        Rtt = T41 / DW_CLOCK_GHZ
+        Dof = Tof / DW1000_CLOCK_GHZ
+        Rtt = T41 / DW1000_CLOCK_GHZ
     else:
         Dof = Tof / (1<<32)
         Rtt = T41 / (1<<32)
@@ -171,8 +171,8 @@ def DECA_FAST_TWR(anc1, anc2, delay1, delay2, blk, tmr):
     Tof = (T41*T63 - T32*T54) / (T51+T62)
     
     if CFG.rawts:
-        Dof = Tof / DW_CLOCK_GHZ
-        Rtt = T41 / DW_CLOCK_GHZ
+        Dof = Tof / DW1000_CLOCK_GHZ
+        Rtt = T41 / DW1000_CLOCK_GHZ
     else:
         Dof = Tof / (1<<32)
         Rtt = T41 / (1<<32)
@@ -316,7 +316,7 @@ def main():
         AX = lin.lstsq(AA,CC)
         AB = AX[0]
         
-        ANTD = (AB/C_AIR) * DW_CLOCK_GHZ * 1E9
+        ANTD = (AB/C_AIR) * DW1000_CLOCK_HZ
         print(ANTD)
 
         for i in range(NANC):

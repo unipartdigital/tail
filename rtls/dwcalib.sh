@@ -6,10 +6,15 @@
 HOST=$1
 EUI64=$2
 
+XTALT=15
+ANTD=0x4000
+
 USER='pi'
-EDIR='~/tail/eeprom'
+TAIL='~/tail/eeprom'
 
 BSS_LIST='bss1 bss2 bss3 bss4 bss5 bss6 bss7 bss8'
+
+export HOST EUI64 XTALT ANTD USER TAIL
 
 
 usage()
@@ -33,12 +38,17 @@ picheck()
 
 flash()
 {
-    ssh ${USER}@${HOST} "make -C ${EDIR} EUI64=${EUI64} XTALT=${XTALT} program" 2>/dev/null >/dev/null
+    ssh ${USER}@${HOST} "make -C ${TAIL} EUI64=${EUI64} XTALT=${XTALT} ANTD16=${ANTD} ANTD64=${ANTD} program" 2>/dev/null >/dev/null
+}
+
+remboot()
+{
+    ssh ${USER}@${HOST} "sudo reboot" 2>/dev/null >/dev/null
 }
 
 euicheck()
 {
-    [[ "${EUI64}" =~ '70b3d5b1e' ]]
+    [[ "$1" =~ '70b3d5b1e' ]]
 }
 
 
@@ -49,36 +59,67 @@ then
     exit 1
 fi
 
-if ! euicheck
+if [[ -n "${EUI64}" ]]
 then
-    echo "EUI64 argument \"${EUI64}\" is incorrect"
-    usage
-    exit 1
-fi
+    
+    echo "Starting initial flashing for ${HOST} <${EUI64}>"
 
+    if ! euicheck ${EUI64}
+    then
+	echo "EUI64 argument \"${EUI64}\" is incorrect"
+	usage
+	exit 1
+    fi
 
-echo "Starting calibration process for ${HOST}..."
+    echo "Programming the DW1000 Hat EEPROM..."
+    if flash
+    then
+	echo "Programming successful. Rebooting remotely..."
+	remboot
+    else
+	echo "***"
+	echo "*** Programming __FAILED__ miserably."
+	echo "***"
+	exit 1
+    fi
 
-XTALT=$( ./calib-xtalt.py *${HOST} ${BSS_LIST} )
-
-if [ "${XTALT}" -gt 0 -a "${XTALT}" -lt 31 ]
-then
-    echo "XTALT: ${XTALT}"
 else
-    echo "***"
-    echo "*** Calibration __FAILED__ miserably."
-    echo "***"
-    exit 1
-fi
 
-echo "Programming the DW1000 Hat EEPROM..."
-if flash
-then
-    echo "Programming successful."
-else
-    echo "***"
-    echo "*** Programming __FAILED__ miserably."
-    echo "***"
-    exit 1
+    EUI64=$( ./dwattr.py ${HOST} --print-eui )
+    echo "Starting calibration process for ${HOST} <${EUI64}>"
+
+    XTALT=$( ./calib-xtalt.py *${HOST} ${BSS_LIST} )
+    if [ "${XTALT}" -gt 0 -a "${XTALT}" -lt 31 ]
+    then
+	echo "XTALT  : ${XTALT}"
+    else
+	echo "***"
+	echo "*** Calibration __FAILED__ miserably."
+	echo "***"
+	exit 1
+    fi
+
+    ANTD=$( ./calib-antd.py *${HOST} ${BSS_LIST} )
+    if [[ "${ANTD}" -gt 0x4000 ]] && [[ "${ANTD}" -lt 0x4100 ]]
+    then
+	echo "ANTD   : ${ANTD}"
+    else
+	echo "***"
+	echo "*** Calibration __FAILED__ miserably."
+	echo "***"
+	exit 1
+    fi
+    
+    echo "Programming the DW1000 Hat EEPROM..."
+    if flash
+    then
+	echo "Programming successful."
+    else
+	echo "***"
+	echo "*** Programming __FAILED__ miserably."
+	echo "***"
+	exit 1
+    fi
+
 fi
 
