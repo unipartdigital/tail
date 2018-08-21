@@ -20,7 +20,7 @@ import matplotlib.pyplot as plot
 from numpy import dot
 
 from tail import DW1000
-from tail import eprint
+from tail import eprint, eprints
 
 from config import *
 
@@ -257,14 +257,14 @@ def main():
                     if VERBOSE > 0:
                         eprint('*')
                     else:
-                        eprint(end='*', flush=True)
+                        eprints('*')
             except (ValueError,KeyError,TimeoutError):
                 if VERBOSE > 0:
                     eprint('?')
                 else:
-                    eprint(end='?', flush=True)
+                    eprints('?')
             if VERBOSE == 0 and i%10 == 0:
-                eprint(end='.', flush=True)
+                eprints('.')
             
     except KeyboardInterrupt:
         eprint('\nStopping...')
