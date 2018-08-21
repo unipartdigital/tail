@@ -17,7 +17,7 @@ import numpy.linalg as lin
 
 from numpy import dot
 from pprint import pprint
-from tail import eprint, DW1000
+from tail import eprint, eprints, DW1000
 from config import *
 
 
@@ -160,7 +160,7 @@ def main():
                 done = index-100
                 print_id(done)
             if i % 100 == 0:
-                eprint(end='.', flush=True)
+                eprints('.')
         
         tmr.nap(1)
         for i in range(done,index):

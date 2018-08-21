@@ -19,7 +19,7 @@ import numpy.linalg as lin
 from numpy import dot
 
 from tail import DW1000
-from tail import eprint
+from tail import eprint, eprints
 
 from config import *
 
@@ -265,9 +265,9 @@ def main():
                                     Lsum += Lof
                                     Lsqr += Lof*Lof
                             except (ValueError,KeyError,TimeoutError):
-                                eprint(end='?', flush=True)
+                                eprints('?')
                             if i%10 == 0:
-                                eprint(end='.', flush=True)
+                                eprints('.')
                         if Tcnt > 0:
                             Lavg = Lsum/Tcnt
                             Lvar = Lsqr/Tcnt - Lavg*Lavg
