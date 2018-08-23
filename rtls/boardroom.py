@@ -23,9 +23,9 @@ DIST = [
 
 FIXED = (
     (  True,  True,  True ),
-    (  True,  True,  True ),
+    ( False,  True,  True ),
     ( False, False,  True ),
-    (  True,  True,  True ),
+    (  True, False,  True ),
     ( False,  True,  True ),
     ( False,  True,  True ),
     ( False, False,  True ),
@@ -34,7 +34,7 @@ FIXED = (
 
 COORD = [
     [ 0.150, 0.475, 0.035 ],
-    [ 8.545, 0.420, 0.035 ],
+    [ 8.540, 0.420, 0.035 ],
     [ 8.565, 5.810, 0.035 ],
     [ 0.175, 5.860, 0.035 ],
     [ 2.630, 0.185, 1.255 ],
