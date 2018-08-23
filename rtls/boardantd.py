@@ -94,7 +94,7 @@ def DECA_TWR(anc1, anc2, delay1, delay2, blk, tmr):
     F2 = blk.getXtalPPM(i1, eui2)
     F6 = blk.getXtalPPM(i3, eui2)
 
-    P2 = blk.getRFPower(i1, eui2)
+    P2 = blk.getRxPower(i1, eui2)
     
     T41 = T4 - T1
     T32 = T3 - T2
@@ -117,7 +117,7 @@ def DECA_TWR(anc1, anc2, delay1, delay2, blk, tmr):
     Est = (F2 + F6) / 2
     Err = (T62 - T51) / T62
     
-    Pwr = P2
+    Pwr = DW1000.RxPower2dBm(P2,64)
     
     blk.PurgeBlink(i1)
     blk.PurgeBlink(i2)
@@ -159,7 +159,7 @@ def DECA_FAST_TWR(anc1, anc2, delay1, delay2, blk, tmr):
     F2 = blk.getXtalPPM(i1, eui2)
     F6 = blk.getXtalPPM(i3, eui2)
 
-    P2 = blk.getRFPower(i1, eui2)
+    P2 = blk.getRxPower(i1, eui2)
     
     T41 = T4 - T1
     T32 = T3 - T2
@@ -182,7 +182,7 @@ def DECA_FAST_TWR(anc1, anc2, delay1, delay2, blk, tmr):
     Est = (F2 + F6) / 2
     Err = (T62 - T51) / T62
     
-    Pwr = P2
+    Pwr = DW1000.RxPower2dBm(P2,64)
 
     blk.PurgeBlink(i1)
     blk.PurgeBlink(i2)

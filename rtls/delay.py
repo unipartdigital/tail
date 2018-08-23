@@ -72,8 +72,8 @@ def DECA_TWR(blk, tmr, remote, delay, rawts=False):
     F2 = blk.getXtalPPM(i1, eui2)
     F6 = blk.getXtalPPM(i3, eui2)
 
-    P2 = blk.getRFPower(i1, eui2)
-    
+    Pwr = blk.getRxPower(i1, eui2)
+
     T41 = T4 - T1
     T32 = T3 - T2
     T54 = T5 - T4
@@ -94,8 +94,6 @@ def DECA_TWR(blk, tmr, remote, delay, rawts=False):
         
     Est = (F2 + F6) / 2
     Err = (T62 - T51) / T62
-    
-    Pwr = P2
     
     blk.PurgeBlink(i1)
     blk.PurgeBlink(i2)
@@ -136,7 +134,7 @@ def DECA_FAST_TWR(blk, tmr, remote, delay, rawts=False):
     F2 = blk.getXtalPPM(i1, eui2)
     F6 = blk.getXtalPPM(i3, eui2)
 
-    P2 = blk.getRFPower(i1, eui2)
+    Pwr = blk.getRxPower(i1, eui2)
     
     T41 = T4 - T1
     T32 = T3 - T2
@@ -159,8 +157,6 @@ def DECA_FAST_TWR(blk, tmr, remote, delay, rawts=False):
     Est = (F2 + F6) / 2
     Err = (T62 - T51) / T62
     
-    Pwr = P2
-
     blk.PurgeBlink(i1)
     blk.PurgeBlink(i2)
     blk.PurgeBlink(i3)
@@ -234,25 +230,28 @@ def main():
     Lvar = 0.0
 
     delays = []
+    powers = []
 
     eprint('Blinker starting')
 
     try:
         for i in range(args.count):
             try:
-                (Lof,Dof,Rtt,Err,Est,Pwr) = algo(blk, tmr, remotes, (delay1,delay2,args.wait), rawts=args.raw)
+                (Lof,Dof,Rtt,Ppm,Ppe,Pwr) = algo(blk, tmr, remotes, (delay1,delay2,args.wait), rawts=args.raw)
                 if Lof > 0 and Lof < 100:
                     delays.append(Dof)
+                    powers.append(Pwr)
                     Tcnt += 1
                     Rsum += Rtt
                     if VERBOSE > 0:
+                        Plog = DW1000.RxPower2dBm(Pwr,64)
                         Ldif = Lof - Lfil
                         Lvar += (Ldif*Ldif - Lvar) / args.ewma
                         if Tcnt < args.ewma:
                             Lfil += Ldif / Tcnt
                         else:
                             Lfil += Ldif / args.ewma
-                        print('{:.3f}m {:.3f}m -- Dist:{:.3f}m ToF:{:.3f}ns Xerr:{:.3f}ppm Xest:{:.3f}ppm Rx:{:.1f}dBm Rtt:{:.3f}ms'.format(Lfil,math.sqrt(Lvar),Lof,Dof,Err*1E6,Est*1E6,Pwr,Rtt*1E-6))
+                        print('{:.3f}m {:.3f}m -- Dist:{:.3f}m ToF:{:.3f}ns Xerr:{:+.3f}ppm Xest:{:+.3f}ppm Rx:{:.1f}dBm Rtt:{:.3f}ms'.format(Lfil,math.sqrt(Lvar),Lof,Dof,Ppm*1E6,Ppe*1E6,Plog,Rtt*1E-6))
                 else:
                     if VERBOSE > 0:
                         eprint('*')
@@ -274,21 +273,25 @@ def main():
 
     if Tcnt > 0:
         Davg = np.mean(delays)
-        Dvar = np.var(delays)
-        Dstd = math.sqrt(Dvar)
+        Dstd = np.std(delays)
         Dmed = np.median(delays)
+        Pavg = np.mean(powers)
+        Pstd = np.std(powers)
         Lavg = Davg * C_AIR * 1E-9
         Lstd = Dstd * C_AIR * 1E-9
         Lmed = Dmed * C_AIR * 1E-9
+        Plog = DW1000.RxPower2dBm(Pavg,64)
+        Pstl = DW1000.RxPower2dBm(Pavg+Pstd,64) - Plog
         Ravg = Rsum/Tcnt * 1E-6
-
+        
         print()
         print('FINAL STATISTICS:')
-        print('  Samples:  {}'.format(Tcnt))
+        print('  Samples:  {} [{:.1f}%]'.format(Tcnt,100*Tcnt/args.count))
+        print('  RTT.Avg:  {:.3f}ms'.format(Ravg))
         print('  Average:  {:.3f}m {:.3f}ns'.format(Lavg,Davg))
         print('  Std.Dev:  {:.3f}m {:.3f}ns'.format(Lstd,Dstd))
         print('  Median:   {:.3f}m {:.3f}ns'.format(Lmed,Dmed))
-        print('  RTT.Avg:  {:.3f}ms'.format(Ravg))
+        print('  PWR.Avg:  {:.1f}dBm {:.2f}dBm'.format(Plog,Pstl))
 
         if args.hist or args.plot:
             

@@ -62,7 +62,7 @@ def print_blink(index, anchors, blinker):
             msg += ',{},{}'.format(TX,RX)
             for attr in DW1000_TSINFO_ATTRS:
                 msg += ',{}'.format(TI.get(attr,''))
-            print(msg)
+        print(msg)
         blinker.PurgeBlink(index)
 
 def print_thread(blinker,anchors):

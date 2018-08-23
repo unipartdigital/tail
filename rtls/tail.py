@@ -15,9 +15,12 @@ import ipaddress
 import netifaces
 import threading
 
+import numpy as np
+import numpy.linalg as lin
+import scipy.interpolate as interp
+
 from pprint import pprint
 from config import *
-
 
 
 def prints(*args, **kwargs):
@@ -28,6 +31,13 @@ def eprint(*args, **kwargs):
 
 def eprints(*args, **kwargs):
     print(*args, file=sys.stderr, end='', flush=True, **kwargs)
+
+
+DATA = np.array(DW1000_RX_POWER_TABLE) / 40 - 105
+
+RFP1 = interp.LSQUnivariateSpline(DATA[:,1],DATA[:,0],[10.0-105,20.0-105])
+RFP2 = interp.LSQUnivariateSpline(DATA[:,2],DATA[:,0],[10.0-105,22.5-105])
+RFP3 = interp.LSQUnivariateSpline(DATA[:,3],DATA[:,0],[10.0-105,22.5-105])
 
 
 class DW1000:
@@ -114,7 +124,27 @@ class DW1000:
                     val = rem.GetAttrDefault(attr)
                 if val is not None:
                     rem.SetAttr(attr, val)
-                    
+
+    def RxPower2dBm(power,prf):
+        Plog = 10*math.log10(power)
+        if prf == 16:
+            Plog -= 113.77
+            if Plog < -105:
+                return Plog
+            elif Plog < -82:
+                return float(RFP1(Plog))
+            else:
+                return -65
+        else:
+            Plog -= 121.74
+            if Plog < -105:
+                return Plog
+            elif Plog < -77:
+                return float(RFP3(Plog))
+            else:
+                return -65
+        raise ValueError
+
 
 class Timer:
 
@@ -280,14 +310,13 @@ class Blinker():
                 return TTCKO / TTCKI
         raise ValueError
 
-    def getRFPower(self,index,eui):
+    def getRxPower(self,index,eui):
         if self.blinks[index]['anchors'][eui]['dir'] == 'RX':
             CIRPWR = self.blinks[index]['anchors'][eui]['tsi']['cir_pwr']
             RXPACC = self.blinks[index]['anchors'][eui]['tsi']['rxpacc']
             if RXPACC > 0 and CIRPWR > 0:
-                Plin = (CIRPWR << 17) / (RXPACC*RXPACC)
-                Plog = 10*math.log10(Plin) - 121.74
-                return Plog
+                power = ((CIRPWR << 17) / (RXPACC*RXPACC))
+                return power
         raise ValueError
 
     def GetBlinkId(self,time=0.0):
