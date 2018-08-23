@@ -65,13 +65,13 @@ def xtalt_ppm(blk, tx, rxs, rems, tmr):
             F2 = blk.getXtalPPM(i1, rx.eui)
             F4 = blk.getXtalPPM(i2, rx.eui)
             
-            P2 = blk.getRFPower(i1, rx.eui)
-            P4 = blk.getRFPower(i2, rx.eui)
+            P2 = blk.getRxPower(i1, rx.eui)
+            P4 = blk.getRxPower(i2, rx.eui)
             
             T31 = T3 - T1
             T42 = T4 - T2
             
-            Pwr = P2
+            Pwr = DW1000.RxPower2dBm((P2+P4)/2,64)
             Est = (F2 + F4) / 2
             Err = (T42 - T31) / T42
             
