@@ -40,7 +40,7 @@ class Config():
 
     blink_count  = 100
     blink_delay  = 0.010
-    blink_wait   = 0.250
+    blink_wait   = 0.500
 
 CFG = Config()
 
@@ -200,22 +200,47 @@ def main():
 
     try:
         for tx in xmitters:
+            
             if VERBOSE > 0:
                 eprint('Calibrating {} <{}>'.format(tx.host,tx.eui))
 
-            (Eavg,Estd) = ANTD_CAL(blk, tmr, tx, rceivers, (args.delay,args.delay,args.wait), count=args.count, rawts=args.raw)
+            corr = 10
+            iter = 1
+            
+            while abs(corr) > 0:
+            
+                if VERBOSE > 0:
+                    eprint('  Iteration #{}'.format(iter))
 
-            antd = int(tx.GetAttr('antd'),0)
-            corr = int((Eavg/C_AIR) * DW1000_CLOCK_GHZ)
-            antd += corr
-            
-            tx.SetAttr('antd', antd)
-            antd = tx.GetAttr('antd')
-            
+                iter += 1
+                
+                (Eavg,Estd) = ANTD_CAL(blk, tmr, tx, rceivers, (args.delay,args.delay,args.wait), count=args.count, rawts=args.raw)
+
+                aerr = (Eavg/C_AIR) * DW1000_CLOCK_HZ
+                abse = abs(aerr)
+                
+                if abse > 2.0:
+                    delta = round(abse/2)
+                elif abse > 0.666:
+                    delta = 1.0
+                else:
+                    delta = 0.0
+
+                if aerr < 0:
+                    corr = -int(delta)
+                else:
+                    corr = int(delta)
+                    
+                antd = int(tx.GetAttr('antd'),0)
+                antd += corr
+                antd = tx.SetAttr('antd', antd)
+                
+                if VERBOSE > 0:
+                    eprint('    correction: {:+d} => {}'.format(corr,antd))
+
             if VERBOSE > 0:
-                eprint('    correction: {:+2d}'.format(corr))
                 eprint('FINAL VALUE:')
-
+            
             print(antd)
             
     except KeyboardInterrupt:
