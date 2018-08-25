@@ -42,6 +42,82 @@ RFP3 = interp.LSQUnivariateSpline(DATA[:,3],DATA[:,0],[10.0-105,22.5-105])
 
 class DW1000:
 
+    def RxPower2dBm(power,prf):
+        Plog = 10*math.log10(power)
+        if prf == 16:
+            Plog -= 113.77
+            if Plog < -105:
+                return Plog
+            elif Plog < -82:
+                return float(RFP1(Plog))
+            else:
+                return -65
+        else:
+            Plog -= 121.74
+            if Plog < -105:
+                return Plog
+            elif Plog < -77:
+                return float(RFP3(Plog))
+            else:
+                return -65
+        raise ValueError
+
+    def Pwr2Hex(val):
+        loc = val.find('+')
+        if loc > 0:
+            a = float(val[:loc])
+            b = float(val[loc:])
+            c = int(a / 3)
+            d = int(b * 2)
+            if c<0 or c>6:
+                raise ValueError
+            if int(a) != 3*c:
+                raise ValueError
+            if d<0 or d>31:
+                raise ValueError
+            if b != d/2:
+                raise ValueError
+            e = (6 - c) << 5
+            return (e|d)
+        else:
+            a = int(val,0)
+            if a<0:
+                raise ValueError
+            return a
+
+    def TxPower(val):
+        if isinstance(val,str):
+            n = val.count(':')
+            if n == 3:
+                N = val.findall(':')
+                A = DW1000.Pwr2Hex(val[:N[0]])
+                B = DW1000.Pwr2Hex(val[N[0]+1,N[1]])
+                C = DW1000.Pwr2Hex(val[N[1]+1,N[2]])
+                D = DW1000.Pwr2Hex(val[N[2]+1:])
+                if A>255 or B>255 or C>255 or D>255:
+                    raise ValueError
+                return '0x{:02x}{:02x}{:02x}{:02x}'.format(A,B,C,D)
+            elif n == 1:
+                N = val.find(':')
+                A = DW1000.Pwr2Hex(val[:N])
+                B = DW1000.Pwr2Hex(val[N+1:])
+                if A>255 or B>255:
+                    raise ValueError
+                return '0x{:02x}{:02x}{:02x}{:02x}'.format(A,A,B,B)
+            elif n == 0:
+                A = DW1000.Pwr2Hex(val)
+                if A<256:
+                    return '0x{:02x}{:02x}{:02x}{:02x}'.format(A,A,A,A)
+                else:
+                    return '0x{:08x}'.format(A)
+                raise ValueError
+        else:
+            return val
+
+    CONV = {
+        'tx_power':  TxPower,
+    }
+
     # Order is important
     ATTRS = (
         'channel',
@@ -68,6 +144,8 @@ class DW1000:
         return self.rpc.getAttr(self.addr,attr)
 
     def SetAttr(self,attr,value):
+        if attr in self.CONV:
+            value = self.CONV[attr](value)
         return self.rpc.setAttr(self.addr,attr,value)
 
     def GetAttrDefault(self,attr):
@@ -119,31 +197,11 @@ class DW1000:
                     if getattr(args,attr) == 'cal':
                         val = rem.GetAttrDefault(attr)
                     else:
-                        val = int(getattr(args,attr),0)
+                        val = getattr(args,attr)
                 elif args.reset:
                     val = rem.GetAttrDefault(attr)
                 if val is not None:
                     rem.SetAttr(attr, val)
-
-    def RxPower2dBm(power,prf):
-        Plog = 10*math.log10(power)
-        if prf == 16:
-            Plog -= 113.77
-            if Plog < -105:
-                return Plog
-            elif Plog < -82:
-                return float(RFP1(Plog))
-            else:
-                return -65
-        else:
-            Plog -= 121.74
-            if Plog < -105:
-                return Plog
-            elif Plog < -77:
-                return float(RFP3(Plog))
-            else:
-                return -65
-        raise ValueError
 
 
 class Timer:
