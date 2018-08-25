@@ -3,15 +3,15 @@
 # Anchor daemon for Tail algorithm development
 #
 
+import sys
+import socket
+import select
+import ctypes
+import struct
+import array
 import argparse
 import ipaddress
 import netifaces
-import socket
-import select
-import fcntl
-import struct
-import array
-import ctypes
 import json
 
 from pprint import pprint
@@ -146,9 +146,7 @@ def SetDWAttr(attr, data):
         fd.write(str(data))
         fd.close()
         ret = 0
-        #eprint('SetDWAttr({}, {})'.format(attr,data))
     except:
-        #eprint('FAIL! SetDWAttr {} := {}'.format(attr,data))
         ret = -1
     return ret
 
@@ -158,10 +156,8 @@ def GetDWAttr(attr):
         fd = open(cfg.dw1000_sysfs + attr, 'r')
         val = fd.read().rstrip()
         fd.close()
-        #eprint('GetDWAttr({}) = {}'.format(attr,val))
     except:
-        #eprint('FAIL! GetDWAttr {}'.format(attr))
-        val = ''
+        val = None
     return val
 
 
@@ -267,7 +263,8 @@ def RPCGetAttr(rpc,rsock):
 def RPCSetAttr(rpc,rsock):
     args = rpc['args']
     seqn = rpc['seqn']
-    data = SetDWAttr(args['attr'], args['value'])
+    retv = SetDWAttr(args['attr'], args['value'])
+    data = GetDWAttr(args['attr'])
     func = 'setAttr::ret'
     argv = { 'attr': args['attr'], 'value': data }
     seqn = seqn
