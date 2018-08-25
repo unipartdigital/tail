@@ -8,7 +8,6 @@ import math
 import queue
 import socket
 import json
-import pprint
 import argparse
 import threading
 import tail
@@ -50,11 +49,21 @@ ANCHORS = (
     'bss8',
 )
 
+COORD = (
+    (0.150, 0.475, 0.035),
+    (8.545, 0.420, 0.035),
+    (8.567, 5.807, 0.035),
+    (0.175, 5.860, 0.035),
+    (2.666, 0.185, 1.255),
+    (6.177, 0.185, 1.255),
+    (6.102, 6.146, 1.265),
+    (2.299, 6.140, 1.270),
+)
+
 NANC = len(ANCHORS)
 
 IGNORE = [
-    (4,5),
-    (6,7),
+    (1,3),
 ]
 
 
@@ -234,7 +243,7 @@ def main():
 
     DW1000.HandleArguments(args,remotes.values())
     
-    if VERBOSE > 0:
+    if VERBOSE > 1:
         DW1000.PrintAllRemoteAttrs(remotes.values())
 
     tmr = tail.Timer()
@@ -253,7 +262,7 @@ def main():
                 elif i2 > i1:
                     Lstd = 1.0
                     while Lstd > 0.100:
-                        print('Ranging {} to {}'.format(rem1.host,rem2.host))
+                        eprints('Ranging {} to {}..'.format(rem1.host,rem2.host))
                         Tcnt = 0
                         Lsum = 0.0
                         Lsqr = 0.0
@@ -274,11 +283,11 @@ def main():
                             Lstd = math.sqrt(Lvar)
                             dist[i1,i2] = Lavg
                             dvar[i1,i2] = Lvar
-                            print('   = {:.3f}m {:.3f}m'.format(Lavg,Lstd))
+                            eprint('>>> {:.3f}m {:.3f}m'.format(Lavg,Lstd))
                         else:
                             dist[i1,i2] = None
                             dvar[i1,i2] = None
-                            print('FAIL')
+                            print('!!! FAIL')
                 elif i1 > i2:
                     dist[i1,i2] = dist[i2,i1]
                     dvar[i1,i2] = dvar[i2,i1]
@@ -286,9 +295,9 @@ def main():
                     dist[i1,i2] = 0.0
                     dvar[i1,i2] = 0.0
                     
-                derr[i1,i2] = dist[i1,i2] - eucl(QS_BOARD_ROOM_COORD[i1],QS_BOARD_ROOM_COORD[i2])
+                derr[i1,i2] = dist[i1,i2] - eucl(COORD[i1],COORD[i2])
                 
-        #print(dist)
+        #eprint(dist)
 
         L = int((NANC-1)*(NANC/2)) - len(IGNORE)
 
@@ -317,14 +326,15 @@ def main():
         AB = AX[0]
         
         ANTD = (AB/C_AIR) * DW1000_CLOCK_HZ
-        print(ANTD)
+
+        if VERBOSE>0:
+            eprint(ANTD)
 
         for i in range(NANC):
             antd = remotes[i].GetAttr('antd')
             corr = int(ANTD[i])
             newd = int(antd,0) + corr 
-            remotes[i].SetAttr('antd', newd)
-            antd = remotes[i].GetAttr('antd')
+            antd = remotes[i].SetAttr('antd', newd)
             print('{} <{}> correction={:+2d} => antd={}'.format(
                 remotes[i].host, remotes[i].eui, corr, antd))
 
