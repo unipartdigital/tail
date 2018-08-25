@@ -7,7 +7,9 @@ HOST=$1
 EUI64=$2
 
 XTALT=15
-ANTD=0x4000
+ANTDIF=18
+ANTD16=0x4000
+ANTD64=0x4000
 
 USER='pi'
 TAIL='~/tail/eeprom'
@@ -38,7 +40,7 @@ picheck()
 
 flash()
 {
-    ssh ${USER}@${HOST} "make -C ${TAIL} EUI64=${EUI64} XTALT=${XTALT} ANTD16=${ANTD} ANTD64=${ANTD} program" 2>/dev/null >/dev/null
+    ssh ${USER}@${HOST} "make -C ${TAIL} EUI64=${EUI64} XTALT=${XTALT} ANTD16=${ANTD16} ANTD64=${ANTD64} program" 2>/dev/null >/dev/null
 }
 
 remboot()
@@ -66,7 +68,7 @@ then
 
     if ! euicheck ${EUI64}
     then
-	echo "EUI64 argument \"${EUI64}\" is incorrect"
+	echo "EUI64 argument \"${EUI64}\" is invalid"
 	usage
 	exit 1
     fi
@@ -74,11 +76,11 @@ then
     echo "Programming the DW1000 Hat EEPROM..."
     if flash
     then
-	echo "Programming successful. Rebooting remotely..."
+	echo "Initial programming successful. Rebooting remotely..."
 	remboot
     else
 	echo "***"
-	echo "*** Programming __FAILED__ miserably."
+	echo "*** Initial programming __FAILED__ miserably."
 	echo "***"
 	exit 1
     fi
@@ -88,24 +90,30 @@ else
     EUI64=$( ./dwattr.py ${HOST} --print-eui )
     echo "Starting calibration process for ${HOST} <${EUI64}>"
 
+    echo -n "XTALT  : "
     XTALT=$( ./calib-xtalt.py *${HOST} ${BSS_LIST} )
     if [ "${XTALT}" -gt 0 -a "${XTALT}" -lt 31 ]
     then
-	echo "XTALT  : ${XTALT}"
+	echo "${XTALT}"
     else
+	echo "?"
 	echo "***"
-	echo "*** Calibration __FAILED__ miserably."
+	echo "*** XTALT calibration __FAILED__ miserably."
 	echo "***"
 	exit 1
     fi
 
+    echo -n "ANTD   : "
     ANTD=$( ./calib-antd.py *${HOST} ${BSS_LIST} )
     if [[ "${ANTD}" -gt 0x4000 ]] && [[ "${ANTD}" -lt 0x4100 ]]
     then
-	echo "ANTD   : ${ANTD}"
+	echo "${ANTD}"
+	ANTD64=${ANTD}
+	ANTD16=$(${ANTD}-${ANTDIF})
     else
+	echo "?"
 	echo "***"
-	echo "*** Calibration __FAILED__ miserably."
+	echo "*** ANTD calibration __FAILED__ miserably."
 	echo "***"
 	exit 1
     fi
