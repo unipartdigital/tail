@@ -187,7 +187,7 @@ DW1000_DEVICE_CALIB = {
     },
     '70b3d5b1e0000011': {
         'xtalt'	   : 17,
-        'antd'     : 0x401e,
+        'antd'     : 0x4024,
     },
     '70b3d5b1e0000012': {
         'xtalt'	   : 23,		# Unstable
@@ -195,32 +195,31 @@ DW1000_DEVICE_CALIB = {
     },
     '70b3d5b1e0000013': {
         'xtalt'	   : 16,
-        'antd'     : 0x402f,
+        'antd'     : 0x4034,
     },
     '70b3d5b1e0000014': {
         'xtalt'	   : 17,
-        'antd'     : 0x4049,
+        'antd'     : 0x4041,
     },
     '70b3d5b1e0000015': {
         'xtalt'	   : 15,
-        'antd'     : 0x4040,
+        'antd'     : 0x402f,
     },
     '70b3d5b1e0000016': {
         'xtalt'	   : 18,
-        'antd'     : 0x404a,
+        'antd'     : 0x4050,
     },
     '70b3d5b1e0000017': {
         'xtalt'	   : 16,
-        'antd'     : 0x4032,
+        'antd'     : 0x4016,
     },
     '70b3d5b1e0000018': {
         'xtalt'	   : 15,
-        'antd'     : 0x4023,
+        'antd'     : 0x4024,
     },
     '70b3d5b1e0000019': {
         'xtalt'	   : 16,
-        'antd'     : 0x4018,
+        'antd'     : 0x4022,
     },
 }
-        
 
