@@ -50,11 +50,21 @@ ANCHORS = (
     'bss8',
 )
 
+COORD = (
+    (0.150, 0.475, 0.035),
+    (8.545, 0.420, 0.035),
+    (8.567, 5.807, 0.035),
+    (0.175, 5.860, 0.035),
+    (2.666, 0.185, 1.255),
+    (6.177, 0.185, 1.255),
+    (6.102, 6.146, 1.265),
+    (2.299, 6.140, 1.270),
+)
+
 NANC = len(ANCHORS)
 
 IGNORE = [
-    (4,5),
-    (6,7),
+    (1,3),
 ]
 
 
@@ -286,7 +296,7 @@ def main():
                     dist[i1,i2] = 0.0
                     dvar[i1,i2] = 0.0
                     
-                derr[i1,i2] = dist[i1,i2] - eucl(QS_BOARD_ROOM_COORD[i1],QS_BOARD_ROOM_COORD[i2])
+                derr[i1,i2] = dist[i1,i2] - eucl(COORD[i1],COORD[i2])
                 
         #print(dist)
 
