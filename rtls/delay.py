@@ -4,6 +4,7 @@
 #
 
 import sys
+import time
 import math
 import queue
 import socket
@@ -35,7 +36,7 @@ class Config():
 
     ewma         = 32
     range        = 1.000
-    binsize      = 0.030
+    binsize      = 2 / DW1000_CLOCK_GHZ
 
 CFG = Config()
 
@@ -204,7 +205,7 @@ def main():
     if args.delay1 is not None:
         delay1 = args.delay1
     if args.delay2 is not None:
-        delay1 = args.delay2
+        delay2 = args.delay2
         
     rpc = tail.RPC(('', args.port))
 
@@ -316,7 +317,8 @@ def main():
 
             if args.plot:
                 fig,ax = plot.subplots(figsize=(15,10),dpi=80)
-                ax.set_title('Delay distribution')
+                ax.set_title('Delay distribution {} - {} @ {}'.format(remotes[0].host,remotes[1].host,
+                                                                      time.strftime('%d/%m/%Y %H:%M:%S')))
                 ax.set_xlabel('Delay [ns]')
                 ax.set_ylabel('Samples')
                 ax.text(0.80, 0.95, r'$\mu$={:.3f}m'.format(Lavg), transform=ax.transAxes, size='x-large')
