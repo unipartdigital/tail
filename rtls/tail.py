@@ -351,11 +351,29 @@ class Blinker():
                         euis.append(eui)
         return euis
 
+    def getTime(self,index):
+        return self.blinks[index]['time']
+
     def getTS(self,index,eui,raw=False):
         if raw:
             return self.blinks[index]['anchors'][eui]['tsi']['rawts']
         else:
             return self.blinks[index]['anchors'][eui]['tss']
+        raise ValueError
+
+    def getLQI(self,index,eui):
+        if self.blinks[index]['anchors'][eui]['dir'] == 'RX':
+            return self.blinks[index]['anchors'][eui]['tsi']['lqi']
+        raise ValueError
+
+    def getSNR(self,index,eui):
+        if self.blinks[index]['anchors'][eui]['dir'] == 'RX':
+            return self.blinks[index]['anchors'][eui]['tsi']['snr']
+        raise ValueError
+
+    def getNoise(self,index,eui):
+        if self.blinks[index]['anchors'][eui]['dir'] == 'RX':
+            return self.blinks[index]['anchors'][eui]['tsi']['noise']
         raise ValueError
 
     def getXtalPPM(self,index,eui):
@@ -372,8 +390,19 @@ class Blinker():
         if self.blinks[index]['anchors'][eui]['dir'] == 'RX':
             CIRPWR = self.blinks[index]['anchors'][eui]['tsi']['cir_pwr']
             RXPACC = self.blinks[index]['anchors'][eui]['tsi']['rxpacc']
-            if RXPACC > 0 and CIRPWR > 0:
-                power = ((CIRPWR << 17) / (RXPACC*RXPACC))
+            if RXPACC>0 and CIRPWR>0:
+                power = (CIRPWR << 17) / (RXPACC*RXPACC)
+                return power
+        raise ValueError
+
+    def getFpPower(self,index,eui):
+        if self.blinks[index]['anchors'][eui]['dir'] == 'RX':
+            FPA1 = self.blinks[index]['anchors'][eui]['tsi']['fp_ampl1']
+            FPA2 = self.blinks[index]['anchors'][eui]['tsi']['fp_ampl2']
+            FPA3 = self.blinks[index]['anchors'][eui]['tsi']['fp_ampl3']
+            RXPACC = self.blinks[index]['anchors'][eui]['tsi']['rxpacc']
+            if RXPACC>0 and FPA1>0 and FPA2>0 and FPA3>0:
+                power = (FPA1*FPA1 + FPA2*FPA2 + FPA3*FPA3) / (RXPACC*RXPACC)
                 return power
         raise ValueError
 
