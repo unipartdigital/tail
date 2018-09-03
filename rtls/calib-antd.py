@@ -219,8 +219,8 @@ def main():
                 aerr = (Eavg/C_AIR) * DW1000_CLOCK_HZ
                 abse = abs(aerr)
                 
-                if abse > 1.0:
-                    delta = round(math.sqrt(abse))
+                if abse > 2.0:
+                    delta = round(abse/2)
                 elif abse > 0.666:
                     delta = 1.0
                 else:
@@ -233,10 +233,8 @@ def main():
                     
                 antd = int(tx.GetAttr('antd'),0)
                 antd += corr
-            
-                tx.SetAttr('antd', antd)
-                antd = tx.GetAttr('antd')
-            
+                antd = tx.SetAttr('antd', antd)
+                
                 if VERBOSE > 0:
                     eprint('    correction: {:+d} => {}'.format(corr,antd))
 
