@@ -53,24 +53,26 @@ def power2dBm(val):
         raise ValueError
         
 
-def print_csv(index,data):
-    (Time,Host1,Host2,Pwr,Dof,Lof,PPM,S1,P1,F1,N1,S2,P2,F2,N2) = data
-    msg = '{}'.format(index)
-    msg += ',{}'.format(Time)
-    msg += ',{}'.format(Host1)
-    msg += ',{}'.format(Host2)
-    msg += ',{0[0]:.0f},{0[1]:.1f}'.format(power2dBm(Pwr))
-    msg += ',{:.3f}'.format(Dof)
-    msg += ',{:.3f}'.format(Lof)
-    msg += ',{:.3f}'.format(PPM)
-    msg += ',{:.2f}'.format(P1)
-    msg += ',{:.2f}'.format(F1)
-    msg += ',{}'.format(N1)
-    msg += ',{:.2f}'.format(P2)
-    msg += ',{:.2f}'.format(F2)
-    msg += ',{}'.format(N2)
-    print(msg)
-
+def print_csv(file,index,data):
+    if file is not None:
+        (Time,Host1,Host2,Pwr,Dof,Lof,PPM,S1,P1,F1,N1,S2,P2,F2,N2) = data
+        msg  = time.strftime('%Y/%m/%d,%H:%M:%S')
+        msg += ',{}'.format(Time)
+        msg += ',{}'.format(index)
+        msg += ',{}'.format(Host1)
+        msg += ',{}'.format(Host2)
+        msg += ',{0[0]:.0f},{0[1]:.1f}'.format(power2dBm(Pwr))
+        msg += ',{:.3f}'.format(Dof)
+        msg += ',{:.3f}'.format(Lof)
+        msg += ',{:.3f}'.format(PPM)
+        msg += ',{:.2f}'.format(P1)
+        msg += ',{:.2f}'.format(F1)
+        msg += ',{}'.format(N1)
+        msg += ',{:.2f}'.format(P2)
+        msg += ',{:.2f}'.format(F2)
+        msg += ',{}'.format(N2)
+        msg += '\n'
+        file.write(msg)
 
 
 def DECA_TWR(blk, tmr, remote, delay, power=None, rawts=False):
@@ -154,6 +156,7 @@ def main():
     
     parser.add_argument('-D', '--debug', action='count', default=0, help='Enable debug prints')
     parser.add_argument('-v', '--verbose', action='count', default=0, help='Increase verbosity')
+    parser.add_argument('-o', '--output', type=str, default=None, help='Output file')
     parser.add_argument('-n', '--count', type=int, default=CFG.blink_count, help='Number of blinks')
     parser.add_argument('-s', '--speed', type=float, default=CFG.blink_speed, help='Blink speed [Hz]')
     parser.add_argument('-d', '--delay', type=float, default=CFG.blink_delay, help='Delay between blinks')
@@ -171,6 +174,11 @@ def main():
     DEBUG = args.debug
 
     algo = DECA_TWR
+
+    if args.output is not None:
+        out = open(args.output, 'w')
+    else:
+        out = None
         
     delay1 = args.delay
     delay2 = args.delay
@@ -213,7 +221,7 @@ def main():
                 for rem2 in remotes:
                     if rem1 != rem2:
                         for pwr in powers:
-                            if VERBOSE == 0 and index%10 == 0:
+                            if VERBOSE == 1:
                                 eprints('.')
                             if VERBOSE > 1:
                                 eprint('Ranging {}:{} @ PWR:{}'.format(rem1.host,rem2.host,pwr))
@@ -222,13 +230,12 @@ def main():
                                 tmr.nap(twait)
                                 try:
                                     data = algo(blk, tmr, (rem1,rem2), (delay1,delay2,args.wait), power=pwr, rawts=args.raw)
-                                    print_csv(index,data)
+                                    print_csv(out,index,data)
                                     index += 1
                                     done = True
                                     if VERBOSE > 1:
                                         (Time,Host1,Host2,Power,Dof,Lof,PPM,S1,P1,F1,N1,S2,P2,F2,N2) = data
-                                        eprint('    {:.3f}m {:.3f}ns Clk:{:+.3f}ppm Rx1:{:.1f}dBm:{:.1f}dBm:{} Rx2:{:.1f}dBm:{:.1f}dBm:{}'.format
-                                               (Lof,Dof,PPM,P1,F1,N1,P2,F2,N2))
+                                        eprint('    {:.3f}m {:.3f}ns Clk:{:+.3f}ppm Rx1:{:.1f}dBm:{:.1f}dBm:{} Rx2:{:.1f}dBm:{:.1f}dBm:{}'.format(Lof,Dof,PPM,P1,F1,N1,P2,F2,N2))
                                 except (TimeoutError):
                                     eprints('T')
                                 except (KeyError):
@@ -243,6 +250,9 @@ def main():
 
     blk.stop()
     rpc.stop()
+
+    if out is not None:
+        out.close()
 
 
 if __name__ == "__main__":
