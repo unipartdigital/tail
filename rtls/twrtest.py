@@ -13,12 +13,9 @@ import pprint
 import argparse
 import tail
 
-import numpy as np
-import numpy.linalg as lin
-
-from numpy import dot
 from tail import DW1000
 from tail import eprint, eprints
+
 from config import *
 
 
@@ -208,8 +205,7 @@ def main():
     eprint('Blinker starting')
 
     twait = max(0, 1.0/args.speed - delay1 - delay2)
-    
-    index = 0
+    index = 1
 
     try:
         while index < args.count:
@@ -217,28 +213,30 @@ def main():
                 for rem2 in remotes:
                     if rem1 != rem2:
                         for pwr in powers:
-                            tmr.nap(twait)
-                            index += 1
                             if VERBOSE == 0 and index%10 == 0:
                                 eprints('.')
                             if VERBOSE > 1:
                                 eprint('Ranging {}:{} @ PWR:{}'.format(rem1.host,rem2.host,pwr))
-                            try:
-                                DATA = algo(blk, tmr, (rem1,rem2), (delay1,delay2,args.wait), power=pwr, rawts=args.raw)
-                                print_csv(index,DATA)
-                                
-                                if VERBOSE > 1:
-                                    (Time,Host1,Host2,Power,Dof,Lof,PPM,S1,P1,F1,N1,S2,P2,F2,N2) = DATA
-                                    eprint('    {:.3f}m {:.3f}ns Clk:{:+.3f}ppm Rx1:{:.1f}dBm:{:.1f}dBm:{} Rx2:{:.1f}dBm:{:.1f}dBm:{}'.format
-                                           (Lof,Dof,PPM,P1,F1,N1,P2,F2,N2))
-                            except (TimeoutError):
-                                eprints('T')
-                            except (KeyError):
-                                eprints('?')
-                            except (ValueError):
-                                eprints('*')
-                            except (ZeroDivisionError):
-                                eprints('0')
+                            done = False
+                            while not done:
+                                tmr.nap(twait)
+                                try:
+                                    data = algo(blk, tmr, (rem1,rem2), (delay1,delay2,args.wait), power=pwr, rawts=args.raw)
+                                    print_csv(index,data)
+                                    index += 1
+                                    done = True
+                                    if VERBOSE > 1:
+                                        (Time,Host1,Host2,Power,Dof,Lof,PPM,S1,P1,F1,N1,S2,P2,F2,N2) = data
+                                        eprint('    {:.3f}m {:.3f}ns Clk:{:+.3f}ppm Rx1:{:.1f}dBm:{:.1f}dBm:{} Rx2:{:.1f}dBm:{:.1f}dBm:{}'.format
+                                               (Lof,Dof,PPM,P1,F1,N1,P2,F2,N2))
+                                except (TimeoutError):
+                                    eprints('T')
+                                except (KeyError):
+                                    eprints('?')
+                                except (ValueError):
+                                    eprints('*')
+                                except (ZeroDivisionError):
+                                    eprints('0')
                             
     except KeyboardInterrupt:
         eprint('\nStopping...')
