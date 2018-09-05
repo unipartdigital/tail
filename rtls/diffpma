@@ -3,7 +3,7 @@
 BLUEDIR='/nfs/home/pma/tail/rtls'
 
 
-find . -type f -name '*.py' | while read NAME
+find . -type f -name '*.py' -o -name '*.sh' | while read NAME
 do
 	FILE=${NAME##./}
 	diff -u "${BLUEDIR}/${FILE}" "${FILE}"

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-BLUEDIR='/nfs/home/pi/tail/rtls'
+BLUEDIR='/nfs/home/pma/tail/test'
 
 
 find . -type f -name '*.py' -o -name '*.sh' | while read NAME
