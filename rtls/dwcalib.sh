@@ -104,12 +104,12 @@ else
     fi
 
     echo -n "ANTD   : "
-    ANTD=$( ./calib-antd.py *${HOST} ${BSS_LIST} )
+    ANTD=$( ./calib-antd.py *${HOST} ${BSS_LIST} -R -v -v )
     if [[ "${ANTD}" -gt 0x4000 ]] && [[ "${ANTD}" -lt 0x4100 ]]
     then
 	echo "${ANTD}"
 	ANTD64=${ANTD}
-	ANTD16=$(${ANTD}-${ANTDIF})
+	ANTD16=$((${ANTD}-${ANTDIF}))
     else
 	echo "?"
 	echo "***"
