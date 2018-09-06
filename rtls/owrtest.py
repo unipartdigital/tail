@@ -409,78 +409,6 @@ def TDOF5(blk, tmr, remote, delay, rawts=False):
     return (Lerr,Derr,TDOA,REAL,TDER)
 
 
-def TDOF6(blk, tmr, remote, delay, rawts=False):
-
-    #
-    #     [1]             [2]              [3]
-    #
-    # (a) Ta1 --->--->--- Ta2 ---<>--<>--- Ta3
-    #                                          \__delay[0]
-    #                                          /
-    # (b) Tb1 --->--->--- Tb2 ---<>--<>--- Tb3
-    #                                          \__delay[1]
-    #                                          /
-    # (c)                 Tc2 ---->--->--- Tc3
-    #
-    
-    adr1 = remote[0].addr
-    adr2 = remote[1].addr
-    adr3 = remote[2].addr
-    eui1 = remote[0].eui
-    eui2 = remote[1].eui
-    eui3 = remote[2].eui
-
-    if rawts:
-        SCL = DW1000_CLOCK_GHZ
-    else:
-        SCL = 1<<32
-        
-    Tm = tmr.sync()
-    
-    ia = blk.Blink(adr1,Tm)
-    Tm = tmr.nap(delay[0])
-    ib = blk.Blink(adr1,Tm)
-    Tm = tmr.nap(delay[1])
-    ic = blk.Blink(adr2,Tm)
-    
-    blk.WaitBlinks((ia,ib,ic),remote,delay[2])
-    
-    T1 = blk.getTS(ia, eui3, rawts)
-    T2 = blk.getTS(ia, eui2, rawts)
-    T3 = blk.getTS(ic, eui2, rawts)
-    T4 = blk.getTS(ic, eui3, rawts)
-    T5 = blk.getTS(ib, eui3, rawts)
-    T6 = blk.getTS(ib, eui2, rawts)
-
-    J12 = GetDistJiffies(eui1,eui2,SCL)
-    J13 = GetDistJiffies(eui1,eui3,SCL)
-    J23 = GetDistJiffies(eui2,eui3,SCL)
-    dprint(' >>> J12:{} J13:{} J23:{}'.format(J12,J13,J23))
-    
-    T41 = T4 - T1
-    T32 = T3 - T2
-    T54 = T5 - T4
-    T63 = T6 - T3
-    T51 = T5 - T1
-    T62 = T6 - T2
-    
-    TTOT = 2 * (T41*T63 - T32*T54) // (T51+T62)
-    TDOA = TTOT - J23
-    REAL = J12 - J13
-    TDER = TDOA - REAL
-    dprint(' >>> TDOA:{} REAL:{} ERROR:{}'.format(TDOA,REAL,TDER))
-
-    Derr = TDER / SCL
-    Lerr = Derr * C_AIR * 1E-9
-    dprint(' >>> Error: {:.3f}ns {:.3f}m'.format(Derr,Lerr))
-
-    blk.PurgeBlink(ia)
-    blk.PurgeBlink(ib)
-    blk.PurgeBlink(ic)
-    
-    return (Lerr,Derr,TDOA,REAL,TDER)
-
-
 def main():
     
     global VERBOSE, DEBUG
@@ -522,8 +450,6 @@ def main():
         algo = TDOF4
     elif args.algo == 'TDOF5' or args.algo == '5':
         algo = TDOF5
-    elif args.algo == 'TDOF6' or args.algo == '6':
-        algo = TDOF6
     else:
         raise ValueError
     
