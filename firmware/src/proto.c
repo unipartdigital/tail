@@ -70,6 +70,10 @@ typedef struct {
 	bool receive_after_transmit;
 	volatile bool radio_active;
 	bool radio_sleeping;
+	uint8_t volts;
+	uint8_t temp;
+	uint8_t volts_cal;
+	uint8_t temp_cal;
 } device_t;
 
 device_t device = {
@@ -84,7 +88,11 @@ device_t device = {
 		.continuous_receive = false,
 		.receive_after_transmit = false,
 		.radio_active = false,
-		.radio_sleeping = false
+		.radio_sleeping = false,
+		.volts = 0,
+		.temp = 0,
+		.volts_cal = 0,
+		.temp_cal = 0
 };
 
 typedef struct {
@@ -266,6 +274,8 @@ void proto_init(void)
     device.radio_active = false;
     device.radio_sleeping = false;
 
+    radio_read_adc_cal(&device.volts_cal, &device.temp_cal);
+
     time_early_wakeup(proto_prepare, PROTO_PREPARETIME);
 }
 
@@ -394,11 +404,13 @@ void rxdone_tag(void)
 void rxtimeout_tag(void)
 {
 	tag_packet_timeout = true;
+	device.radio_active = false;
 }
 
 void rxerror_tag(void)
 {
 	tag_packet_failed = true;
+	device.radio_active = false;
 }
 
 void rxtimeout(void)
@@ -652,6 +664,7 @@ void ipv6_udp_checksum(uint8_t *buf, address_t *mac_addr, ipv6_addr_t ipv6_addr,
 void tagipv6_start(void)
 {
     int offset, udp_offset;
+    uint8_t voltage, temperature;
 
     time_event_in(tagipv6_start, tag_data.period);
 
@@ -665,7 +678,12 @@ void tagipv6_start(void)
     /* payload goes here */
     txbuf[offset++] = TAIL_HEADER_BATTERY; /* Tail status flags */
 
-    txbuf[offset++] = 0x00; /* Battery state */
+    radio_wakeup_adc_readings(&voltage, &temperature);
+
+    txbuf[offset++] = voltage; /* Battery state */
+    txbuf[offset++] = temperature; /* Temperature */
+    txbuf[offset++] = device.volts_cal;
+    txbuf[offset++] = device.temp_cal;
 
     address_t source_mac_addr;
 
@@ -1012,6 +1030,19 @@ void proto_prepare(void)
     /* Keep the radio awake until it is used */
     device.radio_active = true;
     radio_wakeup();
+    radio_wakeup_adc_readings(&device.volts, &device.temp);
+}
+
+int proto_volts(void)
+{
+	int v = device.volts;
+	return 1000 * (v - device.volts_cal) / 173 + 3300;
+}
+
+int proto_temp(void)
+{
+	int t = device.temp;
+	return 1140 * (t - device.temp_cal) + 23000;
 }
 
 void set_antenna_delay_tx(uint16_t delay)

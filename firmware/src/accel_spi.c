@@ -45,6 +45,15 @@ void accel_spi_init(void)
 	GPIO_PinModeSet(PORT_CLK,  PIN_CLK,  gpioModePushPull, 1);
 }
 
+void accel_delay(void)
+{
+	/* We don't need to slow things down much. A couple of clock cycles
+	 * is plenty.
+	 */
+    volatile int count = 0;
+    (void) count;
+}
+
 void accel_spi_start(void)
 {
 	GPIO_PinOutClear (PORT_CS, PIN_CS);
@@ -65,7 +74,9 @@ void accel_spi_write(uint8_t data)
 		else
 			GPIO_PinOutClear (PORT_MOSI, PIN_MOSI);
 		data = data << 1;
+		accel_delay();
 		GPIO_PinOutSet (PORT_CLK, PIN_CLK);
+		accel_delay();
 	}
 }
 uint8_t accel_spi_read(void)
@@ -76,7 +87,9 @@ uint8_t accel_spi_read(void)
 	for (i = 0; i < 8; i++) {
 		GPIO_PinOutClear (PORT_CLK, PIN_CLK);
 		data = data << 1;
+		accel_delay();
 		GPIO_PinOutSet (PORT_CLK, PIN_CLK);
+		accel_delay();
 		data = data | GPIO_PinInGet (PORT_MISO, PIN_MISO);
 	}
 	return data;

@@ -12,6 +12,7 @@
 #include "radio.h"
 #include "radio_reg.h"
 #include "proto.h"
+#include "accel.h"
 
 #include "em_msc.h"
 
@@ -281,6 +282,42 @@ void fn_rdump(void)
 	    }
         write_string("\r\n");
 	}
+}
+
+void fn_aread(void)
+{
+	int reg;
+	int len = 1;
+	int i;
+
+	if (!token_int(&reg, 16)) {
+		write_string("Usage: read <register> [length]\r\n");
+		return;
+	}
+
+    token_int(&len, 0);
+
+	for (i = 0; i < len; i++)
+	{
+		uint8_t value = accel_read(reg);
+		reg++;
+        write_hex(value);
+        write_string(" ");
+	}
+    write_string("\r\n");
+}
+
+void fn_awrite(void)
+{
+	int reg;
+	int value;
+
+	if ((!token_int(&reg, 16)) || (!token_int(&value, 0))) {
+		write_string("Usage: write <register> <value>\r\n");
+		return;
+	}
+
+	accel_write(reg, value);
 }
 
 void fn_stop(void)
@@ -623,6 +660,33 @@ void fn_wake(void)
 	radio_wakeup();
 }
 
+void write_int3(int n)
+{
+	int i = n / 1000;
+	int d = n % 1000;
+	int z = 0;
+	if (d < 100)
+		z++;
+	if (d < 10)
+		z++;
+	write_int(i);
+	write_string(".");
+	while (z--)
+		write_string("0");
+	write_int(d);
+}
+void fn_volts(void)
+{
+	write_int3(proto_volts());
+	write_string("\r\n");
+}
+
+void fn_temp(void)
+{
+	write_int3(proto_temp());
+	write_string("\r\n");
+}
+
 typedef struct {
 	const char *command;
 	void (*fn)(void);
@@ -656,6 +720,10 @@ static command command_table[] = {
 		{"wake", &fn_wake},
 		{"rread", &fn_rread},
 		{"rdump", &fn_rdump},
+		{"aread", &fn_aread},
+		{"awrite", &fn_awrite},
+		{"volts", &fn_volts},
+		{"temp", &fn_temp}
 };
 
 void fn_help(void)

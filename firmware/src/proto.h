@@ -56,5 +56,7 @@ void range_with_period(address_t *address, int period);
 void range(address_t *address);
 void range_average(address_t *address, int period, int count);
 void ranchor(void);
+int proto_volts(void);
+int proto_temp(void);
 
 #endif

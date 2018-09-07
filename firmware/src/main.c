@@ -120,6 +120,14 @@ int main(void)
   uart_init();
   cli_init();
 
+  uint8_t accel_status = accel_read(0x08);
+  uint8_t accel_init = accel_read(0x0f);
+
+  write_hex(accel_status);
+  write_string(":");
+  write_hex(accel_init);
+  write_string("\r\n");
+
 #if 0
   uint8_t seq[] = {8, 4, 1, 2, 0, 2, 1, 4, 8, 0};
 

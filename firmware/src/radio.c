@@ -846,6 +846,14 @@ uint32_t radio_otp_read32(uint32_t address)
     return radio_read32(RREG(OTP_RDAT));
 }
 
+uint32_t radio_otp_read16(uint32_t address)
+{
+    radio_write16(RREG(OTP_ADDR), address);
+    radio_write8(RREG(OTP_CTRL), FIELDS(OTP_CTRL, OTPREAD, 1, OTPRDEN, 1));
+    radio_write8(RREG(OTP_CTRL), 0x00);
+    return radio_read16(RREG(OTP_RDAT));
+}
+
 void radio_configsleep(uint16_t mode, uint8_t wake)
 {
     mode |= radio_aon_wcfg;
@@ -921,6 +929,23 @@ void radio_leds(bool on, int time)
 	radio_ledstate = on;
 	radio_ledtime = time;
 	radio_leds_restore();
+}
+
+void radio_wakeup_adc_readings(uint8_t *voltage, uint8_t *temperature)
+{
+	uint16_t reading = radio_read16(RREG(TC_SARW));
+	if (voltage)
+		*voltage = reading & 0xff;
+	if (temperature)
+		*temperature = reading >> 8;
+}
+
+void radio_read_adc_cal(uint8_t *voltage, uint8_t *temperature)
+{
+	if (voltage)
+		*voltage = radio_otp_read16(OTP_VOLTAGE_CAL) & 0xff;
+	if (temperature)
+		*temperature = radio_otp_read16(OTP_TEMPERATURE_CAL) & 0xff;
 }
 
 #endif
