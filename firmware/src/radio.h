@@ -95,6 +95,8 @@ void radio_aonconfigupload(void);
 void delay(int ms);
 void radio_setcallbacks(radio_callbacks *callbacks);
 int radio_getpayload(void *data, int maxlen);
+void radio_settxpower(uint32_t power);
+void radio_smarttxpowercontrol(bool enabled);
 void radio_setrxtimeout(uint16_t time);
 void radio_setstarttime(uint32_t time);
 void radio_readtxtimestamp(uint8_t *time);

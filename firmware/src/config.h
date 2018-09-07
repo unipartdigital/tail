@@ -28,7 +28,9 @@
 	X(tag_target_addr,   0x0013) \
 	X(tag_source_port,   0x0014) \
 	X(tag_dest_port,     0x0015) \
-	X(tag_period,        0x0016)
+	X(tag_period,        0x0016) \
+	X(tx_power,          0x0017) \
+	X(smart_tx_power,    0x0018)
 
 #define CONFIG_KEY_INVALID 0x0000
 

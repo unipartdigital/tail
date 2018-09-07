@@ -201,6 +201,8 @@ void fn_rread(void)
 		return;
 	}
 
+	proto_prepare_immediate();
+
 	/* We're going to use clibuf because at this point it's not going to be reused.
 	 * This will be a problem if we ever decide to implement command history.
 	 */
@@ -262,9 +264,13 @@ void fn_rdump(void)
 			X(AON_CTRL)
 			X(LDE_RXANTD)
 			X(TX_ANTD)
+			X(TX_POWER)
 #undef X
 	};
 	int r, i;
+
+	proto_prepare_immediate();
+
 	for (r = 0; r < ARRAY_SIZE(rset); r++) {
 		uint8_t file = rset[r].file;
 		uint16_t reg = rset[r].reg;
@@ -402,6 +408,32 @@ void fn_tagipv6(void)
 	(void) token_int(&period, 0);
 
 	tagipv6_with_period(TIME_FROM_MS(period));
+}
+
+void fn_power(void)
+{
+	uint32_t power;
+
+	if (!token_uint32(&power, 16)) {
+		write_string("Usage: power <register value>\r\n");
+	    return;
+    }
+
+	proto_prepare_immediate();
+	radio_settxpower(power);
+}
+
+void fn_smartpower(void)
+{
+	int enabled;
+
+	if (!token_int(&enabled, 0)) {
+		write_string("Usage: smartpower <1|0>\r\n");
+	    return;
+    }
+
+	proto_prepare_immediate();
+	radio_smarttxpowercontrol(enabled);
 }
 
 /* We pass in the buffer because this is called from fn_config which has already allocated
@@ -631,7 +663,8 @@ bool cli_prepare_sleep(void)
 
 void fn_status(void)
 {
-    uint32_t status = radio_read32(RREG(SYS_STATUS));
+	proto_prepare_immediate();
+	uint32_t status = radio_read32(RREG(SYS_STATUS));
     write_hex(status);
     write_string("\r\n");
 }
@@ -723,7 +756,9 @@ static command command_table[] = {
 		{"aread", &fn_aread},
 		{"awrite", &fn_awrite},
 		{"volts", &fn_volts},
-		{"temp", &fn_temp}
+		{"temp", &fn_temp},
+		{"power", &fn_power},
+		{"smartpower", &fn_smartpower}
 };
 
 void fn_help(void)

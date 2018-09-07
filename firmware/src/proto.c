@@ -1033,6 +1033,18 @@ void proto_prepare(void)
     radio_wakeup_adc_readings(&device.volts, &device.temp);
 }
 
+/* Like proto_prepare, but we want to perform an immediate operation and don't
+ * need to keep the radio awake after the next poll
+ */
+void proto_prepare_immediate(void)
+{
+    if (!device.radio_sleeping)
+    	return;
+    device.radio_sleeping = false;
+    radio_wakeup();
+    radio_wakeup_adc_readings(&device.volts, &device.temp);
+}
+
 int proto_volts(void)
 {
 	int v = device.volts;

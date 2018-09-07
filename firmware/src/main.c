@@ -177,6 +177,17 @@ int main(void)
     set_antenna_delay_tx(config_get16(config_key_antenna_delay_tx));
     set_antenna_delay_rx(config_get16(config_key_antenna_delay_rx));
 
+    uint32_t word = 0;
+
+    if (config_get(config_key_tx_power, (uint8_t *)&word, 4) > 0)
+    	radio_settxpower(word);
+    if (config_get(config_key_smart_tx_power, &byte, 1) > 0) {
+    	radio_smarttxpowercontrol(byte);
+    	write_string("Smart power control: ");
+    	write_int(byte);
+    	write_string("\r\n");
+    }
+
     proto_init();
 
     switch (config_get8(config_key_role)) {

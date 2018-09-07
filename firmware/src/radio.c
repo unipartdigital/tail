@@ -550,6 +550,21 @@ void radio_configure(radio_config_t *config)
     radio_write8(RREG(SYS_CTRL), FIELDS(SYS_CTRL, TXSTRT, 1, TRXOFF, 1));
 }
 
+void radio_settxpower(uint32_t power)
+{
+	radio_write32(RREG(TX_POWER), power);
+}
+
+void radio_smarttxpowercontrol(bool enabled)
+{
+    uint8_t reg;
+
+    reg = radio_read8(RREGO(SYS_CFG, 2));
+
+    FIELDS_EDITO(reg, SYS_CFG, 2, DIS_STXP, enabled?0:1);
+
+    radio_write8(RREGO(SYS_CFG, 2), reg);
+}
 
 /*
  * time is in units of 1.0256 us (512/499.2MHz)
