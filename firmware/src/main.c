@@ -181,12 +181,8 @@ int main(void)
 
     if (config_get(config_key_tx_power, (uint8_t *)&word, 4) > 0)
     	radio_settxpower(word);
-    if (config_get(config_key_smart_tx_power, &byte, 1) > 0) {
+    if (config_get(config_key_smart_tx_power, &byte, 1) > 0)
     	radio_smarttxpowercontrol(byte);
-    	write_string("Smart power control: ");
-    	write_int(byte);
-    	write_string("\r\n");
-    }
 
     proto_init();
 
