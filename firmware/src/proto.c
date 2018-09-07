@@ -452,14 +452,8 @@ void proto_rxdone(void)
 
 	len = radio_getpayload(rxbuf, BUFLEN);
 
-#if 1
     if (!proto_despatch(rxbuf, len) && device.continuous_receive)
        	start_rx();
-    else
-    	device.radio_active = false;
-#else
-	(void) len;
-#endif
 
 	GPIO_PinOutToggle(gpioPortA, 1); // down
     debug.in_rxdone = false;
