@@ -140,6 +140,9 @@ class DW1000:
         self.addr = socket.getaddrinfo(host, port, socket.AF_INET6)[0][4]
         self.eui  = rpc.getEUI(self.addr)
 
+    def GetCoord(self):
+        return DW1000_DEVICE_CALIB[self.eui]['coord']
+
     def GetAttr(self,attr):
         return self.rpc.getAttr(self.addr,attr)
 
