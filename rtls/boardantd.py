@@ -281,21 +281,24 @@ def main():
                             Lavg = Lsum/Tcnt
                             Lvar = Lsqr/Tcnt - Lavg*Lavg
                             Lstd = math.sqrt(Lvar)
+                            Lerr = Lavg - eucl(COORD[i1],COORD[i2])
                             dist[i1,i2] = Lavg
                             dvar[i1,i2] = Lvar
-                            eprint('>>> {:.3f}m {:.3f}m'.format(Lavg,Lstd))
+                            derr[i1,i2] = Lerr
+                            eprint('>>> DIST:{:.3f}m STD:{:.3f}m ERR:{:.3f}m'.format(Lavg,Lstd,Lerr))
                         else:
                             dist[i1,i2] = None
                             dvar[i1,i2] = None
+                            derr[i1,i2] = None
                             print('!!! FAIL')
                 elif i1 > i2:
                     dist[i1,i2] = dist[i2,i1]
                     dvar[i1,i2] = dvar[i2,i1]
+                    derr[i1,i2] = derr[i2,i1]
                 else:
                     dist[i1,i2] = 0.0
                     dvar[i1,i2] = 0.0
-                    
-                derr[i1,i2] = dist[i1,i2] - eucl(COORD[i1],COORD[i2])
+                    derr[i1,i2] = 0.0
                 
         #eprint(dist)
 
