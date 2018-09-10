@@ -29,6 +29,8 @@ class Config():
     blink_delay  = 0.010
     blink_wait   = 0.250
 
+    target       = 0.1
+
     rawts        = True
     weighted     = False
 
@@ -63,6 +65,7 @@ COORD = (
 NANC = len(ANCHORS)
 
 IGNORE = [
+    (0,1),
     (1,3),
 ]
 
@@ -215,6 +218,7 @@ def main():
     parser.add_argument('-w', '--wait', type=float, default=CFG.blink_wait)
     parser.add_argument('-p', '--port', type=int, default=RPC_PORT)
     parser.add_argument('-A', '--algo', type=str, default=CFG.algo)
+    parser.add_argument('-t', '--target', type=float, default=CFG.target)
     parser.add_argument('-W', '--weighted', action='store_true', default=False)
     
     args = parser.parse_args()
@@ -260,8 +264,8 @@ def main():
                 if (i1,i2) in IGNORE:
                     dist[i1,i2] = 0.0
                 elif i2 > i1:
-                    Lstd = 1.0
-                    while Lstd > 0.100:
+                    Lstd = 1E9
+                    while Lstd > args.target:
                         eprints('Ranging {} to {}..'.format(rem1.host,rem2.host))
                         Tcnt = 0
                         Lsum = 0.0
