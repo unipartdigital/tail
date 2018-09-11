@@ -184,6 +184,11 @@ int main(void)
     if (config_get(config_key_smart_tx_power, &byte, 1) > 0)
     	radio_smarttxpowercontrol(byte);
 
+    word = 0;
+    if (config_get(config_key_turnaround_delay, (uint8_t *)&word, 4) > 0)
+    	proto_turnaround_delay(word);
+
+
     proto_init();
 
     switch (config_get8(config_key_role)) {

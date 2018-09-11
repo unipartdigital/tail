@@ -11,6 +11,23 @@
 #define BUFLEN 1024
 #define HEADER_MAX 37
 
+/* Note that TIME refers to system time and DWTIME refers
+ * to the time on the DW1000.
+ */
+#define DWTIME_TO_SECONDS(x) ((x)/(128*4992*100000))
+#define DWTIME_TO_NANOSECONDS(x) (10000*(x)/(128*4992))
+#define DWTIME_TO_PICOSECONDS(x) (10000000*(x)/(128*4992))
+
+#define MICROSECONDS_TO_DWTIME(x) ((x)*((uint64_t)128*4992)/10)
+
+/* This is the default value */
+#define TURNAROUND_DELAY MICROSECONDS_TO_DWTIME(700)
+
+#define SPEED_OF_LIGHT 299792458
+
+#define DWTIME_TO_MILLIMETRES(x) ((x)*SPEED_OF_LIGHT/(128*499200))
+
+
 struct {
 	volatile bool in_rxdone;
 	volatile bool in_txdone;
@@ -74,6 +91,7 @@ typedef struct {
 	uint8_t temp;
 	uint8_t volts_cal;
 	uint8_t temp_cal;
+	uint64_t turnaround_delay;
 } device_t;
 
 device_t device = {
@@ -92,7 +110,8 @@ device_t device = {
 		.volts = 0,
 		.temp = 0,
 		.volts_cal = 0,
-		.temp_cal = 0
+		.temp_cal = 0,
+		.turnaround_delay = TURNAROUND_DELAY
 };
 
 typedef struct {
@@ -221,22 +240,6 @@ typedef struct packet {
     } while (0)
 
 
-/* Note that TIME refers to system time and DWTIME refers
- * to the time on the DW1000.
- */
-#define DWTIME_TO_SECONDS(x) ((x)/(128*4992*100000))
-#define DWTIME_TO_NANOSECONDS(x) (10000*(x)/(128*4992))
-#define DWTIME_TO_PICOSECONDS(x) (10000000*(x)/(128*4992))
-
-#define MICROSECONDS_TO_DWTIME(x) ((x)*((uint64_t)128*4992)/10)
-
-#define TURNAROUND_DELAY MICROSECONDS_TO_DWTIME(700)
-
-#define SPEED_OF_LIGHT 299792458
-
-#define DWTIME_TO_MILLIMETRES(x) ((x)*SPEED_OF_LIGHT/(128*499200))
-
-
 int proto_dest(uint8_t *buf, address_t *a);
 int proto_source(uint8_t *buf, int offset);
 void proto_header(uint8_t *buf);
@@ -326,7 +329,7 @@ void rxdone_anchor(void)
 //	GPIO_PinOutToggle(gpioPortA, 1); // up
 
 	trx = TIMESTAMP_READ(rxtime);
-	ttx = trx + TURNAROUND_DELAY;
+	ttx = trx + device.turnaround_delay;
 	ttx = ttx & ~0x1ff;
 
 	td = ttx - trx + device.antenna_delay_tx;
@@ -474,6 +477,11 @@ void proto_rxerror(void)
 	debug.in_rxerror = true;
    	start_rx();
 	debug.in_rxerror = false;
+}
+
+void proto_turnaround_delay(uint32_t us)
+{
+	device.turnaround_delay = MICROSECONDS_TO_DWTIME(us);
 }
 
 void tag_start(void)
@@ -1152,7 +1160,7 @@ bool tail_ping(packet_t *p)
 	uint64_t ttx, td;
 	int pp;
 
-	ttx = p->timestamp + TURNAROUND_DELAY;
+	ttx = p->timestamp + device.turnaround_delay;
 	ttx = ttx & ~0x1ff;
 
 	td = ttx - p->timestamp + device.antenna_delay_tx;
@@ -1201,7 +1209,7 @@ bool tail_range1(packet_t *p)
 	uint64_t ttx, td;
 	int pp;
 
-	ttx = p->timestamp + TURNAROUND_DELAY;
+	ttx = p->timestamp + device.turnaround_delay;
 	ttx = ttx & ~0x1ff;
 
 	td = ttx - p->timestamp + device.antenna_delay_tx;
@@ -1231,7 +1239,7 @@ bool tail_range2(packet_t *p)
 
 	ranging.tt1 = TIMESTAMP_READ(p->payload+1);
 
-	ttx = p->timestamp + TURNAROUND_DELAY;
+	ttx = p->timestamp + device.turnaround_delay;
 	ttx = ttx & ~0x1ff;
 
 	ranging.rt1 = p->timestamp - ranging.tx_stamp;
@@ -1257,7 +1265,7 @@ bool tail_range3(packet_t *p)
 	uint64_t ttx, td;
 	int pp;
 
-	ttx = p->timestamp + TURNAROUND_DELAY;
+	ttx = p->timestamp + device.turnaround_delay;
 	ttx = ttx & ~0x1ff;
 
 	td = p->timestamp - ranging.tx_stamp;

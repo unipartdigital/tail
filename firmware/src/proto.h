@@ -41,6 +41,7 @@ void rxtimeout_tag(void);
 void rxerror_tag(void);
 void rxtimeout(void);
 void rxerror(void);
+void proto_turnaround_delay(uint32_t us);
 void tag_start(void);
 void tag_with_period(int period);
 void tag(void);

@@ -436,6 +436,18 @@ void fn_smartpower(void)
 	radio_smarttxpowercontrol(enabled);
 }
 
+void fn_turnaround_delay(void)
+{
+	uint32_t us;
+
+	if (!token_uint32(&us, 0)) {
+		write_string("Usage: turnaround_delay <microseconds>\r\n");
+	    return;
+    }
+
+	proto_turnaround_delay(us);
+}
+
 /* We pass in the buffer because this is called from fn_config which has already allocated
  * a large enough buffer. We don't want to allocate it twice on the stack.
  */
@@ -758,7 +770,8 @@ static command command_table[] = {
 		{"volts", &fn_volts},
 		{"temp", &fn_temp},
 		{"power", &fn_power},
-		{"smartpower", &fn_smartpower}
+		{"smartpower", &fn_smartpower},
+		{"turnaround_delay", &fn_turnaround_delay}
 };
 
 void fn_help(void)

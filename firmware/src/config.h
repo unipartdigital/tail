@@ -30,7 +30,8 @@
 	X(tag_dest_port,     0x0015) \
 	X(tag_period,        0x0016) \
 	X(tx_power,          0x0017) \
-	X(smart_tx_power,    0x0018)
+	X(smart_tx_power,    0x0018) \
+	X(turnaround_delay,  0x0019)
 
 #define CONFIG_KEY_INVALID 0x0000
 
