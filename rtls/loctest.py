@@ -29,12 +29,12 @@ from config import *
 
 class Config():
 
-    blink_delay  = 0.010
-    blink_wait   = 0.100
+    blink_delay  = 0.020
+    blink_wait   = 0.250
 
-    sigma = 1E-9
-    round = 0.025
-    ewma = 25
+    sigma = 1E-7
+    round = 0.050
+    ewma = 8
 
 CFG = Config()
 
@@ -69,7 +69,7 @@ def dprint(*args, **kwargs):
 
 
 def pround(x,p):
-    return p*round(x/p)
+    return p*np.round(x/p)
         
 def GetDist(eui1,eui2):
     i = DW1000_DEVICE_CALIB[eui1]['bss']
@@ -112,13 +112,14 @@ class room():
         plt.setp(self.p2, xdata=org[0])
         plt.setp(self.p2, ydata=org[1])
         plt.setp(self.p2, ms=dia*300)
-        #plt.setp(self.p3, text='{0} ({1[0]:.2f},{1[1]:.2f},{1[2]:.2f})'.format(tag,loc))
+        plt.setp(self.p3, text='{0} ({1[0]:.2f},{1[1]:.2f},{1[2]:.2f})'.format(tag,loc))
         plt.setp(self.p3, text='{0} ({1[0]:.2f},{1[1]:.2f})'.format(tag,loc))
-        plt.setp(self.p3, position=(org[0]+dia,org[1]+dia))
+        #plt.setp(self.p3, position=(org[0]+dia,org[1]+dia))
+        plt.setp(self.p3, position=(org[0]+0.15,org[1]+0.15))
         self.fig.canvas.draw()
 
 
-def TDOA(blk, tmr, tag, ref, anc, delay, rawts=False):
+def TDOA1(blk, tmr, tag, ref, anc, delay, rawts=False):
 
     if rawts:
         SCL = DW1000_CLOCK_GHZ
@@ -163,7 +164,69 @@ def TDOA(blk, tmr, tag, ref, anc, delay, rawts=False):
             Tdoa = Jdoa / SCL
             Ldoa = Tdoa * C_AIR * 1E-9
 
-            if Ldoa<-100 or Ldoa>100:
+            if Ldoa<-10 or Ldoa>10:
+                raise ValueError
+
+            data[rem.eui] = { 'anchor': rem, 'host': rem.host, 'LDOA': Ldoa, 'TDOA': Tdoa, }
+            
+            #eprint(' >>> {}:{} {:.3f}ns {:.3f}m'.format(ref.host,rem.host,Tdoa,Ldoa))
+            
+        except (KeyError,ValueError,ZeroDivisionError):
+            pass
+            
+    blk.PurgeBlink(ia)
+    blk.PurgeBlink(ib)
+    blk.PurgeBlink(ic)
+    
+    return data
+
+
+def TDOA2(blk, tmr, tag, ref, anc, delay, rawts=False):
+
+    if rawts:
+        SCL = DW1000_CLOCK_GHZ
+    else:
+        SCL = 1<<32
+        
+    Tm = tmr.sync()
+    
+    ia = blk.Blink(ref.addr,Tm)
+    Tm = tmr.nap(delay[0])
+    ib = blk.Blink(tag.addr,Tm)
+    Tm = tmr.nap(delay[1])
+    ic = blk.Blink(ref.addr,Tm)
+
+    tss = [ref,] + anc
+    
+    blk.WaitBlinks((ia,ib,ic),tss,delay[2])
+
+    T1 = blk.getTS(ia, ref.eui, rawts)
+    T4 = blk.getTS(ib, ref.eui, rawts)
+    T5 = blk.getTS(ic, ref.eui, rawts)
+
+    data = {}
+    
+    for rem in anc:
+        try:
+            Jref = GetDistJiffies(ref.eui,rem.eui,SCL)
+            
+            T2 = blk.getTS(ia, rem.eui, rawts)
+            T3 = blk.getTS(ib, rem.eui, rawts)
+            T6 = blk.getTS(ic, rem.eui, rawts)
+            
+            T41 = T4 - T1
+            T32 = T3 - T2
+            T54 = T5 - T4
+            T63 = T6 - T3
+            T51 = T5 - T1
+            T62 = T6 - T2
+            
+            Jtot = 2 * (T41*T63 - T32*T54) // (T51+T62)
+            Jdoa = Jtot - Jref
+            Tdoa = Jdoa / SCL
+            Ldoa = Tdoa * C_AIR * 1E-9
+
+            if Ldoa<-25 or Ldoa>25:
                 raise ValueError
 
             data[rem.eui] = { 'anchor': rem, 'host': rem.host, 'LDOA': Ldoa, 'TDOA': Tdoa, }
@@ -195,6 +258,8 @@ def main():
     parser.add_argument('-p', '--port', type=int, default=RPC_PORT, help='UDP port')
     parser.add_argument('-R', '--raw', action='store_true', default=False, help='Use raw timestamps')
     parser.add_argument('-S', '--sigma', type=float, default=CFG.sigma, help='Sigma')
+    parser.add_argument('-A', '--algo', type=str, default=None, help='Algorithm')
+    
     parser.add_argument('--delay1', type=float, default=None)
     parser.add_argument('--delay2', type=float, default=None)
     parser.add_argument('remote', type=str, nargs='+', help="Remote addresses")
@@ -203,6 +268,15 @@ def main():
 
     VERBOSE = args.verbose
     DEBUG = args.debug
+
+    if args.algo is None:
+        ALGO = TDOA2
+    elif args.algo == 'TDOA1' or args.algo == '1':
+        ALGO = TDOA1
+    elif args.algo == 'TDOA2' or args.algo == '2':
+        ALGO = TDOA2
+    else:
+        ALGO = None
 
     delay1 = args.delay
     delay2 = args.delay
@@ -239,7 +313,7 @@ def main():
     try:
         while True:
             try:
-                data = TDOA(blk, tmr, tag, ref, anc, (delay1,delay2,args.wait), rawts=args.raw)
+                data = ALGO(blk, tmr, tag, ref, anc, (delay1,delay2,args.wait), rawts=args.raw)
 
                 refxyz = np.array(ref.GetCoord())
                 ldiffs = np.array([ meas['LDOA'] for meas in data.values() ])
@@ -251,14 +325,14 @@ def main():
                     eprint('Raw location: {}'.format(X))
                 
                 Txyz = ( X[0], X[1], 0.0 )
-                Trnd = ( pround(X[0],CFG.round), pround(X[1],CFG.round), 0.0 )
+                #Txyz = ( pround(X[0],CFG.round), pround(X[1],CFG.round), 0.0 )
                 
                 if np.amin(Txyz) > -10 and np.amax(Txyz) < 10:
                     Ewma = min(TAGS['Tcnt'],CFG.ewma)
                     Tcnt = TAGS['Tcnt']
                     Tavg = TAGS['Tavg']
                     Vavg = TAGS['Vavg']
-                    Tdif = Txyz-Tavg
+                    Tdif = pround(Txyz-Tavg,CFG.round)
                     Tavg = Tavg + Tdif/Ewma
                     if Tcnt > CFG.ewma:
                         Vavg = Vavg + (tdoa.dsq(Tdif)-Vavg)/Ewma
@@ -268,7 +342,7 @@ def main():
                     TAGS['Tavg'] = Tavg
                     TAGS['Vavg'] = Vavg
                     TAGS['Tcnt'] = Tcnt + 1
-                    viz.update(tag.host,Trnd,Tavg,Davg)
+                    viz.update(tag.host,Txyz,Tavg,Davg)
                     print('Tag {0}: ({1[0]:.3f},{1[1]:.3f}) error ~ {2:.3f}m'.format(tag.host,Txyz,Davg))
             
             except (TimeoutError):
