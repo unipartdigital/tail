@@ -92,6 +92,7 @@ typedef struct {
 	uint8_t volts_cal;
 	uint8_t temp_cal;
 	uint64_t turnaround_delay;
+	uint32_t rxtimeout;
 } device_t;
 
 device_t device = {
@@ -111,7 +112,8 @@ device_t device = {
 		.temp = 0,
 		.volts_cal = 0,
 		.temp_cal = 0,
-		.turnaround_delay = TURNAROUND_DELAY
+		.turnaround_delay = TURNAROUND_DELAY,
+		.rxtimeout = 10000
 };
 
 typedef struct {
@@ -484,6 +486,12 @@ void proto_turnaround_delay(uint32_t us)
 	device.turnaround_delay = MICROSECONDS_TO_DWTIME(us);
 }
 
+/* time is in units of 1.0256 us (512/499.2MHz) */
+void proto_rx_timeout(uint32_t time)
+{
+	device.rxtimeout = time;
+}
+
 void tag_start(void)
 {
 	if (tag_average_running && (tag_count == 0)) {
@@ -508,7 +516,7 @@ void tag_with_period(int period)
 
 	radio_setcallbacks(&tag_callbacks);
 
-    radio_setrxtimeout(10000); // 10ms ought to do it
+    radio_setrxtimeout(device.rxtimeout);
 
     /* We really should have a better tag packet here */
     char *packet = "Hello, world!";
@@ -826,7 +834,7 @@ void range_with_period(address_t *addr, int period)
 
 	device.continuous_receive = false;
 	device.receive_after_transmit = true;
-    radio_setrxtimeout(10000); // 10ms ought to do it
+    radio_setrxtimeout(device.rxtimeout);
 
     ranging.period = period;
     ranging.active = true;

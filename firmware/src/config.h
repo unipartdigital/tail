@@ -31,7 +31,8 @@
 	X(tag_period,        0x0016) \
 	X(tx_power,          0x0017) \
 	X(smart_tx_power,    0x0018) \
-	X(turnaround_delay,  0x0019)
+	X(turnaround_delay,  0x0019) \
+	X(rxtimeout,         0x001a)
 
 #define CONFIG_KEY_INVALID 0x0000
 
