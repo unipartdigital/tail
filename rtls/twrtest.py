@@ -21,11 +21,11 @@ from config import *
 
 class Config():
 
-    blink_count  = 1000000
+    blink_count  = 100000000
     blink_speed  = 1.0
     blink_delay  = 0.010
     blink_wait   = 0.250
-    blink_power  = '3+3'
+    blink_power  = '3+8'
 
 CFG = Config()
 
@@ -166,7 +166,7 @@ def main():
     parser.add_argument('-R', '--raw', action='store_true', default=False, help='Use raw timestamps')
     parser.add_argument('--delay1', type=float, default=None)
     parser.add_argument('--delay2', type=float, default=None)
-    parser.add_argument('remote', type=str, nargs='+', help="Remote address")
+    parser.add_argument('remote', type=str, nargs='+', help="Remote addresses")
     
     args = parser.parse_args()
 
@@ -194,18 +194,24 @@ def main():
 
     rpc = tail.RPC(('', args.port))
 
+    anchors = { }
     remotes = [ ]
-    for host in args.remote:
+    
+    for hosts in args.remote:
+        (host1,host2) = hosts.split(':')
         try:
-            anchor = DW1000(host,args.port,rpc)
-            remotes.append(anchor)
+            if host1 not in anchors:
+                anchors[host1] = DW1000(host1,args.port,rpc)
+            if host2 not in anchors:
+                anchors[host2] = DW1000(host2,args.port,rpc)
+            remotes.append((anchors[host1],anchors[host2]))
         except:
-            eprint('Remote {} exist does not'.format(host))
+            eprint('Remote {} exist does not'.format(hosts))
 
-    DW1000.HandleArguments(args,remotes)
+    DW1000.HandleArguments(args,anchors.values())
 
     if VERBOSE > 2:
-        DW1000.PrintAllRemoteAttrs(remotes)
+        DW1000.PrintAllRemoteAttrs(anchors.values())
 
     blk = tail.Blinker(rpc, args.debug)
     tmr = tail.Timer()
@@ -217,10 +223,10 @@ def main():
 
     try:
         while index < args.count:
-            for rem1 in remotes:
-                for rem2 in remotes:
-                    if rem1 != rem2:
-                        for pwr in powers:
+            for (rem1,rem2) in remotes:
+                for pwr in powers:
+                    if True:
+                        if True:
                             if VERBOSE == 1:
                                 eprints('.')
                             if VERBOSE > 1:
