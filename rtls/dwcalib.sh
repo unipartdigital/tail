@@ -38,9 +38,15 @@ picheck()
     alive ${HOST} && ssh ${USER}@${HOST} true 2>/dev/null 2>/dev/null
 }
 
+anchor()
+{
+    ssh ${USER}@${HOST} "sudo systemctl start anchor"
+    sleep 3
+}
+
 flash()
 {
-    ssh ${USER}@${HOST} "make -C ${TAIL} EUI64=${EUI64} XTALT=${XTALT} ANTD16=${ANTD16} ANTD64=${ANTD64} program" 2>/dev/null >/dev/null
+    ssh ${USER}@${HOST} "make -C ${TAIL} EUI64=${EUI64} XTALT=${XTALT} ANTD16=${ANTD16} ANTD64=${ANTD64} program"
 }
 
 remboot()
@@ -60,6 +66,8 @@ then
     usage
     exit 1
 fi
+
+anchor
 
 if [[ -n "${EUI64}" ]]
 then
