@@ -270,13 +270,13 @@ def TDOF4(blk, tmr, remote, delay, rawts=False):
     #
     #     [1]             [2]              [3]
     #
-    # (a)                 Ta2 ---->--->--- Ta3
+    # (a)                 T1  ---->--->--- T2
     #                                          \__delay[0]
     #                                          /
-    # (b) Tb1 --->--->--- Tb2 ---<>--<>--- Tb3
+    # (b)  *  --->--->--- T4  ---<>--<>--- T3
     #                                          \__delay[1]
     #                                          /
-    # (c)                 Tc2 ---->--->--- Tc3
+    # (c)                 T5  ---->--->--- T6
     #
     
     adr1 = remote[0].addr
@@ -342,13 +342,13 @@ def TDOF5(blk, tmr, remote, delay, rawts=False):
     #
     #     [1]             [2]              [3]
     #
-    # (a) Ta1 --->--->--- Ta2 ---<>--<>--- Ta3
+    # (a)  *  --->--->--- T1  ---<>--<>--- T2
     #                                          \__delay[0]
     #                                          /
-    # (b)                 Tb2 ---->--->--- Tb3
+    # (b)                 T4  ---->--->--- T3
     #                                          \__delay[1]
     #                                          /
-    # (c) Tc1 --->--->--- Tc2 ---<>--<>--- Tc3
+    # (c)  *  --->--->--- T5  ---<>--<>--- T6
     #
     
     adr1 = remote[0].addr
@@ -491,7 +491,7 @@ def main():
             try:
                 (Lerr,Derr,TDOA,REAL,TDIF) = algo(blk, tmr, remotes, (delay1,delay2,args.wait), rawts=args.raw)
 
-                if Lerr < -25.0 or Lerr > 25.0:
+                if Lerr < -10.0 or Lerr > 10.0:
                     raise ValueError
                 
                 errors.append(Lerr)
