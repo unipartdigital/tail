@@ -265,6 +265,149 @@ def TDOF3(blk, tmr, remote, delay, rawts=False):
     return (Lerr,Derr,TDOA,REAL,TDER)
 
 
+def TDOF4(blk, tmr, remote, delay, rawts=False):
+
+    #
+    #     [1]             [2]              [3]
+    #
+    # (a)                 T1  ---->--->--- T2
+    #                                          \__delay[0]
+    #                                          /
+    # (b)  *  --->--->--- T4  ---<>--<>--- T3
+    #                                          \__delay[1]
+    #                                          /
+    # (c)                 T5  ---->--->--- T6
+    #
+    
+    adr1 = remote[0].addr
+    adr2 = remote[1].addr
+    adr3 = remote[2].addr
+    eui1 = remote[0].eui
+    eui2 = remote[1].eui
+    eui3 = remote[2].eui
+
+    if rawts:
+        SCL = DW1000_CLOCK_GHZ
+    else:
+        SCL = 1<<32
+        
+    Tm = tmr.sync()
+    
+    ia = blk.Blink(adr2,Tm)
+    Tm = tmr.nap(delay[0])
+    ib = blk.Blink(adr1,Tm)
+    Tm = tmr.nap(delay[1])
+    ic = blk.Blink(adr2,Tm)
+    
+    blk.WaitBlinks((ia,ib,ic),remote,delay[2])
+    
+    T1 = blk.getTS(ia, eui2, rawts)
+    T2 = blk.getTS(ia, eui3, rawts)
+    T3 = blk.getTS(ib, eui3, rawts)
+    T4 = blk.getTS(ib, eui2, rawts)
+    T5 = blk.getTS(ic, eui2, rawts)
+    T6 = blk.getTS(ic, eui3, rawts)
+
+    J12 = GetDistJiffies(eui1,eui2,SCL)
+    J13 = GetDistJiffies(eui1,eui3,SCL)
+    J23 = GetDistJiffies(eui2,eui3,SCL)
+    dprint(' >>> J12:{} J13:{} J23:{}'.format(J12,J13,J23))
+    
+    T41 = T4 - T1
+    T32 = T3 - T2
+    T54 = T5 - T4
+    T63 = T6 - T3
+    T51 = T5 - T1
+    T62 = T6 - T2
+    
+    TTOT = 2 * (T41*T63 - T32*T54) // (T51+T62)
+    TDOA = TTOT - J23
+    REAL = J12 - J13
+    TDER = TDOA - REAL
+    dprint(' >>> TDOA:{} REAL:{} ERROR:{}'.format(TDOA,REAL,TDER))
+
+    Derr = TDER / SCL
+    Lerr = Derr * C_AIR * 1E-9
+    dprint(' >>> Error: {:.3f}ns {:.3f}m'.format(Derr,Lerr))
+
+    blk.PurgeBlink(ia)
+    blk.PurgeBlink(ib)
+    blk.PurgeBlink(ic)
+    
+    return (Lerr,Derr,TDOA,REAL,TDER)
+
+
+def TDOF5(blk, tmr, remote, delay, rawts=False):
+
+    #
+    #     [1]             [2]              [3]
+    #
+    # (a)  *  --->--->--- T1  ---<>--<>--- T2
+    #                                          \__delay[0]
+    #                                          /
+    # (b)                 T4  ---->--->--- T3
+    #                                          \__delay[1]
+    #                                          /
+    # (c)  *  --->--->--- T5  ---<>--<>--- T6
+    #
+    
+    adr1 = remote[0].addr
+    adr2 = remote[1].addr
+    adr3 = remote[2].addr
+    eui1 = remote[0].eui
+    eui2 = remote[1].eui
+    eui3 = remote[2].eui
+
+    if rawts:
+        SCL = DW1000_CLOCK_GHZ
+    else:
+        SCL = 1<<32
+        
+    Tm = tmr.sync()
+    
+    ia = blk.Blink(adr1,Tm)
+    Tm = tmr.nap(delay[0])
+    ib = blk.Blink(adr2,Tm)
+    Tm = tmr.nap(delay[1])
+    ic = blk.Blink(adr1,Tm)
+    
+    blk.WaitBlinks((ia,ib,ic),remote,delay[2])
+    
+    T1 = blk.getTS(ia, eui3, rawts)
+    T2 = blk.getTS(ia, eui2, rawts)
+    T3 = blk.getTS(ib, eui2, rawts)
+    T4 = blk.getTS(ib, eui3, rawts)
+    T5 = blk.getTS(ic, eui3, rawts)
+    T6 = blk.getTS(ic, eui2, rawts)
+
+    J12 = GetDistJiffies(eui1,eui2,SCL)
+    J13 = GetDistJiffies(eui1,eui3,SCL)
+    J23 = GetDistJiffies(eui2,eui3,SCL)
+    dprint(' >>> J12:{} J13:{} J23:{}'.format(J12,J13,J23))
+    
+    T41 = T4 - T1
+    T32 = T3 - T2
+    T54 = T5 - T4
+    T63 = T6 - T3
+    T51 = T5 - T1
+    T62 = T6 - T2
+    
+    TTOT = 2 * (T41*T63 - T32*T54) // (T51+T62)
+    TDOA = TTOT - J23
+    REAL = J12 - J13
+    TDER = TDOA - REAL
+    dprint(' >>> TDOA:{} REAL:{} ERROR:{}'.format(TDOA,REAL,TDER))
+
+    Derr = TDER / SCL
+    Lerr = Derr * C_AIR * 1E-9
+    dprint(' >>> Error: {:.3f}ns {:.3f}m'.format(Derr,Lerr))
+
+    blk.PurgeBlink(ia)
+    blk.PurgeBlink(ib)
+    blk.PurgeBlink(ic)
+    
+    return (Lerr,Derr,TDOA,REAL,TDER)
+
 
 def main():
     
@@ -296,13 +439,17 @@ def main():
     DEBUG = args.debug
 
     if args.algo is None:
-        algo = TDOF3
+        algo = TDOF5
     elif args.algo == 'TDOF1' or args.algo == '1':
         algo = TDOF1
     elif args.algo == 'TDOF2' or args.algo == '2':
         algo = TDOF2
     elif args.algo == 'TDOF3' or args.algo == '3':
         algo = TDOF3
+    elif args.algo == 'TDOF4' or args.algo == '4':
+        algo = TDOF4
+    elif args.algo == 'TDOF5' or args.algo == '5':
+        algo = TDOF5
     else:
         raise ValueError
     
@@ -344,7 +491,7 @@ def main():
             try:
                 (Lerr,Derr,TDOA,REAL,TDIF) = algo(blk, tmr, remotes, (delay1,delay2,args.wait), rawts=args.raw)
 
-                if Lerr < -25.0 or Lerr > 25.0:
+                if Lerr < -10.0 or Lerr > 10.0:
                     raise ValueError
                 
                 errors.append(Lerr)
@@ -380,9 +527,10 @@ def main():
         
         print()
         print('FINAL STATISTICS:')
-        print('  Samples:  {} [{:.1f}%]'.format(Tcnt,100*Tcnt/args.count))
-        print('  ERROR Average:  {:.3f}m'.format(Lavg))
-        print('  ERROR Std.Dev:  {:.3f}m'.format(Lstd))
+        print('  Samples: {}'.format(Tcnt))
+        print('  Rx Loss: {:.1f}%'.format(100-100*Tcnt/args.count))
+        print('  Err Avg: {:.3f}m'.format(Lavg))
+        print('  Err Dev: {:.3f}m'.format(Lstd))
 
         if args.hist or args.plot:
             
@@ -407,15 +555,14 @@ def main():
 
             if args.plot:
                 fig,ax = plot.subplots(figsize=(15,10),dpi=80)
-                ax.set_title('Error distribution')
+                ax.set_title('Error distribution {} {} {}'.format(remotes[0].host,remotes[1].host,remotes[2].host))
                 ax.set_xlabel('Error [ns]')
                 ax.set_ylabel('Samples')
                 ax.text(0.80, 0.95, r'$\mu$={:.3f}m'.format(Lavg), transform=ax.transAxes, size='x-large')
                 ax.text(0.80, 0.90, r'$\sigma$={:.3f}m'.format(Lstd), transform=ax.transAxes, size='x-large')
-                ax.text(0.80, 0.85, r'M={:.3f}m'.format(Lmed), transform=ax.transAxes, size='x-large')
                 ax.text(0.90, 0.95, r'$\mu$={:.3f}ns'.format(Davg), transform=ax.transAxes, size='x-large')
                 ax.text(0.90, 0.90, r'$\sigma$={:.3f}ns'.format(Dstd), transform=ax.transAxes, size='x-large')
-                ax.text(0.90, 0.85, r'M={:.3f}ns'.format(Dmed), transform=ax.transAxes, size='x-large')
+
                 ax.grid(True)
                 ax.hist(delays,bins)
                 fig.tight_layout()
