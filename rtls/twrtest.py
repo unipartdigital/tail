@@ -21,11 +21,11 @@ from config import *
 
 class Config():
 
-    blink_count  = 1000000
+    blink_count  = 100000000
     blink_speed  = 1.0
     blink_delay  = 0.010
     blink_wait   = 0.250
-    blink_power  = '3+3'
+    blink_power  = '3+8'
 
 CFG = Config()
 
@@ -166,7 +166,7 @@ def main():
     parser.add_argument('-R', '--raw', action='store_true', default=False, help='Use raw timestamps')
     parser.add_argument('--delay1', type=float, default=None)
     parser.add_argument('--delay2', type=float, default=None)
-    parser.add_argument('remote', type=str, nargs='+', help="Remote address")
+    parser.add_argument('remote', type=str, nargs='+', help="Remote addresses")
     
     args = parser.parse_args()
 
@@ -194,18 +194,24 @@ def main():
 
     rpc = tail.RPC(('', args.port))
 
+    anchors = { }
     remotes = [ ]
-    for host in args.remote:
+    
+    for hosts in args.remote:
+        (host1,host2) = hosts.split(':')
         try:
-            anchor = DW1000(host,args.port,rpc)
-            remotes.append(anchor)
+            if host1 not in anchors:
+                anchors[host1] = DW1000(host1,args.port,rpc)
+            if host2 not in anchors:
+                anchors[host2] = DW1000(host2,args.port,rpc)
+            remotes.append((anchors[host1],anchors[host2]))
         except:
-            eprint('Remote {} exist does not'.format(host))
+            eprint('Remote {} exist does not'.format(hosts))
 
-    DW1000.HandleArguments(args,remotes)
+    DW1000.HandleArguments(args,anchors.values())
 
     if VERBOSE > 2:
-        DW1000.PrintAllRemoteAttrs(remotes)
+        DW1000.PrintAllRemoteAttrs(anchors.values())
 
     blk = tail.Blinker(rpc, args.debug)
     tmr = tail.Timer()
@@ -217,33 +223,38 @@ def main():
 
     try:
         while index < args.count:
-            for rem1 in remotes:
-                for rem2 in remotes:
-                    if rem1 != rem2:
-                        for pwr in powers:
-                            if VERBOSE == 1:
-                                eprints('.')
+            for (rem1,rem2) in remotes:
+                for pwr in powers:
+                    if VERBOSE == 1:
+                        eprints('.')
+                    if VERBOSE > 1:
+                        eprint('Ranging {}:{} @ PWR:{}'.format(rem1.host,rem2.host,pwr))
+                    done = False
+                    while not done:
+                        tmr.nap(twait)
+                        try:
+                            data = algo(blk, tmr, (rem1,rem2), (delay1,delay2,args.wait), power=pwr, rawts=args.raw)
+                            print_csv(out,index,data)
+                            index += 1
+                            done = True
                             if VERBOSE > 1:
-                                eprint('Ranging {}:{} @ PWR:{}'.format(rem1.host,rem2.host,pwr))
-                            done = False
-                            while not done:
-                                tmr.nap(twait)
-                                try:
-                                    data = algo(blk, tmr, (rem1,rem2), (delay1,delay2,args.wait), power=pwr, rawts=args.raw)
-                                    print_csv(out,index,data)
-                                    index += 1
-                                    done = True
-                                    if VERBOSE > 1:
-                                        (Time,Host1,Host2,Power,Dof,Lof,PPM,S1,P1,F1,N1,S2,P2,F2,N2) = data
-                                        eprint('    {:.3f}m {:.3f}ns Clk:{:+.3f}ppm Rx1:{:.1f}dBm:{:.1f}dBm:{} Rx2:{:.1f}dBm:{:.1f}dBm:{}'.format(Lof,Dof,PPM,P1,F1,N1,P2,F2,N2))
-                                except (TimeoutError):
-                                    eprints('T')
-                                except (KeyError):
-                                    eprints('?')
-                                except (ValueError):
-                                    eprints('*')
-                                except (ZeroDivisionError):
-                                    eprints('0')
+                                (Time,Host1,Host2,Power,Dof,Lof,PPM,S1,P1,F1,N1,S2,P2,F2,N2) = data
+                                msg = '   '
+                                msg += ' {:.3f}m'.format(Lof)
+                                msg += ' {:.3f}ns'.format(Dof)
+                                msg += ' Clk:{:+.3f}ppm'.format(PPM)
+                                msg += ' PWR:{:.1f}dBm:{:.1f}dBm'.format(P1,P2)
+                                msg += ' FPR:{:.1f}dBm:{:.1f}dBm'.format(F1,F2)
+                                msg += ' Noise:{}:{}'.format(N1,N2)
+                                eprint(msg)
+                        except (TimeoutError):
+                            eprints('T')
+                        except (KeyError):
+                            eprints('?')
+                        except (ValueError):
+                            eprints('*')
+                        except (ZeroDivisionError):
+                            eprints('0')
                             
     except KeyboardInterrupt:
         eprint('\nStopping...')
