@@ -225,31 +225,36 @@ def main():
         while index < args.count:
             for (rem1,rem2) in remotes:
                 for pwr in powers:
-                    if True:
-                        if True:
-                            if VERBOSE == 1:
-                                eprints('.')
+                    if VERBOSE == 1:
+                        eprints('.')
+                    if VERBOSE > 1:
+                        eprint('Ranging {}:{} @ PWR:{}'.format(rem1.host,rem2.host,pwr))
+                    done = False
+                    while not done:
+                        tmr.nap(twait)
+                        try:
+                            data = algo(blk, tmr, (rem1,rem2), (delay1,delay2,args.wait), power=pwr, rawts=args.raw)
+                            print_csv(out,index,data)
+                            index += 1
+                            done = True
                             if VERBOSE > 1:
-                                eprint('Ranging {}:{} @ PWR:{}'.format(rem1.host,rem2.host,pwr))
-                            done = False
-                            while not done:
-                                tmr.nap(twait)
-                                try:
-                                    data = algo(blk, tmr, (rem1,rem2), (delay1,delay2,args.wait), power=pwr, rawts=args.raw)
-                                    print_csv(out,index,data)
-                                    index += 1
-                                    done = True
-                                    if VERBOSE > 1:
-                                        (Time,Host1,Host2,Power,Dof,Lof,PPM,S1,P1,F1,N1,S2,P2,F2,N2) = data
-                                        eprint('    {:.3f}m {:.3f}ns Clk:{:+.3f}ppm Rx1:{:.1f}dBm:{:.1f}dBm:{} Rx2:{:.1f}dBm:{:.1f}dBm:{}'.format(Lof,Dof,PPM,P1,F1,N1,P2,F2,N2))
-                                except (TimeoutError):
-                                    eprints('T')
-                                except (KeyError):
-                                    eprints('?')
-                                except (ValueError):
-                                    eprints('*')
-                                except (ZeroDivisionError):
-                                    eprints('0')
+                                (Time,Host1,Host2,Power,Dof,Lof,PPM,S1,P1,F1,N1,S2,P2,F2,N2) = data
+                                msg = '   '
+                                msg += ' {:.3f}m'.format(Lof)
+                                msg += ' {:.3f}ns'.format(Dof)
+                                msg += ' Clk:{:+.3f}ppm'.format(PPM)
+                                msg += ' PWR:{:.1f}dBm:{:.1f}dBm'.format(P1,P2)
+                                msg += ' FPR:{:.1f}dBm:{:.1f}dBm'.format(F1,F2)
+                                msg += ' Noise:{}:{}'.format(N1,N2)
+                                eprint(msg)
+                        except (TimeoutError):
+                            eprints('T')
+                        except (KeyError):
+                            eprints('?')
+                        except (ValueError):
+                            eprints('*')
+                        except (ZeroDivisionError):
+                            eprints('0')
                             
     except KeyboardInterrupt:
         eprint('\nStopping...')
