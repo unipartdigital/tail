@@ -18,7 +18,7 @@ import numpy.linalg as lin
 from numpy import dot
 
 from tail import DW1000
-from tail import eprint, eprints
+from tail import fpeak, eprint, eprints
 
 from config import *
 
@@ -28,6 +28,8 @@ class Config():
     blink_count  = 100
     blink_delay  = 0.010
     blink_wait   = 0.250
+
+    target       = 0.1
 
     rawts        = True
     weighted     = False
@@ -215,6 +217,7 @@ def main():
     parser.add_argument('-w', '--wait', type=float, default=CFG.blink_wait)
     parser.add_argument('-p', '--port', type=int, default=RPC_PORT)
     parser.add_argument('-A', '--algo', type=str, default=CFG.algo)
+    parser.add_argument('-t', '--target', type=float, default=CFG.target)
     parser.add_argument('-W', '--weighted', action='store_true', default=False)
     
     args = parser.parse_args()
@@ -259,36 +262,32 @@ def main():
                 rem2 = remotes[i2]
                 if (i1,i2) in IGNORE:
                     dist[i1,i2] = 0.0
+                    dvar[i1,i2] = 0.0
                 elif i2 > i1:
-                    Lstd = 1.0
-                    while Lstd > 0.100:
+                    Lstd = 1E9
+                    while Lstd > args.target:
                         eprints('Ranging {} to {}..'.format(rem1.host,rem2.host))
                         Tcnt = 0
-                        Lsum = 0.0
-                        Lsqr = 0.0
+                        values = []
                         for i in range(CFG.blink_count):
                             try:
                                 (Lof,Dof,Rtt,Err,Est,Pwr) = algo(rem1, rem2, CFG.blink_delay, CFG.blink_wait, blk, tmr)
                                 if Lof > 0 and Lof < 20:
+                                    values.append(Lof)
                                     Tcnt += 1
-                                    Lsum += Lof
-                                    Lsqr += Lof*Lof
                             except (ValueError,KeyError,TimeoutError):
                                 eprints('?')
                             if i%10 == 0:
                                 eprints('.')
                         if Tcnt > 0:
-                            Lavg = Lsum/Tcnt
-                            Lvar = Lsqr/Tcnt - Lavg*Lavg
-                            Lstd = math.sqrt(Lvar)
+                            (Lavg,Lstd) = fpeak(values)
                             Lerr = Lavg - eucl(COORD[i1],COORD[i2])
                             dist[i1,i2] = Lavg
-                            dvar[i1,i2] = Lvar
+                            dvar[i1,i2] = Lstd*Lstd
                             derr[i1,i2] = Lerr
                             eprint('>>> DIST:{:.3f}m STD:{:.3f}m ERR:{:.3f}m'.format(Lavg,Lstd,Lerr))
                         else:
                             dist[i1,i2] = None
-                            dvar[i1,i2] = None
                             derr[i1,i2] = None
                             print('!!! FAIL')
                 elif i1 > i2:

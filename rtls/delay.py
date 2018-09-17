@@ -21,7 +21,7 @@ import matplotlib.pyplot as plot
 from numpy import dot
 
 from tail import DW1000
-from tail import eprint, eprints
+from tail import fpeak, eprint, eprints
 
 from config import *
 
@@ -232,6 +232,7 @@ def main():
 
     delays = []
     powers = []
+    rounds = []
 
     eprint('Blinker starting')
 
@@ -242,8 +243,8 @@ def main():
                 if Lof > 0 and Lof < 100:
                     delays.append(Dof)
                     powers.append(Pwr)
+                    rounds.append(Rtt)
                     Tcnt += 1
-                    Rsum += Rtt
                     if VERBOSE > 0:
                         Plog = DW1000.RxPower2dBm(Pwr,64)
                         Ldif = Lof - Lfil
@@ -283,15 +284,23 @@ def main():
         Lmed = Dmed * C_AIR * 1E-9
         Plog = DW1000.RxPower2dBm(Pavg,64)
         Pstl = DW1000.RxPower2dBm(Pavg+Pstd,64) - Plog
-        Ravg = Rsum/Tcnt * 1E-6
+        Ravg = np.mean(rounds)
+        Rstd = np.std(rounds)
+
+        (Pavg,Pstd) = fpeak(delays)
+        
+        Mavg = Pavg * C_AIR * 1E-9
+        Mstd = Pstd * C_AIR * 1E-9
         
         print()
         print('FINAL STATISTICS:')
         print('  Samples:  {} [{:.1f}%]'.format(Tcnt,100*Tcnt/args.count))
-        print('  RTT.Avg:  {:.3f}ms'.format(Ravg))
+        print('  Peak.Avg: {:.3f}m {:.3f}ns'.format(Mavg,Pavg))
+        print('  Peak.Std: {:.3f}m {:.3f}ns'.format(Mstd,Pstd))
         print('  Average:  {:.3f}m {:.3f}ns'.format(Lavg,Davg))
         print('  Std.Dev:  {:.3f}m {:.3f}ns'.format(Lstd,Dstd))
         print('  Median:   {:.3f}m {:.3f}ns'.format(Lmed,Dmed))
+        print('  RTT.Avg:  {:.3f}ms {:.3f}ms'.format(Ravg,Rstd))
         print('  PWR.Avg:  {:.1f}dBm {:.2f}dBm'.format(Plog,Pstl))
 
         if args.hist or args.plot:
@@ -321,12 +330,14 @@ def main():
                                                                       time.strftime('%d/%m/%Y %H:%M:%S')))
                 ax.set_xlabel('Delay [ns]')
                 ax.set_ylabel('Samples')
-                ax.text(0.80, 0.95, r'$\mu$={:.3f}m'.format(Lavg), transform=ax.transAxes, size='x-large')
-                ax.text(0.80, 0.90, r'$\sigma$={:.3f}m'.format(Lstd), transform=ax.transAxes, size='x-large')
-                ax.text(0.80, 0.85, r'M={:.3f}m'.format(Lmed), transform=ax.transAxes, size='x-large')
-                ax.text(0.90, 0.95, r'$\mu$={:.3f}ns'.format(Davg), transform=ax.transAxes, size='x-large')
-                ax.text(0.90, 0.90, r'$\sigma$={:.3f}ns'.format(Dstd), transform=ax.transAxes, size='x-large')
-                ax.text(0.90, 0.85, r'M={:.3f}ns'.format(Dmed), transform=ax.transAxes, size='x-large')
+                ax.text(0.80, 0.95, r'P={:.3f}m'.format(Mavg), transform=ax.transAxes, size='x-large')
+                ax.text(0.80, 0.90, r'p={:.3f}m'.format(Mstd), transform=ax.transAxes, size='x-large')
+                ax.text(0.80, 0.85, r'$\mu$={:.3f}m'.format(Lavg), transform=ax.transAxes, size='x-large')
+                ax.text(0.80, 0.80, r'$\sigma$={:.3f}m'.format(Lstd), transform=ax.transAxes, size='x-large')
+                ax.text(0.90, 0.95, r'P={:.3f}ns'.format(Pavg), transform=ax.transAxes, size='x-large')
+                ax.text(0.90, 0.90, r'p={:.3f}ns'.format(Pstd), transform=ax.transAxes, size='x-large')
+                ax.text(0.90, 0.85, r'$\mu$={:.3f}ns'.format(Davg), transform=ax.transAxes, size='x-large')
+                ax.text(0.90, 0.80, r'$\sigma$={:.3f}ns'.format(Dstd), transform=ax.transAxes, size='x-large')
                 ax.grid(True)
                 ax.hist(delays,bins)
                 fig.tight_layout()

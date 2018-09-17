@@ -32,6 +32,40 @@ def eprint(*args, **kwargs):
 def eprints(*args, **kwargs):
     print(*args, file=sys.stderr, end='', flush=True, **kwargs)
 
+    
+def frange(a,b,c):
+    L = b-a
+    N = int(L/c) + 1
+    D = [ (x/N)*L+a for x in range(N) ]
+    return np.array(D)
+    
+def fpeak(delays, drange=5.0, dwin=0.25, threshold=0.75 ):
+    Data = np.array(delays)
+    Davg = np.mean(Data)
+    Dstd = np.std(Data)
+    a = Davg - drange * Dstd
+    b = Davg + drange * Dstd
+    c = Dstd * dwin
+    R = frange(a,b,c)
+    ranges = []
+    for I in range(len(R)):
+        r = R[I]
+        N = 0
+        for x in Data:
+            if r-c < x < r+c:
+                N += 1
+        ranges.append(N)
+    Rmax = max(ranges)
+    Rlim = threshold * Rmax
+    for I in range(len(R)):
+        if ranges[I] > Rlim:
+            break
+    r = R[I]
+    Wdat = Data[ (r-c < Data) & (Data < r+c) ]
+    Wavg = np.mean(Wdat)
+    Wstd = np.std(Wdat)
+    return (Wavg,Wstd)
+
 
 DATA = np.array(DW1000_RX_POWER_TABLE) / 40 - 105
 
@@ -139,6 +173,9 @@ class DW1000:
         self.host = host
         self.addr = socket.getaddrinfo(host, port, socket.AF_INET6)[0][4]
         self.eui  = rpc.getEUI(self.addr)
+
+    def GetCoord(self):
+        return DW1000_DEVICE_CALIB[self.eui]['coord']
 
     def GetAttr(self,attr):
         return self.rpc.getAttr(self.addr,attr)
