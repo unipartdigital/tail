@@ -119,12 +119,15 @@ class room():
         self.fig.canvas.draw()
 
 
-def TDOA1(blk, tmr, tag, ref, anc, delay, rawts=False):
+def TDOA1(blk, tmr, tag, anchors, delay, rawts=False):
 
     if rawts:
         SCL = DW1000_CLOCK_GHZ
     else:
         SCL = 1<<32
+
+    ref = anchors[0]
+    anc = anchors[1:]
         
     Tm = tmr.sync()
     
@@ -134,15 +137,13 @@ def TDOA1(blk, tmr, tag, ref, anc, delay, rawts=False):
     Tm = tmr.nap(delay[1])
     ic = blk.Blink(tag.addr,Tm)
 
-    tss = [ref,] + anc
-    
-    blk.WaitBlinks((ia,ib,ic),tss,delay[2])
+    blk.WaitBlinks((ia,ib,ic),anchors,delay[2])
 
     T2 = blk.getTS(ia, ref.eui, rawts)
     T3 = blk.getTS(ib, ref.eui, rawts)
     T6 = blk.getTS(ic, ref.eui, rawts)
 
-    data = {}
+    data = { }
     
     for rem in anc:
         try:
@@ -169,7 +170,7 @@ def TDOA1(blk, tmr, tag, ref, anc, delay, rawts=False):
 
             data[rem.eui] = { 'anchor': rem, 'host': rem.host, 'LDOA': Ldoa, 'TDOA': Tdoa, }
             
-            #eprint(' >>> {}:{} {:.3f}ns {:.3f}m'.format(ref.host,rem.host,Tdoa,Ldoa))
+            dprint(' >>> {}:{} {:.3f}ns {:.3f}m'.format(ref.host,rem.host,Tdoa,Ldoa))
             
         except (KeyError,ValueError,ZeroDivisionError):
             pass
@@ -178,15 +179,18 @@ def TDOA1(blk, tmr, tag, ref, anc, delay, rawts=False):
     blk.PurgeBlink(ib)
     blk.PurgeBlink(ic)
     
-    return data
+    return (ref,data)
 
 
-def TDOA2(blk, tmr, tag, ref, anc, delay, rawts=False):
+def TDOA2(blk, tmr, tag, anchors, delay, rawts=False):
 
     if rawts:
         SCL = DW1000_CLOCK_GHZ
     else:
         SCL = 1<<32
+        
+    ref = anchors[0]
+    anc = anchors[1:]
         
     Tm = tmr.sync()
     
@@ -196,15 +200,13 @@ def TDOA2(blk, tmr, tag, ref, anc, delay, rawts=False):
     Tm = tmr.nap(delay[1])
     ic = blk.Blink(ref.addr,Tm)
 
-    tss = [ref,] + anc
-    
-    blk.WaitBlinks((ia,ib,ic),tss,delay[2])
+    blk.WaitBlinks((ia,ib,ic),anchors,delay[2])
 
     T1 = blk.getTS(ia, ref.eui, rawts)
     T4 = blk.getTS(ib, ref.eui, rawts)
     T5 = blk.getTS(ic, ref.eui, rawts)
 
-    data = {}
+    data = { }
     
     for rem in anc:
         try:
@@ -231,7 +233,7 @@ def TDOA2(blk, tmr, tag, ref, anc, delay, rawts=False):
 
             data[rem.eui] = { 'anchor': rem, 'host': rem.host, 'LDOA': Ldoa, 'TDOA': Tdoa, }
             
-            #eprint(' >>> {}:{} {:.3f}ns {:.3f}m'.format(ref.host,rem.host,Tdoa,Ldoa))
+            dprint(' >>> {}:{} {:.3f}ns {:.3f}m'.format(ref.host,rem.host,Tdoa,Ldoa))
             
         except (KeyError,ValueError,ZeroDivisionError):
             pass
@@ -240,7 +242,89 @@ def TDOA2(blk, tmr, tag, ref, anc, delay, rawts=False):
     blk.PurgeBlink(ib)
     blk.PurgeBlink(ic)
     
-    return data
+    return (ref,data)
+
+
+def TDOA3(blk, tmr, tag, anchors, delay, rawts=False):
+
+    if rawts:
+        SCL = DW1000_CLOCK_GHZ
+    else:
+        SCL = 1<<32
+
+    Tm = tmr.sync()
+    ia = blk.Blink(tag.addr,Tm)
+
+    try:
+        blk.WaitBlinks((ia,),anchors,delay[0])
+    except (TimeoutError):
+        pass
+    
+    Pwr = np.full(len(anchors),np.NaN)
+    for i in range(0,len(anchors)):
+        try:
+            Pwr[i] = -blk.getRxPower(ia,anchors[i].eui)
+        except (ValueError,IndexError,KeyError):
+            pass
+    
+    Ipw = np.argsort(Pwr)
+    
+    ref = anchors[Ipw[0]]
+    anc = []
+    all = [ ref ]
+    for i in Ipw[1:]:
+        if not np.isnan(Pwr[i]):
+            all.append(anchors[i])
+            anc.append(anchors[i])
+
+    Tm = tmr.nap(delay[0])
+    ib = blk.Blink(ref.addr,Tm)
+    Tm = tmr.nap(delay[1])
+    ic = blk.Blink(tag.addr,Tm)
+
+    blk.WaitBlinks((ia,ib,ic),all,delay[2])
+
+    T2 = blk.getTS(ia, ref.eui, rawts)
+    T3 = blk.getTS(ib, ref.eui, rawts)
+    T6 = blk.getTS(ic, ref.eui, rawts)
+
+    data = { }
+    
+    for rem in anc:
+        try:
+            Jref = GetDistJiffies(ref.eui,rem.eui,SCL)
+            
+            T1 = blk.getTS(ia, rem.eui, rawts)
+            T4 = blk.getTS(ib, rem.eui, rawts)
+            T5 = blk.getTS(ic, rem.eui, rawts)
+            
+            T41 = T4 - T1
+            T32 = T3 - T2
+            T54 = T5 - T4
+            T63 = T6 - T3
+            T51 = T5 - T1
+            T62 = T6 - T2
+            
+            Jtot = 2 * (T41*T63 - T32*T54) // (T51+T62)
+            Jdoa = Jtot - Jref
+            Tdoa = Jdoa / SCL
+            Ldoa = Tdoa * C_AIR * 1E-9
+
+            if Ldoa<-10 or Ldoa>10:
+                raise ValueError
+
+            data[rem.eui] = { 'anchor': rem, 'host': rem.host, 'LDOA': Ldoa, 'TDOA': Tdoa, }
+            
+            dprint(' >>> {}:{} {:.3f}ns {:.3f}m'.format(ref.host,rem.host,Tdoa,Ldoa))
+            
+        except (KeyError,ValueError,ZeroDivisionError):
+            pass
+            
+    blk.PurgeBlink(ia)
+    blk.PurgeBlink(ib)
+    blk.PurgeBlink(ic)
+    
+    return (ref,data)
 
 
 def main():
@@ -275,6 +359,8 @@ def main():
         ALGO = TDOA1
     elif args.algo == 'TDOA2' or args.algo == '2':
         ALGO = TDOA2
+    elif args.algo == 'TDOA3' or args.algo == '3':
+        ALGO = TDOA3
     else:
         ALGO = None
 
@@ -287,11 +373,20 @@ def main():
     
     rpc = tail.RPC(('', args.port))
 
+    tag = None
+    anc = [ ]
     remotes = [ ]
+    
     for host in args.remote:
         try:
-            anchor = DW1000(host,args.port,rpc)
-            remotes.append(anchor)
+            star = host.startswith('*') or host.endswith('*')
+            host = host.strip('*').rstrip('*')
+            remo = DW1000(host,args.port,rpc)
+            remotes.append(remo)
+            if star:
+                tag = remo
+            else:
+                anc.append(remo)
         except:
             eprint('Remote {} exist does not'.format(host))
 
@@ -299,10 +394,6 @@ def main():
     
     if VERBOSE > 1:
         DW1000.PrintAllRemoteAttrs(remotes)
-
-    tag = remotes[0]
-    ref = remotes[1]
-    anc = remotes[2:]
 
     viz = room()
     tmr = tail.Timer()
@@ -313,8 +404,8 @@ def main():
     try:
         while True:
             try:
-                data = ALGO(blk, tmr, tag, ref, anc, (delay1,delay2,args.wait), rawts=args.raw)
-
+                (ref,data) = ALGO(blk, tmr, tag, anc, (delay1,delay2,args.wait), rawts=args.raw)
+                
                 refxyz = np.array(ref.GetCoord())
                 ldiffs = np.array([ meas['LDOA'] for meas in data.values() ])
                 coords = np.array([ meas['anchor'].GetCoord() for meas in data.values() ])
@@ -343,7 +434,7 @@ def main():
                     TAGS['Vavg'] = Vavg
                     TAGS['Tcnt'] = Tcnt + 1
                     viz.update(tag.host,Txyz,Tavg,Davg)
-                    print('Tag {0}: ({1[0]:.3f},{1[1]:.3f}) error ~ {2:.3f}m'.format(tag.host,Txyz,Davg))
+                    print('Tag:{0} Ref:{1}  ({2[0]:.3f},{2[1]:.3f}) error ~ {3:.3f}m'.format(tag.host,ref.host,Txyz,Davg))
             
             except (TimeoutError):
                 eprint('Tag {}: Timeout'.format(tag.host))
