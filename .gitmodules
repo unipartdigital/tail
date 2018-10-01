@@ -1,0 +1,6 @@
+[submodule "circuit/circuit/v2/efm/csv2kicad"]
+	path = circuit/circuit/v2/efm/csv2kicad
+	url = https://github.com/hairykiwi/csv2kicad.git
+[submodule "circuit/v2/efm/csv2kicad"]
+	path = circuit/v2/efm/csv2kicad
+	url = https://github.com/hairykiwi/csv2kicad.git
