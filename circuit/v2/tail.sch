@@ -56,6 +56,11 @@ F 0 "U1" H 1800 2250 60  0000 C CNN
 F 1 "DWM1000" H 1800 650 60  0000 C CNN
 F 2 "tail:DWM1000" H 1700 100 60  0001 C CNN
 F 3 "" H 1700 100 60  0001 C CNN
+F 4 "Decawave" H 2400 1450 60  0001 C CNN "MFR"
+F 5 "DWM1000" H 2400 1450 60  0001 C CNN "MPN"
+F 6 "DigiKey" H 2400 1450 60  0001 C CNN "SPR"
+F 7 "1479-1002-1-ND" H 2400 1450 60  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
 	1    2400 1450
 	1    0    0    -1  
 $EndComp
@@ -67,6 +72,11 @@ F 0 "J25" H 10200 5450 50  0000 L CNN
 F 1 "USB_OTG" H 10200 5350 50  0000 L CNN
 F 2 "tail:USB_Micro-B_SMD" H 10550 4950 50  0001 C CNN
 F 3 "" H 10550 4950 50  0001 C CNN
+F 4 "Molex" H 0   0   50  0001 C CNN "MFR"
+F 5 "47346-0001" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "1568026" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
 	1    10400 5000
 	1    0    0    -1  
 $EndComp
@@ -111,6 +121,11 @@ F 0 "J19" H 9000 5400 50  0000 C CNN
 F 1 "LiPo" V 9100 5250 50  0000 C CNN
 F 2 "Connectors_JST:JST_PH_S2B-PH-K_02x2.00mm_Angled" H 9000 5250 50  0001 C CNN
 F 3 "" H 9000 5250 50  0001 C CNN
+F 4 "JST" H 0   0   50  0001 C CNN "MFR"
+F 5 "S2B-PH-K-S (LF)(SN)" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "9491902" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
 	1    9000 5250
 	1    0    0    -1  
 $EndComp
@@ -122,6 +137,11 @@ F 0 "U2" H 1650 6150 60  0000 C CNN
 F 1 "EFM32HG222F64" H 2450 4950 60  0000 C CNN
 F 2 "EnergyMicro:EFM32_TQFP48" H 3000 4800 60  0001 C CNN
 F 3 "" H 3000 4800 60  0001 C CNN
+F 4 "Silicon Labs" H 0   0   50  0001 C CNN "MFR"
+F 5 "EFM32HG222F64G-B-QFP48" H 0   0   50  0001 C CNN "MPN"
+F 6 "Mouser" H 0   0   50  0001 C CNN "SPR"
+F 7 "634-HG222F64GBQFP48" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
 	1    2500 5250
 	1    0    0    -1  
 $EndComp
@@ -133,15 +153,14 @@ F 0 "U4" H 8450 2800 60  0000 C CNN
 F 1 "XC6215B332NR" H 8200 2250 60  0000 C CNN
 F 2 "tail:SSOT-24" H 8600 2150 60  0001 C CNN
 F 3 "" H 8600 2150 60  0001 C CNN
+F 4 "Torex" H 0   0   50  0001 C CNN "MFR"
+F 5 "XC6215B332NR" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "1057811" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
 	1    8650 2500
 	1    0    0    -1  
 $EndComp
-Text GLabel 9200 1550 2    39   Output ~ 0
-MCU_PWR
-Text GLabel 9200 1700 2    39   Output ~ 0
-RADIO_PWR
-Text GLabel 9200 2000 2    39   Output ~ 0
-ACCEL_PWR
 $Comp
 L C_Small C14
 U 1 1 58E2BD30
@@ -150,6 +169,11 @@ F 0 "C14" H 6310 6770 50  0000 L CNN
 F 1 "100n" H 6310 6620 50  0000 L CNN
 F 2 "Capacitors_SMD:C_0603" H 6300 6700 50  0001 C CNN
 F 3 "" H 6300 6700 50  0001 C CNN
+F 4 "Multicomp" H 0   0   50  0001 C CNN "MFR"
+F 5 "MC0603B104K500CT" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "1759122" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
 	1    6300 6700
 	1    0    0    -1  
 $EndComp
@@ -164,42 +188,6 @@ F 3 "" H 6750 6700 50  0001 C CNN
 	1    6750 6700
 	1    0    0    -1  
 $EndComp
-Text GLabel 5400 7250 0    39   Output ~ 0
-ACCEL_INTN
-Text GLabel 4850 6500 0    39   Output ~ 0
-ACCEL_MISO
-Text GLabel 4850 6600 0    39   Input ~ 0
-ACCEL_MOSI
-Text GLabel 6150 6500 2    39   Input ~ 0
-ACCEL_CSN
-Text GLabel 5450 6100 1    39   Input ~ 0
-ACCEL_SCK
-Text Notes 6100 7550 2    60   ~ 0
-Pullup optional
-Text GLabel 1950 4250 1    39   Output ~ 0
-RADIO_CSN
-Text GLabel 2250 4250 1    39   Output ~ 0
-RADIO_MOSI
-Text GLabel 2150 4250 1    39   Input ~ 0
-RADIO_MISO
-Text GLabel 2050 4250 1    39   Output ~ 0
-RADIO_SCK
-Text GLabel 1500 5600 0    39   Input ~ 0
-ACCEL_INTN
-Text GLabel 6300 7250 2    39   Input ~ 0
-ACCEL_PWR
-Text GLabel 3500 5500 2    39   Input ~ 0
-MCU_PWR
-Text GLabel 3300 1550 2    39   Input ~ 0
-RADIO_MOSI
-Text GLabel 3300 1450 2    39   Output ~ 0
-RADIO_MISO
-Text GLabel 3300 1350 2    39   Input ~ 0
-RADIO_SCK
-Text GLabel 3300 1650 2    39   Input ~ 0
-RADIO_CSN
-Text GLabel 950  1150 0    39   Input ~ 0
-RADIO_RSTN
 $Comp
 L GND #PWR05
 U 1 1 58E32705
@@ -211,14 +199,6 @@ F 3 "" H 3750 2550 50  0001 C CNN
 	1    3750 2550
 	1    0    0    -1  
 $EndComp
-Text GLabel 3500 5100 2    39   Output ~ 0
-RADIO_RSTN
-Text GLabel 3300 1150 2    39   Output ~ 0
-RADIO_IRQ
-Text GLabel 3500 5200 2    39   Input ~ 0
-RADIO_IRQ
-Text GLabel 1500 1050 0    39   Input ~ 0
-RADIO_WAKEUP
 $Comp
 L LED_Small D1
 U 1 1 58E38ED8
@@ -227,6 +207,11 @@ F 0 "D1" H 2150 3175 50  0000 L CNN
 F 1 "RED" H 2025 2950 50  0000 L CNN
 F 2 "LEDs:LED_0603" V 2200 3050 50  0001 C CNN
 F 3 "" V 2200 3050 50  0001 C CNN
+F 4 "Kingbright" H 0   0   50  0001 C CNN "MFR"
+F 5 "KP-1608SURCK" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "2290329" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
 	1    2200 3050
 	1    0    0    -1  
 $EndComp
@@ -238,6 +223,11 @@ F 0 "D2" H 2150 3525 50  0000 L CNN
 F 1 "RED" H 2025 3300 50  0000 L CNN
 F 2 "LEDs:LED_0603" V 2200 3400 50  0001 C CNN
 F 3 "" V 2200 3400 50  0001 C CNN
+F 4 "Kingbright" H 0   0   50  0001 C CNN "MFR"
+F 5 "KP-1608SURCK" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "2290329" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
 	1    2200 3400
 	1    0    0    -1  
 $EndComp
@@ -249,6 +239,11 @@ F 0 "D4" H 3100 3525 50  0000 L CNN
 F 1 "RED" H 2975 3300 50  0000 L CNN
 F 2 "LEDs:LED_0603" V 3150 3400 50  0001 C CNN
 F 3 "" V 3150 3400 50  0001 C CNN
+F 4 "Kingbright" H 0   0   50  0001 C CNN "MFR"
+F 5 "KP-1608SURCK" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "2290329" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
 	1    3150 3400
 	-1   0    0    -1  
 $EndComp
@@ -260,6 +255,11 @@ F 0 "D3" H 3100 3175 50  0000 L CNN
 F 1 "RED" H 2975 2950 50  0000 L CNN
 F 2 "LEDs:LED_0603" V 3150 3050 50  0001 C CNN
 F 3 "" V 3150 3050 50  0001 C CNN
+F 4 "Kingbright" H 0   0   50  0001 C CNN "MFR"
+F 5 "KP-1608SURCK" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "2290329" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
 	1    3150 3050
 	-1   0    0    -1  
 $EndComp
@@ -271,6 +271,11 @@ F 0 "R3" V 2030 3050 50  0000 C CNN
 F 1 "150" V 1950 3050 50  0000 C CNN
 F 2 "Resistors_SMD:R_0603" V 1880 3050 50  0001 C CNN
 F 3 "" H 1950 3050 50  0001 C CNN
+F 4 "Multicomp" H 0   0   50  0001 C CNN "MFR"
+F 5 "MCWR06X1500FTL" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "2447255" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
 	1    1950 3050
 	0    1    1    0   
 $EndComp
@@ -282,6 +287,11 @@ F 0 "R4" V 2030 3400 50  0000 C CNN
 F 1 "150" V 1950 3400 50  0000 C CNN
 F 2 "Resistors_SMD:R_0603" V 1880 3400 50  0001 C CNN
 F 3 "" H 1950 3400 50  0001 C CNN
+F 4 "Multicomp" H 0   0   50  0001 C CNN "MFR"
+F 5 "MCWR06X1500FTL" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "2447255" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
 	1    1950 3400
 	0    1    1    0   
 $EndComp
@@ -293,6 +303,11 @@ F 0 "R6" V 3480 3400 50  0000 C CNN
 F 1 "150" V 3400 3400 50  0000 C CNN
 F 2 "Resistors_SMD:R_0603" V 3330 3400 50  0001 C CNN
 F 3 "" H 3400 3400 50  0001 C CNN
+F 4 "Multicomp" H 0   0   50  0001 C CNN "MFR"
+F 5 "MCWR06X1500FTL" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "2447255" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
 	1    3400 3400
 	0    -1   1    0   
 $EndComp
@@ -304,15 +319,14 @@ F 0 "R5" V 3480 3050 50  0000 C CNN
 F 1 "150" V 3400 3050 50  0000 C CNN
 F 2 "Resistors_SMD:R_0603" V 3330 3050 50  0001 C CNN
 F 3 "" H 3400 3050 50  0001 C CNN
+F 4 "Multicomp" H 0   0   50  0001 C CNN "MFR"
+F 5 "MCWR06X1500FTL" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "2447255" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
 	1    3400 3050
 	0    -1   1    0   
 $EndComp
-Text GLabel 9200 1850 2    39   Output ~ 0
-RADIOAON_PWR
-Text GLabel 1500 1350 0    39   Input ~ 0
-RADIOAON_PWR
-Text GLabel 1000 1550 0    39   Input ~ 0
-RADIO_PWR
 $Comp
 L R R8
 U 1 1 58E50655
@@ -321,6 +335,11 @@ F 0 "R8" V 7030 2650 50  0000 C CNN
 F 1 "100K" V 6950 2650 50  0000 C CNN
 F 2 "Resistors_SMD:R_0603" V 6880 2650 50  0001 C CNN
 F 3 "" H 6950 2650 50  0001 C CNN
+F 4 "Multicomp" H 0   0   50  0001 C CNN "MFR"
+F 5 "MCWR06X1003FTL" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "2447226" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
 	1    6950 2650
 	1    0    0    -1  
 $EndComp
@@ -332,6 +351,11 @@ F 0 "R9" V 7030 3450 50  0000 C CNN
 F 1 "100K" V 6950 3450 50  0000 C CNN
 F 2 "Resistors_SMD:R_0603" V 6880 3450 50  0001 C CNN
 F 3 "" H 6950 3450 50  0001 C CNN
+F 4 "Multicomp" H 0   0   50  0001 C CNN "MFR"
+F 5 "MCWR06X1003FTL" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "2447226" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
 	1    6950 3450
 	1    0    0    -1  
 $EndComp
@@ -343,6 +367,11 @@ F 0 "Q1" H 7050 3050 50  0000 L CNN
 F 1 "Q_NMOS_GSD" H 7050 2950 50  0000 L CNN
 F 2 "TO_SOT_Packages_SMD:SOT-323_SC-70" H 7050 3100 50  0001 C CNN
 F 3 "" H 6850 3000 50  0001 C CNN
+F 4 "Nexperia" H 0   0   50  0001 C CNN "MFR"
+F 5 "NX3020NAKW" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "2311183" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
 	1    6850 3000
 	1    0    0    -1  
 $EndComp
@@ -357,17 +386,6 @@ F 3 "" H 6950 3600 50  0001 C CNN
 	1    6950 3600
 	1    0    0    -1  
 $EndComp
-Text GLabel 6650 3000 0    39   Input ~ 0
-BATT_MON_EN
-Text GLabel 6650 3250 0    39   Output ~ 0
-BATT_MON
-Text GLabel 3500 5700 2    39   Input ~ 0
-BATT_MON
-Text GLabel 3500 5600 2    39   Input ~ 0
-BATT_MON_EN
-NoConn ~ 10700 5000
-NoConn ~ 10700 5100
-NoConn ~ 10700 5200
 $Comp
 L C_Small C2
 U 1 1 58E52A22
@@ -376,6 +394,11 @@ F 0 "C2" H 950 1650 50  0000 L CNN
 F 1 "10u" H 1100 1500 50  0000 L CNN
 F 2 "Capacitors_SMD:C_0603" H 1150 1650 50  0001 C CNN
 F 3 "" H 1150 1650 50  0001 C CNN
+F 4 "Murata" H 0   0   50  0001 C CNN "MFR"
+F 5 "ZRB18AR61E106ME01L" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "2469398" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
 	1    1150 1650
 	1    0    0    -1  
 $EndComp
@@ -387,6 +410,11 @@ F 0 "U5" H 8450 4600 50  0000 L CNN
 F 1 "MCP73831-2-OT" H 8800 4600 50  0000 L CNN
 F 2 "TO_SOT_Packages_SMD:SOT-23-5" H 8800 4100 50  0001 L CIN
 F 3 "" H 8600 4300 50  0001 C CNN
+F 4 "Microchip" H 0   0   50  0001 C CNN "MFR"
+F 5 "MCP73831T-2ACI/OT" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "1332158" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
 	1    8750 4350
 	1    0    0    -1  
 $EndComp
@@ -398,6 +426,11 @@ F 0 "R10" H 8380 4570 50  0000 L CNN
 F 1 "2.2K" H 8380 4510 50  0000 L CNN
 F 2 "Resistors_SMD:R_0603" H 8350 4550 50  0001 C CNN
 F 3 "" H 8350 4550 50  0001 C CNN
+F 4 "Multicomp" H 0   0   50  0001 C CNN "MFR"
+F 5 "MCWR06X2201FTL" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "2447320" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
 	1    8350 4550
 	1    0    0    -1  
 $EndComp
@@ -409,6 +442,11 @@ F 0 "C18" H 9400 4500 50  0000 L CNN
 F 1 "4.7uF" H 9310 4420 50  0000 L CNN
 F 2 "Capacitors_SMD:C_0603" H 9300 4500 50  0001 C CNN
 F 3 "" H 9300 4500 50  0001 C CNN
+F 4 "Murata" H 0   0   50  0001 C CNN "MFR"
+F 5 "GRM188R60J475ME19D" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "2362095" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
 	1    9300 4500
 	1    0    0    -1  
 $EndComp
@@ -420,6 +458,11 @@ F 0 "R11" H 9580 4170 50  0000 L CNN
 F 1 "470" H 9580 4110 50  0000 L CNN
 F 2 "Resistors_SMD:R_0603" H 9550 4150 50  0001 C CNN
 F 3 "" H 9550 4150 50  0001 C CNN
+F 4 "Multicomp" H 0   0   50  0001 C CNN "MFR"
+F 5 "MCWR06X4700FTL" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "2447374" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
 	1    9550 4150
 	1    0    0    -1  
 $EndComp
@@ -431,6 +474,11 @@ F 0 "D5" H 9500 4475 50  0000 L CNN
 F 1 "RED" H 9450 4250 50  0000 L CNN
 F 2 "LEDs:LED_0603" V 9550 4350 50  0001 C CNN
 F 3 "" V 9550 4350 50  0001 C CNN
+F 4 "Kingbright" H 0   0   50  0001 C CNN "MFR"
+F 5 "KP-1608SURCK" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "2290329" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
 	1    9550 4350
 	0    -1   -1   0   
 $EndComp
@@ -442,6 +490,11 @@ F 0 "C16" H 8260 4420 50  0000 L CNN
 F 1 "4.7uF" H 7950 4350 50  0000 L CNN
 F 2 "Capacitors_SMD:C_0603" H 8250 4350 50  0001 C CNN
 F 3 "" H 8250 4350 50  0001 C CNN
+F 4 "Murata" H 0   0   50  0001 C CNN "MFR"
+F 5 "GRM188R60J475ME19D" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "2362095" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
 	1    8250 4350
 	1    0    0    -1  
 $EndComp
@@ -467,8 +520,6 @@ F 3 "" H 10300 5400 50  0001 C CNN
 	1    10300 5400
 	1    0    0    -1  
 $EndComp
-Text Notes 10050 3900 2    39   ~ 0
-Charging while powered by battery is restricted
 $Comp
 L CONN_01X03 J11
 U 1 1 58E62B2B
@@ -477,13 +528,14 @@ F 0 "J11" H 7300 4150 50  0000 C CNN
 F 1 "UART" V 7400 3950 50  0000 C CNN
 F 2 "Pin_Headers:Pin_Header_Straight_1x03_Pitch2.54mm" H 7300 3950 50  0001 C CNN
 F 3 "" H 7300 3950 50  0001 C CNN
+F 4 "Multicomp" H 0   0   50  0001 C CNN "MFR"
+F 5 "2211S-03G" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "1593412" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
 	1    7300 3950
 	0    -1   -1   0   
 $EndComp
-Text GLabel 7300 4150 3    39   Input ~ 0
-UART_TX
-Text GLabel 7400 4150 3    39   Output ~ 0
-UART_RX
 $Comp
 L GND #PWR09
 U 1 1 58E62DAE
@@ -495,28 +547,6 @@ F 3 "" H 7200 4150 50  0001 C CNN
 	1    7200 4150
 	1    0    0    -1  
 $EndComp
-Text GLabel 3050 6250 3    39   Output ~ 0
-UART_TX
-Text GLabel 3500 5800 2    39   Input ~ 0
-UART_RX
-Text GLabel 1500 5300 0    39   Output ~ 0
-ACCEL_MOSI
-Text GLabel 1500 5400 0    39   Input ~ 0
-ACCEL_MISO
-Text GLabel 1500 5500 0    39   Output ~ 0
-ACCEL_SCK
-Text GLabel 3050 4250 1    39   Input ~ 0
-DBG_SWDCLK
-Text GLabel 2950 4250 1    39   BiDi ~ 0
-DBG_SWDIO
-Text GLabel 5750 4600 2    39   Output ~ 0
-DBG_SWDCLK
-Text GLabel 5750 4500 2    39   BiDi ~ 0
-DBG_SWDIO
-Text GLabel 5750 4900 2    39   Output ~ 0
-DBG_RESET
-Text GLabel 2250 6250 3    39   Input ~ 0
-DBG_RESET
 $Comp
 L CONN_02X05 J9
 U 1 1 58ECB849
@@ -525,11 +555,14 @@ F 0 "J9" H 5500 5000 50  0000 C CNN
 F 1 "DEBUG" H 5500 4400 50  0000 C CNN
 F 2 "Pin_Headers:Pin_Header_Straight_2x05_Pitch1.27mm_SMD" H 5500 3500 50  0001 C CNN
 F 3 "" H 5500 3500 50  0001 C CNN
+F 4 "Samtec" H 0   0   50  0001 C CNN "MFR"
+F 5 "FTSH-105-01-L-DV" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "1667759" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
 	1    5500 4700
 	1    0    0    -1  
 $EndComp
-Text GLabel 5250 4500 0    39   Input ~ 0
-MCU_PWR
 $Comp
 L GND #PWR010
 U 1 1 58ECBC0F
@@ -541,7 +574,6 @@ F 3 "" H 5250 5000 50  0001 C CNN
 	1    5250 5000
 	1    0    0    -1  
 $EndComp
-NoConn ~ 5750 4800
 $Comp
 L GND #PWR011
 U 1 1 58ECC8B8
@@ -575,14 +607,6 @@ F 3 "" H 1700 3950 50  0001 C CNN
 	1    1700 3950
 	1    0    0    -1  
 $EndComp
-Text GLabel 2450 4250 1    39   Input ~ 0
-MCU_PWR
-Text GLabel 1500 5000 0    39   Input ~ 0
-MCU_PWR
-Text GLabel 2900 6450 3    39   Input ~ 0
-MCU_PWR
-Text GLabel 1200 7250 0    39   Input ~ 0
-MCU_PWR
 $Comp
 L C_Small C4
 U 1 1 58ECCEB4
@@ -591,6 +615,11 @@ F 0 "C4" H 1460 7470 50  0000 L CNN
 F 1 "100n" H 1460 7320 50  0000 L CNN
 F 2 "Capacitors_SMD:C_0603" H 1450 7400 50  0001 C CNN
 F 3 "" H 1450 7400 50  0001 C CNN
+F 4 "Multicomp" H 0   0   50  0001 C CNN "MFR"
+F 5 "MC0603B104K500CT" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "1759122" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
 	1    1450 7400
 	1    0    0    -1  
 $EndComp
@@ -602,6 +631,11 @@ F 0 "C5" H 1710 7470 50  0000 L CNN
 F 1 "100n" H 1710 7320 50  0000 L CNN
 F 2 "Capacitors_SMD:C_0603" H 1700 7400 50  0001 C CNN
 F 3 "" H 1700 7400 50  0001 C CNN
+F 4 "Multicomp" H 0   0   50  0001 C CNN "MFR"
+F 5 "MC0603B104K500CT" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "1759122" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
 	1    1700 7400
 	1    0    0    -1  
 $EndComp
@@ -613,6 +647,11 @@ F 0 "C6" H 1960 7470 50  0000 L CNN
 F 1 "100n" H 1960 7320 50  0000 L CNN
 F 2 "Capacitors_SMD:C_0603" H 1950 7400 50  0001 C CNN
 F 3 "" H 1950 7400 50  0001 C CNN
+F 4 "Multicomp" H 0   0   50  0001 C CNN "MFR"
+F 5 "MC0603B104K500CT" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "1759122" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
 	1    1950 7400
 	1    0    0    -1  
 $EndComp
@@ -624,6 +663,11 @@ F 0 "C7" H 2210 7470 50  0000 L CNN
 F 1 "100n" H 2210 7320 50  0000 L CNN
 F 2 "Capacitors_SMD:C_0603" H 2200 7400 50  0001 C CNN
 F 3 "" H 2200 7400 50  0001 C CNN
+F 4 "Multicomp" H 0   0   50  0001 C CNN "MFR"
+F 5 "MC0603B104K500CT" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "1759122" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
 	1    2200 7400
 	1    0    0    -1  
 $EndComp
@@ -635,6 +679,11 @@ F 0 "C8" H 2460 7470 50  0000 L CNN
 F 1 "100n" H 2460 7320 50  0000 L CNN
 F 2 "Capacitors_SMD:C_0603" H 2450 7400 50  0001 C CNN
 F 3 "" H 2450 7400 50  0001 C CNN
+F 4 "Multicomp" H 0   0   50  0001 C CNN "MFR"
+F 5 "MC0603B104K500CT" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "1759122" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
 	1    2450 7400
 	1    0    0    -1  
 $EndComp
@@ -646,6 +695,11 @@ F 0 "C10" H 2710 7470 50  0000 L CNN
 F 1 "100n" H 2710 7320 50  0000 L CNN
 F 2 "Capacitors_SMD:C_0603" H 2700 7400 50  0001 C CNN
 F 3 "" H 2700 7400 50  0001 C CNN
+F 4 "Multicomp" H 0   0   50  0001 C CNN "MFR"
+F 5 "MC0603B104K500CT" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "1759122" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
 	1    2700 7400
 	1    0    0    -1  
 $EndComp
@@ -657,13 +711,14 @@ F 0 "C12" H 2960 7470 50  0000 L CNN
 F 1 "10u" H 2960 7320 50  0000 L CNN
 F 2 "Capacitors_SMD:C_0603" H 2950 7400 50  0001 C CNN
 F 3 "" H 2950 7400 50  0001 C CNN
+F 4 "Murata" H 0   0   50  0001 C CNN "MFR"
+F 5 "ZRB18AR61E106ME01L" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "2469398" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
 	1    2950 7400
 	1    0    0    -1  
 $EndComp
-Text GLabel 5750 4700 2    39   Input ~ 0
-DBG_SWO
-Text GLabel 2850 4250 1    39   Output ~ 0
-DBG_SWO
 $Comp
 L GND #PWR014
 U 1 1 58ECF8A7
@@ -675,8 +730,6 @@ F 3 "" H 1050 7550 50  0001 C CNN
 	1    1050 7550
 	1    0    0    -1  
 $EndComp
-Text Notes 2650 7700 2    39   ~ 0
-100n for each power pin plus 10u overall
 $Comp
 L C_Small C13
 U 1 1 58ED1A12
@@ -685,6 +738,11 @@ F 0 "C13" H 4260 5570 50  0000 L CNN
 F 1 "1u" H 4260 5420 50  0000 L CNN
 F 2 "Capacitors_SMD:C_0603" H 4250 5500 50  0001 C CNN
 F 3 "" H 4250 5500 50  0001 C CNN
+F 4 "Multicomp" H 0   0   50  0001 C CNN "MFR"
+F 5 "MC0603B105K160CT" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "2320814" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
 	1    4250 5500
 	1    0    0    -1  
 $EndComp
@@ -707,6 +765,11 @@ F 0 "Y1" H 1150 5900 50  0000 C CNN
 F 1 "32.768kHz CFPX-217 20ppm 7pF" H 1150 5150 50  0000 C CNN
 F 2 "Crystals:Crystal_SMD_3215-2pin_3.2x1.5mm" H 1150 5800 50  0001 C CNN
 F 3 "" H 1150 5800 50  0001 C CNN
+F 4 "IQD Frequency Products" H 0   0   50  0001 C CNN "MFR"
+F 5 "LFXTAL009709" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "2449501" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
 	1    1150 5800
 	1    0    0    -1  
 $EndComp
@@ -718,6 +781,11 @@ F 0 "C1" H 750 6150 50  0000 L CNN
 F 1 "8p" H 750 5950 50  0000 L CNN
 F 2 "Capacitors_SMD:C_0603" H 900 6050 50  0001 C CNN
 F 3 "" H 900 6050 50  0001 C CNN
+F 4 "Multicomp" H 0   0   50  0001 C CNN "MFR"
+F 5 "MC0603N8R0D500CT" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "1759051" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
 	1    900  6050
 	1    0    0    -1  
 $EndComp
@@ -729,6 +797,11 @@ F 0 "C3" H 1410 6120 50  0000 L CNN
 F 1 "8p" H 1410 5970 50  0000 L CNN
 F 2 "Capacitors_SMD:C_0603" H 1400 6050 50  0001 C CNN
 F 3 "" H 1400 6050 50  0001 C CNN
+F 4 "Multicomp" H 0   0   50  0001 C CNN "MFR"
+F 5 "MC0603N8R0D500CT" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "1759051" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
 	1    1400 6050
 	1    0    0    -1  
 $EndComp
@@ -754,8 +827,247 @@ F 3 "" H 1400 6150 50  0001 C CNN
 	1    1400 6150
 	1    0    0    -1  
 $EndComp
+$Comp
+L C_Small C15
+U 1 1 58F19010
+P 7750 2600
+F 0 "C15" H 7760 2670 50  0000 L CNN
+F 1 "1u" H 7760 2520 50  0000 L CNN
+F 2 "Capacitors_SMD:C_0603" H 7750 2600 50  0001 C CNN
+F 3 "" H 7750 2600 50  0001 C CNN
+F 4 "Multicomp" H 0   0   50  0001 C CNN "MFR"
+F 5 "MC0603B105K160CT" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "2320814" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
+	1    7750 2600
+	1    0    0    -1  
+$EndComp
+$Comp
+L C_Small C17
+U 1 1 58F190C5
+P 9100 2600
+F 0 "C17" H 9110 2670 50  0000 L CNN
+F 1 "100n" H 9110 2520 50  0000 L CNN
+F 2 "Capacitors_SMD:C_0603" H 9100 2600 50  0001 C CNN
+F 3 "" H 9100 2600 50  0001 C CNN
+F 4 "Multicomp" H 0   0   50  0001 C CNN "MFR"
+F 5 "MC0603B104K500CT" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "1759122" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
+	1    9100 2600
+	1    0    0    -1  
+$EndComp
+$Comp
+L PWR_FLAG #FLG018
+U 1 1 58EFDE28
+P 10700 3950
+F 0 "#FLG018" H 10700 4025 50  0001 C CNN
+F 1 "PWR_FLAG" H 10700 4100 50  0000 C CNN
+F 2 "" H 10700 3950 50  0001 C CNN
+F 3 "" H 10700 3950 50  0001 C CNN
+	1    10700 3950
+	1    0    0    -1  
+$EndComp
+$Comp
+L PWR_FLAG #FLG019
+U 1 1 58F0C76B
+P 9950 5400
+F 0 "#FLG019" H 9950 5475 50  0001 C CNN
+F 1 "PWR_FLAG" H 9950 5550 50  0000 C CNN
+F 2 "" H 9950 5400 50  0001 C CNN
+F 3 "" H 9950 5400 50  0001 C CNN
+	1    9950 5400
+	1    0    0    -1  
+$EndComp
+$Comp
+L MC3630 U3
+U 1 1 58E24CBA
+P 5500 6650
+F 0 "U3" H 5150 7100 60  0000 C CNN
+F 1 "MC3630" H 5150 6200 60  0000 C CNN
+F 2 "tail:VLGA-12" H 5550 6600 60  0001 C CNN
+F 3 "" H 5550 6600 60  0001 C CNN
+F 4 "mCube" H 0   0   50  0001 C CNN "MFR"
+F 5 "MC3630" H 0   0   50  0001 C CNN "MPN"
+F 6 "Mouser" H 0   0   50  0001 C CNN "SPR"
+F 7 "498-MC3630" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
+	1    5500 6650
+	1    0    0    -1  
+$EndComp
+$Comp
+L GND #PWR020
+U 1 1 590A2FEB
+P 4850 6800
+F 0 "#PWR020" H 4850 6550 50  0001 C CNN
+F 1 "GND" H 4850 6650 50  0000 C CNN
+F 2 "" H 4850 6800 50  0001 C CNN
+F 3 "" H 4850 6800 50  0001 C CNN
+	1    4850 6800
+	1    0    0    -1  
+$EndComp
+$Comp
+L Dummy_FIDUCIAL_Passermarke_Type1_RevE_Date16Nov2011 FID1
+U 1 1 590B5F08
+P 10000 700
+F 0 "FID1" H 10000 850 50  0000 C CNN
+F 1 "Fiducial" H 10000 550 50  0000 C CNN
+F 2 "Fiducials:Fiducial_1mm_Dia_2.54mm_Outer_CopperTop" H 10000 700 50  0001 C CNN
+F 3 "" H 10000 700 50  0001 C CNN
+F 4 "-" H 0   0   50  0001 C CNN "MFR"
+F 5 "-" H 0   0   50  0001 C CNN "MPN"
+F 6 "-" H 0   0   50  0001 C CNN "SPR"
+F 7 "-" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
+	1    10000 700 
+	1    0    0    -1  
+$EndComp
+$Comp
+L Dummy_FIDUCIAL_Passermarke_Type1_RevE_Date16Nov2011 FID2
+U 1 1 590B5FCB
+P 10350 700
+F 0 "FID2" H 10350 850 50  0000 C CNN
+F 1 "Fiducial" H 10350 550 50  0000 C CNN
+F 2 "Fiducials:Fiducial_1mm_Dia_2.54mm_Outer_CopperTop" H 10350 700 50  0001 C CNN
+F 3 "" H 10350 700 50  0001 C CNN
+F 4 "-" H 0   0   50  0001 C CNN "MFR"
+F 5 "-" H 0   0   50  0001 C CNN "MPN"
+F 6 "-" H 0   0   50  0001 C CNN "SPR"
+F 7 "-" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
+	1    10350 700 
+	1    0    0    -1  
+$EndComp
+$Comp
+L Dummy_FIDUCIAL_Passermarke_Type1_RevE_Date16Nov2011 FID3
+U 1 1 590B606C
+P 10700 700
+F 0 "FID3" H 10700 850 50  0000 C CNN
+F 1 "Fiducial" H 10700 550 50  0000 C CNN
+F 2 "Fiducials:Fiducial_1mm_Dia_2.54mm_Outer_CopperTop" H 10700 700 50  0001 C CNN
+F 3 "" H 10700 700 50  0001 C CNN
+F 4 "-" H 0   0   50  0001 C CNN "MFR"
+F 5 "-" H 0   0   50  0001 C CNN "MPN"
+F 6 "-" H 0   0   50  0001 C CNN "SPR"
+F 7 "-" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
+	1    10700 700 
+	1    0    0    -1  
+$EndComp
+Text GLabel 9200 1550 2    39   Output ~ 0
+MCU_PWR
+Text GLabel 9200 1700 2    39   Output ~ 0
+RADIO_PWR
+Text GLabel 9200 2000 2    39   Output ~ 0
+ACCEL_PWR
+Text GLabel 5400 7250 0    39   Output ~ 0
+ACCEL_INTN
+Text GLabel 4850 6500 0    39   Output ~ 0
+ACCEL_MISO
+Text GLabel 4850 6600 0    39   Input ~ 0
+ACCEL_MOSI
+Text GLabel 6150 6500 2    39   Input ~ 0
+ACCEL_CSN
+Text GLabel 5450 6100 1    39   Input ~ 0
+ACCEL_SCK
+Text GLabel 1950 4250 1    39   Output ~ 0
+RADIO_CSN
+Text GLabel 2250 4250 1    39   Output ~ 0
+RADIO_MOSI
+Text GLabel 2150 4250 1    39   Input ~ 0
+RADIO_MISO
+Text GLabel 2050 4250 1    39   Output ~ 0
+RADIO_SCK
+Text GLabel 1500 5600 0    39   Input ~ 0
+ACCEL_INTN
+Text GLabel 6300 7250 2    39   Input ~ 0
+ACCEL_PWR
+Text GLabel 3500 5500 2    39   Input ~ 0
+MCU_PWR
+Text GLabel 3300 1550 2    39   Input ~ 0
+RADIO_MOSI
+Text GLabel 3300 1450 2    39   Output ~ 0
+RADIO_MISO
+Text GLabel 3300 1350 2    39   Input ~ 0
+RADIO_SCK
+Text GLabel 3300 1650 2    39   Input ~ 0
+RADIO_CSN
+Text GLabel 950  1150 0    39   Input ~ 0
+RADIO_RSTN
+Text GLabel 3500 5100 2    39   Output ~ 0
+RADIO_RSTN
+Text GLabel 3300 1150 2    39   Output ~ 0
+RADIO_IRQ
+Text GLabel 3500 5200 2    39   Input ~ 0
+RADIO_IRQ
+Text GLabel 1500 1050 0    39   Input ~ 0
+RADIO_WAKEUP
+Text GLabel 9200 1850 2    39   Output ~ 0
+RADIOAON_PWR
+Text GLabel 1500 1350 0    39   Input ~ 0
+RADIOAON_PWR
+Text GLabel 1000 1550 0    39   Input ~ 0
+RADIO_PWR
+Text GLabel 6650 3000 0    39   Input ~ 0
+BATT_MON_EN
+Text GLabel 6650 3250 0    39   Output ~ 0
+BATT_MON
+Text GLabel 3500 5700 2    39   Input ~ 0
+BATT_MON
+Text GLabel 3500 5600 2    39   Input ~ 0
+BATT_MON_EN
+Text Notes 10050 3900 2    39   ~ 0
+Charging while powered by battery is restricted
+Text GLabel 7300 4150 3    39   Input ~ 0
+UART_TX
+Text GLabel 7400 4150 3    39   Output ~ 0
+UART_RX
+Text GLabel 3050 6250 3    39   Output ~ 0
+UART_TX
+Text GLabel 3500 5800 2    39   Input ~ 0
+UART_RX
+Text GLabel 1500 5300 0    39   Output ~ 0
+ACCEL_MOSI
+Text GLabel 1500 5400 0    39   Input ~ 0
+ACCEL_MISO
+Text GLabel 1500 5500 0    39   Output ~ 0
+ACCEL_SCK
+Text GLabel 3050 4250 1    39   Input ~ 0
+DBG_SWDCLK
+Text GLabel 2950 4250 1    39   BiDi ~ 0
+DBG_SWDIO
+Text GLabel 5750 4600 2    39   Output ~ 0
+DBG_SWDCLK
+Text GLabel 5750 4500 2    39   BiDi ~ 0
+DBG_SWDIO
+Text GLabel 5750 4900 2    39   Output ~ 0
+DBG_RESET
+Text GLabel 2250 6250 3    39   Input ~ 0
+DBG_RESET
+Text GLabel 5250 4500 0    39   Input ~ 0
+MCU_PWR
+Text GLabel 2450 4250 1    39   Input ~ 0
+MCU_PWR
+Text GLabel 1500 5000 0    39   Input ~ 0
+MCU_PWR
+Text GLabel 2900 6450 3    39   Input ~ 0
+MCU_PWR
+Text GLabel 1200 7250 0    39   Input ~ 0
+MCU_PWR
+Text GLabel 5750 4700 2    39   Input ~ 0
+DBG_SWO
+Text GLabel 2850 4250 1    39   Output ~ 0
+DBG_SWO
+Text Notes 2650 7700 2    39   ~ 0
+100n for each power pin plus 10u overall
 Text GLabel 2550 6250 3    39   Input ~ 0
 MCU_PWR
+Text GLabel 3500 5000 2    39   Output ~ 0
+RADIO_WAKEUP
+Text GLabel 1500 5200 0    39   Output ~ 0
+ACCEL_CSN
 Wire Wire Line
 	1700 3750 1700 3950
 Wire Wire Line
@@ -766,12 +1078,8 @@ Wire Wire Line
 	950  5100 950  5150
 Wire Wire Line
 	1500 5100 950  5100
-Connection ~ 5250 4700
-Connection ~ 5250 4800
-Connection ~ 5250 4900
 Wire Wire Line
 	5250 4600 5250 5000
-Connection ~ 8800 5050
 Wire Wire Line
 	9850 4250 9850 5050
 Wire Wire Line
@@ -782,33 +1090,26 @@ Wire Wire Line
 	8750 3950 8750 4050
 Wire Wire Line
 	9150 4250 9850 4250
-Connection ~ 9550 3950
 Wire Wire Line
 	8250 4450 8250 4650
 Wire Wire Line
 	8250 3950 8250 4250
-Connection ~ 8750 3950
 Wire Wire Line
 	8250 3950 10700 3950
-Connection ~ 8350 4650
 Wire Wire Line
 	9150 4450 9550 4450
 Wire Wire Line
 	9300 4650 9300 4600
-Connection ~ 9300 4250
 Wire Wire Line
 	9300 4250 9300 4400
-Connection ~ 8750 4650
 Wire Wire Line
 	8250 4650 9300 4650
-Connection ~ 6950 3250
 Wire Wire Line
 	6950 3250 6650 3250
 Wire Wire Line
 	6950 3200 6950 3300
 Wire Wire Line
 	1000 1550 1500 1550
-Connection ~ 1500 1550
 Wire Wire Line
 	1500 1550 1500 1450
 Wire Wire Line
@@ -819,13 +1120,10 @@ Wire Wire Line
 	2400 2350 2400 3050
 Wire Wire Line
 	950  1150 1500 1150
-Connection ~ 3750 1050
 Wire Wire Line
 	3300 1050 3750 1050
-Connection ~ 3750 1250
 Wire Wire Line
 	3750 1250 3300 1250
-Connection ~ 2800 2550
 Wire Wire Line
 	3750 2550 3750 950 
 Wire Wire Line
@@ -838,10 +1136,8 @@ Wire Wire Line
 	1300 2550 3750 2550
 Wire Wire Line
 	2800 2350 2800 2550
-Connection ~ 6150 7250
 Wire Wire Line
 	5450 7200 5450 7250
-Connection ~ 6300 6600
 Wire Wire Line
 	6750 6600 6750 6700
 Wire Wire Line
@@ -856,7 +1152,6 @@ Wire Wire Line
 	6150 7400 4750 7400
 Wire Wire Line
 	6150 6800 6150 7400
-Connection ~ 8150 2400
 Wire Wire Line
 	8150 2400 8150 2550
 Wire Wire Line
@@ -869,12 +1164,8 @@ Wire Wire Line
 	8800 5050 8800 5200
 Wire Wire Line
 	8800 5400 8800 5300
-Connection ~ 10300 5400
 Wire Wire Line
 	8800 5400 10400 5400
-Connection ~ 9100 2400
-Connection ~ 7750 2400
-Connection ~ 8650 2850
 Wire Wire Line
 	7750 2850 7750 2700
 Wire Wire Line
@@ -891,44 +1182,32 @@ Wire Wire Line
 	1200 7250 2950 7250
 Wire Wire Line
 	1450 7250 1450 7300
-Connection ~ 1450 7250
 Wire Wire Line
 	1700 7300 1700 7250
-Connection ~ 1700 7250
 Wire Wire Line
 	1950 7300 1950 7250
-Connection ~ 1950 7250
 Wire Wire Line
 	2200 7300 2200 7250
-Connection ~ 2200 7250
 Wire Wire Line
 	2450 7300 2450 7250
-Connection ~ 2450 7250
 Wire Wire Line
 	2700 7250 2700 7300
-Connection ~ 2700 7250
 Wire Wire Line
 	2950 7250 2950 7300
 Wire Wire Line
 	2950 7550 2950 7500
 Wire Wire Line
 	2700 7550 2700 7500
-Connection ~ 2700 7550
 Wire Wire Line
 	2450 7550 2450 7500
-Connection ~ 2450 7550
 Wire Wire Line
 	2200 7550 2200 7500
-Connection ~ 2200 7550
 Wire Wire Line
 	1950 7550 1950 7500
-Connection ~ 1950 7550
 Wire Wire Line
 	1700 7550 1700 7500
-Connection ~ 1700 7550
 Wire Wire Line
 	1450 7550 1450 7500
-Connection ~ 1450 7550
 Wire Wire Line
 	2950 6350 2950 6250
 Wire Wire Line
@@ -939,7 +1218,6 @@ Wire Wire Line
 	3500 5400 4250 5400
 Wire Wire Line
 	2900 6350 2900 6450
-Connection ~ 2900 6350
 Wire Wire Line
 	1250 5800 1500 5800
 Wire Wire Line
@@ -948,10 +1226,8 @@ Wire Wire Line
 	1050 5800 900  5800
 Wire Wire Line
 	900  5700 900  5950
-Connection ~ 1400 5800
 Wire Wire Line
 	1500 5700 900  5700
-Connection ~ 900  5800
 Wire Wire Line
 	1800 2550 1800 3400
 Wire Wire Line
@@ -966,165 +1242,75 @@ Wire Wire Line
 	2400 3050 2300 3050
 Wire Wire Line
 	3550 2550 3550 3400
-Connection ~ 3550 2550
-Connection ~ 3550 3050
-Connection ~ 1800 2550
-Connection ~ 1800 3050
 Wire Wire Line
 	1150 1750 1300 1750
-Connection ~ 1300 1750
-Connection ~ 1150 1550
-$Comp
-L C_Small C15
-U 1 1 58F19010
-P 7750 2600
-F 0 "C15" H 7760 2670 50  0000 L CNN
-F 1 "1u" H 7760 2520 50  0000 L CNN
-F 2 "Capacitors_SMD:C_0603" H 7750 2600 50  0001 C CNN
-F 3 "" H 7750 2600 50  0001 C CNN
-	1    7750 2600
-	1    0    0    -1  
-$EndComp
-$Comp
-L C_Small C17
-U 1 1 58F190C5
-P 9100 2600
-F 0 "C17" H 9110 2670 50  0000 L CNN
-F 1 "100n" H 9110 2520 50  0000 L CNN
-F 2 "Capacitors_SMD:C_0603" H 9100 2600 50  0001 C CNN
-F 3 "" H 9100 2600 50  0001 C CNN
-	1    9100 2600
-	1    0    0    -1  
-$EndComp
-$Comp
-L PWR_FLAG #FLG022
-U 1 1 58EFA2AE
-P 9100 2300
-F 0 "#FLG022" H 9100 2375 50  0001 C CNN
-F 1 "PWR_FLAG" H 9100 2450 50  0000 C CNN
-F 2 "" H 9100 2300 50  0001 C CNN
-F 3 "" H 9100 2300 50  0001 C CNN
-	1    9100 2300
-	0    1    1    0   
-$EndComp
-$Comp
-L PWR_FLAG #FLG026
-U 1 1 58EFA51E
-P 7750 2400
-F 0 "#FLG026" H 7750 2475 50  0001 C CNN
-F 1 "PWR_FLAG" H 7750 2550 50  0000 C CNN
-F 2 "" H 7750 2400 50  0001 C CNN
-F 3 "" H 7750 2400 50  0001 C CNN
-	1    7750 2400
-	1    0    0    -1  
-$EndComp
-$Comp
-L PWR_FLAG #FLG027
-U 1 1 58EFD44D
-P 8800 5200
-F 0 "#FLG027" H 8800 5275 50  0001 C CNN
-F 1 "PWR_FLAG" H 8800 5350 50  0000 C CNN
-F 2 "" H 8800 5200 50  0001 C CNN
-F 3 "" H 8800 5200 50  0001 C CNN
-	1    8800 5200
-	0    -1   -1   0   
-$EndComp
-$Comp
-L PWR_FLAG #FLG028
-U 1 1 58EFDE28
-P 10700 3950
-F 0 "#FLG028" H 10700 4025 50  0001 C CNN
-F 1 "PWR_FLAG" H 10700 4100 50  0000 C CNN
-F 2 "" H 10700 3950 50  0001 C CNN
-F 3 "" H 10700 3950 50  0001 C CNN
-	1    10700 3950
-	1    0    0    -1  
-$EndComp
-Connection ~ 10700 3950
-Text GLabel 3500 5000 2    39   Output ~ 0
-RADIO_WAKEUP
-$Comp
-L PWR_FLAG #FLG030
-U 1 1 58F0C76B
-P 9950 5400
-F 0 "#FLG030" H 9950 5475 50  0001 C CNN
-F 1 "PWR_FLAG" H 9950 5550 50  0000 C CNN
-F 2 "" H 9950 5400 50  0001 C CNN
-F 3 "" H 9950 5400 50  0001 C CNN
-	1    9950 5400
-	1    0    0    -1  
-$EndComp
-Connection ~ 9950 5400
-$Comp
-L MC3630 U3
-U 1 1 58E24CBA
-P 5500 6650
-F 0 "U3" H 5150 7100 60  0000 C CNN
-F 1 "MC3630" H 5150 6200 60  0000 C CNN
-F 2 "tail:VLGA-12" H 5550 6600 60  0001 C CNN
-F 3 "" H 5550 6600 60  0001 C CNN
-	1    5500 6650
-	1    0    0    -1  
-$EndComp
-$Comp
-L GND #PWR032
-U 1 1 590A2FEB
-P 4850 6800
-F 0 "#PWR032" H 4850 6550 50  0001 C CNN
-F 1 "GND" H 4850 6650 50  0000 C CNN
-F 2 "" H 4850 6800 50  0001 C CNN
-F 3 "" H 4850 6800 50  0001 C CNN
-	1    4850 6800
-	1    0    0    -1  
-$EndComp
-$Comp
-L Dummy_FIDUCIAL_Passermarke_Type1_RevE_Date16Nov2011 FID1
-U 1 1 590B5F08
-P 10000 700
-F 0 "FID1" H 10000 850 50  0000 C CNN
-F 1 "Fiducial" H 10000 550 50  0000 C CNN
-F 2 "Fiducials:Fiducial_1mm_Dia_2.54mm_Outer_CopperTop" H 10000 700 50  0001 C CNN
-F 3 "" H 10000 700 50  0000 C CNN
-	1    10000 700 
-	1    0    0    -1  
-$EndComp
-$Comp
-L Dummy_FIDUCIAL_Passermarke_Type1_RevE_Date16Nov2011 FID2
-U 1 1 590B5FCB
-P 10350 700
-F 0 "FID2" H 10350 850 50  0000 C CNN
-F 1 "Fiducial" H 10350 550 50  0000 C CNN
-F 2 "Fiducials:Fiducial_1mm_Dia_2.54mm_Outer_CopperTop" H 10350 700 50  0001 C CNN
-F 3 "" H 10350 700 50  0000 C CNN
-	1    10350 700 
-	1    0    0    -1  
-$EndComp
-$Comp
-L Dummy_FIDUCIAL_Passermarke_Type1_RevE_Date16Nov2011 FID3
-U 1 1 590B606C
-P 10700 700
-F 0 "FID3" H 10700 850 50  0000 C CNN
-F 1 "Fiducial" H 10700 550 50  0000 C CNN
-F 2 "Fiducials:Fiducial_1mm_Dia_2.54mm_Outer_CopperTop" H 10700 700 50  0001 C CNN
-F 3 "" H 10700 700 50  0000 C CNN
-	1    10700 700 
-	1    0    0    -1  
-$EndComp
-Connection ~ 9100 2300
 Wire Wire Line
 	9100 1550 9200 1550
 Wire Wire Line
 	9100 1700 9200 1700
-Connection ~ 9100 1700
 Wire Wire Line
 	9100 1850 9200 1850
-Connection ~ 9100 1850
 Wire Wire Line
 	9100 2000 9200 2000
-Connection ~ 9100 2000
 Wire Wire Line
 	6950 2400 6950 2500
+Wire Wire Line
+	5450 7250 5400 7250
+Wire Wire Line
+	6150 7250 6300 7250
+Connection ~ 5250 4700
+Connection ~ 5250 4800
+Connection ~ 5250 4900
+Connection ~ 8800 5050
+Connection ~ 9550 3950
+Connection ~ 8750 3950
+Connection ~ 8350 4650
+Connection ~ 9300 4250
+Connection ~ 8750 4650
+Connection ~ 6950 3250
+Connection ~ 1500 1550
+Connection ~ 3750 1050
+Connection ~ 3750 1250
+Connection ~ 2800 2550
+Connection ~ 6150 7250
+Connection ~ 6300 6600
+Connection ~ 8150 2400
+Connection ~ 10300 5400
+Connection ~ 9100 2400
+Connection ~ 7750 2400
+Connection ~ 8650 2850
+Connection ~ 1450 7250
+Connection ~ 1700 7250
+Connection ~ 1950 7250
+Connection ~ 2200 7250
+Connection ~ 2450 7250
+Connection ~ 2700 7250
+Connection ~ 2700 7550
+Connection ~ 2450 7550
+Connection ~ 2200 7550
+Connection ~ 1950 7550
+Connection ~ 1700 7550
+Connection ~ 1450 7550
+Connection ~ 2900 6350
+Connection ~ 1400 5800
+Connection ~ 900  5800
+Connection ~ 3550 2550
+Connection ~ 3550 3050
+Connection ~ 1800 2550
+Connection ~ 1800 3050
+Connection ~ 1300 1750
+Connection ~ 1150 1550
+Connection ~ 10700 3950
+Connection ~ 9950 5400
+Connection ~ 9100 2300
+Connection ~ 9100 1700
+Connection ~ 9100 1850
+Connection ~ 9100 2000
 Connection ~ 6950 2400
+NoConn ~ 10700 5000
+NoConn ~ 10700 5100
+NoConn ~ 10700 5200
+NoConn ~ 5750 4800
 NoConn ~ 2750 6250
 NoConn ~ 2650 6250
 NoConn ~ 2300 2350
@@ -1146,10 +1332,4 @@ NoConn ~ 1950 6250
 NoConn ~ 2050 6250
 NoConn ~ 2150 6250
 NoConn ~ 2350 6250
-Text GLabel 1500 5200 0    39   Output ~ 0
-ACCEL_CSN
-Wire Wire Line
-	5450 7250 5400 7250
-Wire Wire Line
-	6150 7250 6300 7250
 $EndSCHEMATC
