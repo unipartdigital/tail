@@ -1,0 +1,446 @@
+#!/usr/bin/python3
+#
+# Station daemon uTrack emulation
+#
+
+import sys
+import time
+import socket
+import select
+import ctypes
+import struct
+import array
+import argparse
+import ipaddress
+import netifaces
+import requests
+import json
+
+from pprint import pprint
+from ctypes import *
+
+
+class Config():
+
+    utrack_device_id         = 'TestStation'
+    utrack_station_group     = 'TestGroup'
+    utrack_station_location  = 'TestLoc'
+    
+    utrack_event_url         = 'http://10.100.1.118:8000/timesheet/beacon/event'
+    
+    utrack_in_distance       = 3.00
+    utrack_out_distance      = 4.00
+    
+    utrack_expire            = 3.0
+    
+    dw1000_channel = 4
+    dw1000_pcode   = 18
+    dw1000_rate    = 850
+    dw1000_txpsr   = 1024
+    dw1000_power   = 0x46464646
+    dw1000_antd    = 0x4020
+    dw1000_sysfs   = '/sys/devices/platform/soc/3f204000.spi/spi_master/spi0/spi0.0/dw1000/'
+
+    if_name        = 'lowpan0'
+    if_addr        = None
+    if_index       = 0
+    
+    anchor_ip      = None
+    anchor_eui     = None
+    
+    twr_addr       = 'ff12::52'
+    twr_port       = 62414
+    twr_send       = None
+    twr_bind       = None
+
+cfg = Config()
+
+twr_status = {}
+tag_status = {}
+
+RANGE = 42
+RESP1 = 43
+TIMES = 44
+RESP2 = 45
+FINAL = 46
+
+C_ABS = 299792458
+C_AIR = 299705000
+
+DW1000_CLOCK_GHZ = 63.8976
+
+for name,value in (
+        ('SO_TIMESTAMPING', 37),
+        ('SO_SELECT_ERR_QUEUE', 45),
+	('SOF_TIMESTAMPING_TX_HARDWARE',  (1<<0)),
+  	('SOF_TIMESTAMPING_TX_SOFTWARE',  (1<<1)),
+        ('SOF_TIMESTAMPING_RX_HARDWARE',  (1<<2)),
+        ('SOF_TIMESTAMPING_RX_SOFTWARE',  (1<<3)),
+        ('SOF_TIMESTAMPING_SOFTWARE',     (1<<4)),
+        ('SOF_TIMESTAMPING_SYS_HARDWARE', (1<<5)),
+        ('SOF_TIMESTAMPING_RAW_HARDWARE', (1<<6)),
+        ('SOF_TIMESTAMPING_OPT_ID',       (1<<7)),
+        ('SOF_TIMESTAMPING_TX_SCHED',     (1<<8)),
+        ('SOF_TIMESTAMPING_TX_ACK',       (1<<9)),
+        ('SOF_TIMESTAMPING_OPT_CMSG',     (1<<10)),
+        ('SOF_TIMESTAMPING_OPT_TSONLY',   (1<<11)),
+        ('SOF_TIMESTAMPING_OPT_STATS',    (1<<12)),
+        ('SOF_TIMESTAMPING_OPT_PKTINFO',  (1<<13)),
+        ('SOF_TIMESTAMPING_OPT_TX_SWHW',  (1<<14))):
+    if not hasattr(socket, name):
+        setattr(socket, name, value)
+
+
+def eprint(*args, **kwargs):
+    print(*args, file=sys.stderr, **kwargs)
+    pass
+
+def dprint(*args, **kwargs):
+    #print(*args, file=sys.stderr, **kwargs)
+    pass
+
+
+class Timespec(Structure):
+
+    _fields_ = [("tv_sec", c_long),
+                ("tv_nsec", c_long)]
+
+    def __iter__(self):
+        return ((x[0], getattr(self,x[0])) for x in self._fields_)
+
+    def __int__(self):
+        return ((self.tv_sec * 1000000000 + self.tv_nsec) << 32)
+
+    def __str__(self):
+        return '%#x' % int(self)
+
+    def __bool__(self):
+        return bool(self.tv_sec or self.tv_nsec)
+
+
+class Timehires(Structure):
+
+    _fields_ = [
+        ("tv_nsec", c_uint64),
+        ("tv_frac", c_uint32),
+        ("__res", c_uint32) ]
+
+    def __iter__(self):
+        return ((x[0], getattr(self,x[0])) for x in self._fields_)
+
+    def __int__(self):
+        return ((self.tv_nsec << 32) | self.tv_frac)
+
+    def __str__(self):
+        return '%#x' % int(self)
+
+    def __bool__(self):
+        return bool(self.tv_nsec or self.tv_frac)
+
+
+class TimestampInfo(Structure):
+
+    _fields_ = [
+        ("rawts", c_uint64),
+        ("lqi", c_uint16),
+        ("snr", c_uint16),
+        ("fpr", c_uint16),
+        ("noise", c_uint16),
+        ("rxpacc", c_uint16),
+        ("fp_index", c_uint16),
+        ("fp_ampl1", c_uint16),
+        ("fp_ampl2", c_uint16),
+        ("fp_ampl3", c_uint16),
+        ("cir_pwr", c_uint32),
+        ("fp_pwr", c_uint32),
+        ("ttcko", c_uint32),
+        ("ttcki", c_uint32),
+    ]
+
+    def __iter__(self):
+        return ((x[0], getattr(self,x[0])) for x in self._fields_)
+
+
+class Timestamp(Structure):
+
+    _fields_ = [
+        ("sw", Timespec),
+        ("legacy", Timespec),
+        ("hw", Timespec),
+        ("hires", Timehires),
+        ("tsinfo", TimestampInfo),
+    ]
+
+    def __iter__(self):
+        return ((x[0], getattr(self,x[0])) for x in self._fields_)
+
+
+def uTrackReport(eui,cmd,rssi=-42,txpwr=42):
+    eprint('*** EVENT {} <{}>'.format(cmd,eui))
+    requests.post(
+        cfg.utrack_event_url,
+        json = {
+            'event_type':       cmd,
+            'event_time':       time.time(),
+            'device_id':        cfg.utrack_device_id,
+            'station_group':    cfg.utrack_station_group,
+            'station_location': cfg.utrack_station_location,
+            'metadata': {
+                'rssi':       rssi,
+                'tx_power':   txpwr,
+                'namespace':  'tail',
+                'instance':   eui,
+            },
+        }
+    )
+
+def uTrackInEvent(eui):
+    uTrackReport(eui,'in')
+    tag_status[eui]['status'] = 'IN'
+
+def uTrackOutEvent(eui):
+    uTrackReport(eui,'out')
+    tag_status[eui]['status'] = 'OUT'
+
+
+def UpdateTag(eui,lof):
+    eprint('TAG: <{}> {:.3f}m'.format(eui,lof))
+    if eui not in tag_status:
+        tag_status[eui] = { 'status':'OUT', 'expire':0.0 }
+    if tag_status[eui]['status'] == 'IN':
+        if lof > cfg.utrack_out_distance:
+            uTrackOutEvent(eui)
+    else:
+        if lof < cfg.utrack_in_distance:
+            uTrackInEvent(eui)
+    tag_status[eui]['expire'] = time.time() + cfg.utrack_expire
+
+
+def PurgeTags():
+    now = time.time()
+    for eui in list(tag_status.keys()):
+        if tag_status[eui]['expire'] < now:
+            if tag_status[eui]['status'] == 'IN':
+                uTrackOutEvent(eui)
+            del tag_status[eui]
+            
+def PurgeTWRs():
+    now = time.time()
+    for eui in list(twr_status.keys()):
+        if twr_status[eui]['expire'] < now:
+            dprint('Purging old TWR for <{}>'.format(eui))
+            del twr_status[eui]
+
+
+def TWR(times):
+    dprint('TWR with {}'.format(times))
+    (T1,T2,T3,T4,T5,T6) = times[0:6]
+    T41 = T4 - T1
+    T32 = T3 - T2
+    T54 = T5 - T4
+    T63 = T6 - T3
+    T51 = T5 - T1
+    T62 = T6 - T2
+    Tof = (T41*T63 - T32*T54) / (T51+T62)
+    Dof = Tof / DW1000_CLOCK_GHZ
+    Lof = Dof * C_AIR * 1E-9
+    return Lof
+
+        
+def SetDWAttr(attr, data):
+    fd = open(cfg.dw1000_sysfs + attr, 'w')
+    fd.write(str(data))
+    fd.close()
+
+def GetDWAttr(attr):
+    fd = open(cfg.dw1000_sysfs + attr, 'r')
+    val = fd.read().rstrip()
+    fd.close()
+    return val
+
+    
+def GetTagEUI(addr):
+    ip = ipaddress.ip_address(addr)
+    if ip.is_link_local:
+        tag = bytearray(ip.packed[8:])
+        tag[0] ^= 0x02
+        return tag.hex()
+    else:
+        return None
+
+
+def GetAnclTs(ancl):
+    tss = Timestamp()
+    for cmsg_level, cmsg_type, cmsg_data in ancl:
+        if (cmsg_level == socket.SOL_SOCKET and cmsg_type == socket.SO_TIMESTAMPING):
+            raw = cmsg_data.ljust(sizeof(Timestamp), b'\0')
+            tss = Timestamp.from_buffer_copy(raw)
+    return tss
+
+
+def RecvRANGE(bsock,eui,data,tss):
+    (cmd,rid) = struct.unpack('!BH', data[0:3])
+    dprint('RecvRANGE(<{}>,{})'.format(eui,rid))
+    twr_status[eui] = {
+        'eui'     : eui,
+        'rid'     : rid,
+        'start'   : time.time(),
+        'expire'  : time.time() + cfg.utrack_expire,
+        'times'   : [None,None,None,None,None,None,None,None],
+    }
+    twr_status[eui]['times'][1] = tss.tsinfo.rawts
+    SendRESP1(bsock,eui,rid)
+
+def SendRESP1(bsock,eui,rid):
+    dprint('SendRESP1(<{}>,{})'.format(eui,rid))
+    msg = struct.pack('!BHQ', RESP1, rid, int(eui,16))
+    bsock.sendto(msg, cfg.twr_send)
+
+def RecvRESP1(bsock,data,tss):
+    (cmd,rid,raw) = struct.unpack('!BHQ', data[0:11])
+    eui = '{:16x}'.format(raw)
+    dprint('RecvRESP1(<{}>) {},{}'.format(eui,rid,tss.tsinfo.rawts))
+    if eui in twr_status:
+        twr_status[eui]['times'][2] = tss.tsinfo.rawts
+
+def RecvTIMES(bsock,eui,data,tss):
+    (cmd,rid,ts1,ts2) = struct.unpack('!BHQQ', data[0:19])
+    dprint('RecvTIMES(<{}>) {},{},{}'.format(eui,rid,ts1,ts2))
+    if eui in twr_status:
+        twr_status[eui]['times'][0] = ts1
+        twr_status[eui]['times'][3] = ts2
+        twr_status[eui]['times'][5] = tss.tsinfo.rawts
+        SendRESP2(bsock,eui,rid)
+
+def SendRESP2(bsock,eui,rid):
+    dprint('SendRESP2(<{}>,{})'.format(eui,rid))
+    msg = struct.pack('!BHQ', RESP2, rid, int(eui,16))
+    bsock.sendto(msg, cfg.twr_send)
+
+def RecvRESP2(bsock,data,tss):
+    (cmd,rid,raw) = struct.unpack('!BHQ', data[0:11])
+    eui = '{:16x}'.format(raw)
+    dprint('RecvRESP2(<{}>) {},{}'.format(eui,rid,tss.tsinfo.rawts))
+    if eui in twr_status:
+        twr_status[eui]['times'][6] = tss.tsinfo.rawts
+
+def RecvFINAL(bsock,eui,data,tss):
+    (cmd,rid,ts3,ts4) = struct.unpack('!BHQQ', data[0:19])
+    dprint('RecvFINAL(<{}>)'.format(eui))
+    if eui in twr_status:
+        twr_status[eui]['times'][4] = ts3
+        twr_status[eui]['times'][7] = ts4
+        try:
+            dis = TWR(twr_status[eui]['times'])
+            UpdateTag(eui,dis)
+        except:
+            pass
+        del twr_status[eui]
+
+
+def RecvMsg(bsock):
+    (data,ancl,flags,rem) = bsock.recvmsg(4096, 1024, 0)
+    (cmd,rid) = struct.unpack('!BH', data[0:3])
+    eui = GetTagEUI(rem[0].partition('%')[0])
+    tss = GetAnclTs(ancl)
+    #dprint('RecvMsg({},{})'.format(cmd,rid))
+    if cmd == RANGE:
+        RecvRANGE(bsock,eui,data,tss)
+    elif cmd == TIMES:
+        RecvTIMES(bsock,eui,data,tss)
+    elif cmd == FINAL:
+        RecvFINAL(bsock,eui,data,tss)
+
+
+def GetTxTime(bsock):
+    (data,ancl,_, _) = bsock.recvmsg(4096, 1024, socket.MSG_ERRQUEUE)
+    (cmd,rid) = struct.unpack('!BH', data[31:34])
+    tss = GetAnclTs(ancl)
+    #dprint('GetTxTime({},{})'.format(cmd,rid))
+    if cmd == RESP1:
+        RecvRESP1(bsock,data[31:],tss)
+    elif cmd == RESP2:
+        RecvRESP2(bsock,data[31:],tss)
+
+
+def SocketLoop():
+
+    while True:
+
+        bsock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+        bsock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+        ireq = struct.pack('I', cfg.if_index)
+        bsock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_MULTICAST_IF, ireq)
+    
+        addr = socket.inet_pton(socket.AF_INET6, cfg.twr_addr)
+        mreq = struct.pack('16sI', addr, cfg.if_index)
+        bsock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_JOIN_GROUP, mreq)
+
+        bsock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_MULTICAST_LOOP, 0)
+        bsock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_MULTICAST_HOPS, 1)
+
+        bsock.setsockopt(socket.SOL_SOCKET, socket.SO_TIMESTAMPING,
+                         socket.SOF_TIMESTAMPING_RX_HARDWARE |
+                         socket.SOF_TIMESTAMPING_TX_HARDWARE |
+                         socket.SOF_TIMESTAMPING_RAW_HARDWARE)
+        
+        bsock.bind(cfg.twr_bind)
+        
+        pobj = select.poll()
+        pobj.register(bsock, select.POLLIN)
+
+        fail = 0
+        while fail < 10:
+            fail += 1
+            PurgeTWRs()
+            PurgeTags()
+            fds = pobj.poll(100)
+            for (fd,flags) in fds:
+                if fd == bsock.fileno():
+                    fail = 0
+                    if flags & select.POLLIN:
+                        RecvMsg(bsock)
+                    if flags & select.POLLERR:
+                        GetTxTime(bsock)
+
+        bsock.close()
+
+
+
+def main():
+    
+    global cfg
+    
+    parser = argparse.ArgumentParser(description="uTrack Station daemon")
+    
+    parser.add_argument('-i', '--interface', type=str, default=cfg.if_name)
+    parser.add_argument('-p', '--port', type=int, default=cfg.twr_port)
+    
+    args = parser.parse_args()
+
+    cfg.if_name   = args.interface
+    cfg.if_addr   = netifaces.ifaddresses(args.interface)
+    cfg.if_index  = socket.if_nametoindex(args.interface)
+    
+    cfg.anchor_link  = cfg.if_addr.get(netifaces.AF_INET6)[0]['addr']
+    cfg.anchor_eui   = cfg.if_addr.get(netifaces.AF_PACKET)[0]['addr'].replace(':', '')
+    cfg.anchor_ip    = cfg.anchor_link.split('%')[0]
+
+    cfg.twr_bind  = ('', cfg.twr_port, 0, cfg.if_index)
+    cfg.twr_send  = (cfg.twr_addr, cfg.twr_port, 0, cfg.if_index)
+
+    SetDWAttr('channel', cfg.dw1000_channel)
+    SetDWAttr('pcode', cfg.dw1000_pcode)
+    SetDWAttr('rate', cfg.dw1000_rate)
+    SetDWAttr('txpsr', cfg.dw1000_txpsr)
+    SetDWAttr('smart_power', 0)
+    SetDWAttr('tx_power', cfg.dw1000_power)
+    SetDWAttr('antd', cfg.dw1000_antd)
+        
+    SocketLoop()
+    
+
+if __name__ == "__main__":
+    main()
+
