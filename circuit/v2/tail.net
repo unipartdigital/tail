@@ -1,7 +1,7 @@
 (export (version D)
   (design
     (source /home/gavan/Nextcloud/unipart/git/tail/circuit/v2/tail.sch)
-    (date "Tue 02 Oct 2018 16:45:43 BST")
+    (date "Wed 03 Oct 2018 13:53:36 BST")
     (tool "Eeschema 4.0.7-e2-6376~61~ubuntu18.04.1")
     (sheet (number 1) (name /) (tstamps /)
       (title_block
@@ -827,6 +827,8 @@
         (pin (num 3) (name VOUT) (type power_out))
         (pin (num 4) (name VIN) (type power_in)))))
   (libraries
+    (library (logical conn)
+      (uri /usr/share/kicad/library/conn.lib))
     (library (logical device)
       (uri /usr/share/kicad/library/device.lib))
     (library (logical tail)
@@ -836,9 +838,7 @@
     (library (logical SymbolsSimilarEN60617+oldDIN617-RevE8)
       (uri /usr/share/kicad/library/contrib_symbols_dl1eic/SymbolsSimilarEN60617+oldDIN617-RevE8.lib))
     (library (logical tail-cache)
-      (uri /home/gavan/Nextcloud/unipart/git/tail/circuit/v2/tail-cache.lib))
-    (library (logical conn)
-      (uri /usr/share/kicad/library/conn.lib)))
+      (uri /home/gavan/Nextcloud/unipart/git/tail/circuit/v2/tail-cache.lib)))
   (nets
     (net (code 1) (name "Net-(D1-Pad2)")
       (node (ref D1) (pin 2))
@@ -850,7 +850,7 @@
       (node (ref D4) (pin 2))
       (node (ref U1) (pin 14)))
     (net (code 4) (name "Net-(C18-Pad1)")
-      (node (ref SW1) (pin 2))
+      (node (ref SW1) (pin 1))
       (node (ref J19) (pin 1))
       (node (ref U5) (pin 3))
       (node (ref C18) (pin 1)))
@@ -959,7 +959,7 @@
       (node (ref R10) (pin 2))
       (node (ref SW1) (pin 4)))
     (net (code 22) (name +BATT)
-      (node (ref SW1) (pin 1))
+      (node (ref SW1) (pin 2))
       (node (ref C15) (pin 1))
       (node (ref R8) (pin 1))
       (node (ref U4) (pin 4))
