@@ -527,12 +527,12 @@ U 1 1 58E62B2B
 P 7300 3950
 F 0 "J11" H 7300 4150 50  0000 C CNN
 F 1 "UART" V 7400 3950 50  0000 C CNN
-F 2 "Pin_Headers:Pin_Header_Straight_1x03_Pitch2.54mm" H 7300 3950 50  0001 C CNN
+F 2 "Pin_Headers:Pin_Header_Angled_1x03_Pitch2.54mm" H 7300 3950 50  0001 C CNN
 F 3 "" H 7300 3950 50  0001 C CNN
 F 4 "Multicomp" H 0   0   50  0001 C CNN "MFR"
-F 5 "2211S-03G" H 0   0   50  0001 C CNN "MPN"
+F 5 "MC34747" H 0   0   50  0001 C CNN "MPN"
 F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
-F 7 "1593412" H 0   0   50  0001 C CNN "SPN"
+F 7 "1593427" H 0   0   50  0001 C CNN "SPN"
 F 8 "-" H 0   0   50  0001 C CNN "SPURL"
 	1    7300 3950
 	0    -1   -1   0   
@@ -540,12 +540,12 @@ $EndComp
 $Comp
 L GND #PWR09
 U 1 1 58E62DAE
-P 7200 4150
-F 0 "#PWR09" H 7200 3900 50  0001 C CNN
-F 1 "GND" H 7200 4000 50  0000 C CNN
-F 2 "" H 7200 4150 50  0001 C CNN
-F 3 "" H 7200 4150 50  0001 C CNN
-	1    7200 4150
+P 7400 4150
+F 0 "#PWR09" H 7400 3900 50  0001 C CNN
+F 1 "GND" H 7400 4000 50  0000 C CNN
+F 2 "" H 7400 4150 50  0001 C CNN
+F 3 "" H 7400 4150 50  0001 C CNN
+	1    7400 4150
 	1    0    0    -1  
 $EndComp
 $Comp
@@ -1023,7 +1023,7 @@ Text Notes 10050 3900 2    39   ~ 0
 Charging while powered by battery is restricted
 Text GLabel 7300 4150 3    39   Input ~ 0
 UART_TX
-Text GLabel 7400 4150 3    39   Output ~ 0
+Text GLabel 7200 4150 3    39   Output ~ 0
 UART_RX
 Text GLabel 3050 6250 3    39   Output ~ 0
 UART_TX
