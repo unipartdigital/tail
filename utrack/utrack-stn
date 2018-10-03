@@ -28,16 +28,15 @@ class Config():
     
     utrack_event_url         = 'http://10.100.1.118:8000/timesheet/beacon/event'
     
-    utrack_in_distance       = 3.00
-    utrack_out_distance      = 4.00
-    
-    utrack_expire            = 3.0
+    utrack_in_distance       = 3.00  # [m]
+    utrack_out_distance      = 4.00  # [m]
+    utrack_tag_expire        = 3.0   # [s]
     
     dw1000_channel = 4
     dw1000_pcode   = 18
     dw1000_rate    = 850
     dw1000_txpsr   = 1024
-    dw1000_power   = 0x46464646
+    dw1000_power   = 0x31313131
     dw1000_antd    = 0x4020
     dw1000_sysfs   = '/sys/devices/platform/soc/3f204000.spi/spi_master/spi0/spi0.0/dw1000/'
 
@@ -52,6 +51,7 @@ class Config():
     twr_port       = 62414
     twr_send       = None
     twr_bind       = None
+    twr_expr       = 1.0
 
 cfg = Config()
 
@@ -68,6 +68,9 @@ C_ABS = 299792458
 C_AIR = 299705000
 
 DW1000_CLOCK_GHZ = 63.8976
+
+UDP6_ERR_QUEUE_OFFSET = 31
+
 
 for name,value in (
         ('SO_TIMESTAMPING', 37),
@@ -175,8 +178,8 @@ class Timestamp(Structure):
         return ((x[0], getattr(self,x[0])) for x in self._fields_)
 
 
-def uTrackReport(eui,cmd,rssi=-42,txpwr=42):
-    eprint('*** EVENT {} <{}>'.format(cmd,eui))
+def uTrackReport(eui,cmd,rssi=42,txpwr=42):
+    eprint('*{:3s} {}'.format(cmd.upper(),eui))
     requests.post(
         cfg.utrack_event_url,
         json = {
@@ -204,7 +207,7 @@ def uTrackOutEvent(eui):
 
 
 def UpdateTag(eui,lof):
-    eprint('TAG: <{}> {:.3f}m'.format(eui,lof))
+    eprint('     {}: {:.3f}m'.format(eui,lof))
     if eui not in tag_status:
         tag_status[eui] = { 'status':'OUT', 'expire':0.0 }
     if tag_status[eui]['status'] == 'IN':
@@ -213,7 +216,7 @@ def UpdateTag(eui,lof):
     else:
         if lof < cfg.utrack_in_distance:
             uTrackInEvent(eui)
-    tag_status[eui]['expire'] = time.time() + cfg.utrack_expire
+    tag_status[eui]['expire'] = time.time() + cfg.utrack_tag_expire
 
 
 def PurgeTags():
@@ -285,7 +288,7 @@ def RecvRANGE(bsock,eui,data,tss):
         'eui'     : eui,
         'rid'     : rid,
         'start'   : time.time(),
-        'expire'  : time.time() + cfg.utrack_expire,
+        'expire'  : time.time() + cfg.twr_expr,
         'times'   : [None,None,None,None,None,None,None,None],
     }
     twr_status[eui]['times'][1] = tss.tsinfo.rawts
@@ -332,7 +335,8 @@ def RecvFINAL(bsock,eui,data,tss):
         twr_status[eui]['times'][7] = ts4
         try:
             dis = TWR(twr_status[eui]['times'])
-            UpdateTag(eui,dis)
+            if dis>-1.0 and dis<30.0:
+                UpdateTag(eui,dis)
         except:
             pass
         del twr_status[eui]
@@ -354,13 +358,14 @@ def RecvMsg(bsock):
 
 def GetTxTime(bsock):
     (data,ancl,_, _) = bsock.recvmsg(4096, 1024, socket.MSG_ERRQUEUE)
-    (cmd,rid) = struct.unpack('!BH', data[31:34])
+    udp6 = data[UDP6_ERR_QUEUE_OFFSET:]
+    (cmd,rid) = struct.unpack('!BH', udp6[0:3])
     tss = GetAnclTs(ancl)
     #dprint('GetTxTime({},{})'.format(cmd,rid))
     if cmd == RESP1:
-        RecvRESP1(bsock,data[31:],tss)
+        RecvRESP1(bsock,udp6,tss)
     elif cmd == RESP2:
-        RecvRESP2(bsock,data[31:],tss)
+        RecvRESP2(bsock,udp6,tss)
 
 
 def SocketLoop():

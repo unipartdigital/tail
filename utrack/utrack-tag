@@ -26,12 +26,11 @@ class Config():
     dw1000_pcode    = 18
     dw1000_rate     = 850
     dw1000_txpsr    = 1024
-    dw1000_power    = 0x46464646
+    dw1000_power    = 0x31313131
     dw1000_antd     = 0x4020
     dw1000_sysfs    = '/sys/devices/platform/soc/3f204000.spi/spi_master/spi0/spi0.0/dw1000/'
 
     period     = 0.250
-    rdelay     = 0.010
 
     if_name    = 'lowpan0'
     if_addr    = None
@@ -44,6 +43,7 @@ class Config():
     twr_port   = 62414
     twr_send   = None
     twr_bind   = None
+    twr_expr   = 5.0
     
 cfg = Config()
 
@@ -55,6 +55,9 @@ RESP1 = 43
 TIMES = 44
 RESP2 = 45
 FINAL = 46
+
+UDP6_ERR_QUEUE_OFFSET = 31
+
 
 for name,value in (
         ('SO_TIMESTAMPING', 37),
@@ -201,7 +204,7 @@ def GetAnclTs(ancl):
 def SendRANGE(bsock,rid):
     ranging_data['twr'] = {
         'start'   : time.time(),
-        'expire'  : time.time() + 10,
+        'expire'  : time.time() + cfg.twr_expr,
         'times'   : [None,None,None,None],
     }
     msg = struct.pack('!BH', RANGE, rid)
@@ -209,14 +212,12 @@ def SendRANGE(bsock,rid):
     bsock.sendto(msg, cfg.twr_send)
 
 def SendTIMES(bsock,rid):
-    #time.sleep(cfg.rdelay)
     dat = ranging_data['twr']
     msg = struct.pack('!BHQQ', TIMES, rid, dat['times'][0], dat['times'][1])
     dprint('SendTIMES()')
     bsock.sendto(msg, cfg.twr_send)
 
 def SendFINAL(bsock,rid):
-    #time.sleep(cfg.rdelay)
     dat = ranging_data['twr']
     msg = struct.pack('!BHQQ', FINAL, rid, dat['times'][2],dat['times'][3])
     dprint('SendFINAL()')
@@ -228,7 +229,7 @@ def RecvMsg(bsock):
     (cmd,rid) = struct.unpack('!BH', data[0:3])
     tss = GetAnclTs(ancl)
     dat = ranging_data['twr']
-    dprint('RecvMsg {} {} {}'.format(rid,cmd,tss.tsinfo.rawts))
+    #dprint('RecvMsg {} {} {}'.format(rid,cmd,tss.tsinfo.rawts))
     if cmd == RESP1:
         dat['times'][1] = tss.tsinfo.rawts
         SendTIMES(bsock,rid)
@@ -238,10 +239,11 @@ def RecvMsg(bsock):
 
 def GetTxTime(bsock):
     (data,ancl,_,_) = bsock.recvmsg(4096, 1024, socket.MSG_ERRQUEUE)
-    (cmd,rid) = struct.unpack('!BH', data[31:34])
+    udp6 = data[UDP6_ERR_QUEUE_OFFSET:]
+    (cmd,rid) = struct.unpack('!BH', udp6[0:3])
     tss = GetAnclTs(ancl)
     dat = ranging_data['twr']
-    dprint('TxTime {} {} {}'.format(rid,cmd,tss.tsinfo.rawts))
+    #dprint('TxTime {} {} {}'.format(rid,cmd,tss.tsinfo.rawts))
     if cmd == RANGE:
         dat['times'][0] = tss.tsinfo.rawts
     elif cmd == TIMES:
