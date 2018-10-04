@@ -179,23 +179,27 @@ class Timestamp(Structure):
 
 
 def uTrackReport(eui,cmd,rssi=42,txpwr=42):
-    eprint('*{:3s} {}'.format(cmd.upper(),eui))
-    requests.post(
-        cfg.utrack_event_url,
-        json = {
-            'event_type':       cmd,
-            'event_time':       time.time(),
-            'device_id':        cfg.utrack_device_id,
-            'station_group':    cfg.utrack_station_group,
-            'station_location': cfg.utrack_station_location,
-            'metadata': {
-                'rssi':       rssi,
-                'tx_power':   txpwr,
-                'namespace':  'tail',
-                'instance':   eui,
-            },
-        }
-    )
+    eprint('*{:3s} <{}>'.format(cmd.upper(),eui))
+    try:
+        requests.post(
+            cfg.utrack_event_url,
+            json = {
+                'event_type':       cmd,
+                'event_time':       time.time(),
+                'device_id':        cfg.utrack_device_id,
+                'station_group':    cfg.utrack_station_group,
+                'station_location': cfg.utrack_station_location,
+                'metadata': {
+                    'rssi':       rssi,
+                    'tx_power':   txpwr,
+                    'namespace':  'tail',
+                    'instance':   eui,
+                },
+            }
+        )
+    except Exception as err:
+        eprint('uTrack request failed: {}'.format(err))
+
 
 def uTrackInEvent(eui):
     uTrackReport(eui,'in')
@@ -207,7 +211,7 @@ def uTrackOutEvent(eui):
 
 
 def UpdateTag(eui,lof):
-    eprint('     {}: {:.3f}m'.format(eui,lof))
+    eprint('     <{}> {:.3f}m'.format(eui,lof))
     if eui not in tag_status:
         tag_status[eui] = { 'status':'OUT', 'expire':0.0 }
     if tag_status[eui]['status'] == 'IN':
@@ -229,10 +233,10 @@ def PurgeTags():
             
 def PurgeTWRs():
     now = time.time()
-    for eui in list(twr_status.keys()):
-        if twr_status[eui]['expire'] < now:
-            dprint('Purging old TWR for <{}>'.format(eui))
-            del twr_status[eui]
+    for rid in list(twr_status.keys()):
+        if twr_status[rid]['expire'] < now:
+            dprint('Purging old TWR for {}'.format(rid))
+            del twr_status[rid]
 
 
 def TWR(times):
@@ -282,69 +286,68 @@ def GetAnclTs(ancl):
 
 
 def RecvRANGE(bsock,eui,data,tss):
-    (cmd,rid) = struct.unpack('!BH', data[0:3])
+    (cmd,rid) = struct.unpack('!BQ', data[0:9])
     dprint('RecvRANGE(<{}>,{})'.format(eui,rid))
-    twr_status[eui] = {
+    twr_status[rid] = {
         'eui'     : eui,
         'rid'     : rid,
         'start'   : time.time(),
         'expire'  : time.time() + cfg.twr_expr,
         'times'   : [None,None,None,None,None,None,None,None],
     }
-    twr_status[eui]['times'][1] = tss.tsinfo.rawts
+    twr_status[rid]['times'][1] = tss.tsinfo.rawts
     SendRESP1(bsock,eui,rid)
 
 def SendRESP1(bsock,eui,rid):
     dprint('SendRESP1(<{}>,{})'.format(eui,rid))
-    msg = struct.pack('!BHQ', RESP1, rid, int(eui,16))
+    msg = struct.pack('!BQ', RESP1, rid)
     bsock.sendto(msg, cfg.twr_send)
 
 def RecvRESP1(bsock,data,tss):
-    (cmd,rid,raw) = struct.unpack('!BHQ', data[0:11])
-    eui = '{:16x}'.format(raw)
-    dprint('RecvRESP1(<{}>) {},{}'.format(eui,rid,tss.tsinfo.rawts))
-    if eui in twr_status:
-        twr_status[eui]['times'][2] = tss.tsinfo.rawts
+    (cmd,rid) = struct.unpack('!BQ', data[0:9])
+    dprint('RecvRESP1() {},{}'.format(rid,tss.tsinfo.rawts))
+    if rid in twr_status:
+        twr_status[rid]['times'][2] = tss.tsinfo.rawts
 
 def RecvTIMES(bsock,eui,data,tss):
-    (cmd,rid,ts1,ts2) = struct.unpack('!BHQQ', data[0:19])
+    (cmd,rid,ts1,ts2) = struct.unpack('!BQQQ', data[0:25])
     dprint('RecvTIMES(<{}>) {},{},{}'.format(eui,rid,ts1,ts2))
-    if eui in twr_status:
-        twr_status[eui]['times'][0] = ts1
-        twr_status[eui]['times'][3] = ts2
-        twr_status[eui]['times'][5] = tss.tsinfo.rawts
+    if rid in twr_status:
+        twr_status[rid]['times'][0] = ts1
+        twr_status[rid]['times'][3] = ts2
+        twr_status[rid]['times'][5] = tss.tsinfo.rawts
         SendRESP2(bsock,eui,rid)
 
 def SendRESP2(bsock,eui,rid):
     dprint('SendRESP2(<{}>,{})'.format(eui,rid))
-    msg = struct.pack('!BHQ', RESP2, rid, int(eui,16))
+    msg = struct.pack('!BQ', RESP2, rid)
     bsock.sendto(msg, cfg.twr_send)
 
 def RecvRESP2(bsock,data,tss):
-    (cmd,rid,raw) = struct.unpack('!BHQ', data[0:11])
-    eui = '{:16x}'.format(raw)
-    dprint('RecvRESP2(<{}>) {},{}'.format(eui,rid,tss.tsinfo.rawts))
-    if eui in twr_status:
-        twr_status[eui]['times'][6] = tss.tsinfo.rawts
+    (cmd,rid) = struct.unpack('!BQ', data[0:9])
+    dprint('RecvRESP2() {},{}'.format(rid,tss.tsinfo.rawts))
+    if rid in twr_status:
+        twr_status[rid]['times'][6] = tss.tsinfo.rawts
 
 def RecvFINAL(bsock,eui,data,tss):
-    (cmd,rid,ts3,ts4) = struct.unpack('!BHQQ', data[0:19])
+    (cmd,rid,ts3,ts4) = struct.unpack('!BQQQ', data[0:25])
     dprint('RecvFINAL(<{}>)'.format(eui))
-    if eui in twr_status:
-        twr_status[eui]['times'][4] = ts3
-        twr_status[eui]['times'][7] = ts4
+    if rid in twr_status:
+        twr_status[rid]['times'][4] = ts3
+        twr_status[rid]['times'][7] = ts4
         try:
-            dis = TWR(twr_status[eui]['times'])
+            dis = TWR(twr_status[rid]['times'])
+        except Exception as err:
+            eprint('TWR failed: {}'.format(err))
+        else:
             if dis>-1.0 and dis<30.0:
                 UpdateTag(eui,dis)
-        except:
-            pass
-        del twr_status[eui]
+        del twr_status[rid]
 
 
 def RecvMsg(bsock):
     (data,ancl,flags,rem) = bsock.recvmsg(4096, 1024, 0)
-    (cmd,rid) = struct.unpack('!BH', data[0:3])
+    (cmd,rid) = struct.unpack('!BQ', data[0:9])
     eui = GetTagEUI(rem[0].partition('%')[0])
     tss = GetAnclTs(ancl)
     #dprint('RecvMsg({},{})'.format(cmd,rid))
@@ -359,7 +362,7 @@ def RecvMsg(bsock):
 def GetTxTime(bsock):
     (data,ancl,_, _) = bsock.recvmsg(4096, 1024, socket.MSG_ERRQUEUE)
     udp6 = data[UDP6_ERR_QUEUE_OFFSET:]
-    (cmd,rid) = struct.unpack('!BH', udp6[0:3])
+    (cmd,rid) = struct.unpack('!BQ', udp6[0:9])
     tss = GetAnclTs(ancl)
     #dprint('GetTxTime({},{})'.format(cmd,rid))
     if cmd == RESP1:

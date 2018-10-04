@@ -47,7 +47,7 @@ class Config():
     
 cfg = Config()
 
-ranging_data = { 'id':1, 'twr':None, }
+ranging_data = { 'twr':None, }
 
 
 RANGE = 42
@@ -165,9 +165,7 @@ class Timestamp(Structure):
 
 
 def GetNextID():
-    id = ranging_data['id']
-    ranging_data['id'] = id + 1
-    return id
+    return random.randint(0,0xFFFFFFFFFFFFFFFF)
 
 
 def SetDWAttr(attr, data):
@@ -203,51 +201,54 @@ def GetAnclTs(ancl):
 
 def SendRANGE(bsock,rid):
     ranging_data['twr'] = {
+        'rid'     : rid,
         'start'   : time.time(),
         'expire'  : time.time() + cfg.twr_expr,
         'times'   : [None,None,None,None],
     }
-    msg = struct.pack('!BH', RANGE, rid)
+    msg = struct.pack('!BQ', RANGE, rid)
     dprint('SendRANGE()')
     bsock.sendto(msg, cfg.twr_send)
 
 def SendTIMES(bsock,rid):
     dat = ranging_data['twr']
-    msg = struct.pack('!BHQQ', TIMES, rid, dat['times'][0], dat['times'][1])
+    msg = struct.pack('!BQQQ', TIMES, rid, dat['times'][0], dat['times'][1])
     dprint('SendTIMES()')
     bsock.sendto(msg, cfg.twr_send)
 
 def SendFINAL(bsock,rid):
     dat = ranging_data['twr']
-    msg = struct.pack('!BHQQ', FINAL, rid, dat['times'][2],dat['times'][3])
+    msg = struct.pack('!BQQQ', FINAL, rid, dat['times'][2],dat['times'][3])
     dprint('SendFINAL()')
     bsock.sendto(msg, cfg.twr_send)
 
 
 def RecvMsg(bsock):
     (data,ancl,flags,rem) = bsock.recvmsg(4096, 1024, 0)
-    (cmd,rid) = struct.unpack('!BH', data[0:3])
+    (cmd,rid) = struct.unpack('!BQ', data[0:9])
     tss = GetAnclTs(ancl)
     dat = ranging_data['twr']
     #dprint('RecvMsg {} {} {}'.format(rid,cmd,tss.tsinfo.rawts))
-    if cmd == RESP1:
-        dat['times'][1] = tss.tsinfo.rawts
-        SendTIMES(bsock,rid)
-    elif cmd == RESP2:
-        dat['times'][3] = tss.tsinfo.rawts
-        SendFINAL(bsock,rid)
+    if dat['rid'] == rid:
+        if cmd == RESP1:
+            dat['times'][1] = tss.tsinfo.rawts
+            SendTIMES(bsock,rid)
+        elif cmd == RESP2:
+            dat['times'][3] = tss.tsinfo.rawts
+            SendFINAL(bsock,rid)
 
 def GetTxTime(bsock):
     (data,ancl,_,_) = bsock.recvmsg(4096, 1024, socket.MSG_ERRQUEUE)
     udp6 = data[UDP6_ERR_QUEUE_OFFSET:]
-    (cmd,rid) = struct.unpack('!BH', udp6[0:3])
+    (cmd,rid) = struct.unpack('!BQ', udp6[0:9])
     tss = GetAnclTs(ancl)
     dat = ranging_data['twr']
     #dprint('TxTime {} {} {}'.format(rid,cmd,tss.tsinfo.rawts))
-    if cmd == RANGE:
-        dat['times'][0] = tss.tsinfo.rawts
-    elif cmd == TIMES:
-        dat['times'][2] = tss.tsinfo.rawts
+    if dat['rid'] == rid:
+        if cmd == RANGE:
+            dat['times'][0] = tss.tsinfo.rawts
+        elif cmd == TIMES:
+            dat['times'][2] = tss.tsinfo.rawts
 
 
 def SocketLoop():
@@ -295,6 +296,8 @@ def SocketLoop():
 def main():
     
     global cfg
+
+    random.seed()
     
     parser = argparse.ArgumentParser(description="uTrack Tag Daemon")
     
