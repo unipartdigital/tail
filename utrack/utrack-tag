@@ -26,7 +26,7 @@ class Config():
     dw1000_pcode    = 18
     dw1000_rate     = 850
     dw1000_txpsr    = 1024
-    dw1000_power    = 0x31313131
+    dw1000_power    = 0x11111111
     dw1000_antd     = 0x4020
     dw1000_sysfs    = '/sys/devices/platform/soc/3f204000.spi/spi_master/spi0/spi0.0/dw1000/'
 
