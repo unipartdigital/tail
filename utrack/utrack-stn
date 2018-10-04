@@ -22,9 +22,9 @@ from ctypes import *
 
 class Config():
 
-    utrack_device_id         = 'TestStation'
-    utrack_station_group     = 'TestGroup'
-    utrack_station_location  = 'TestLoc'
+    utrack_device_id         = 'TailStation'
+    utrack_station_group     = 'TailGroup'
+    utrack_station_location  = 'TailLoc'
     
     utrack_event_url         = 'http://10.100.1.118:8000/timesheet/beacon/event'
     
