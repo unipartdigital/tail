@@ -74,6 +74,7 @@ def DECA_TWR(blk, tmr, remote, delay, rawts=False):
     F6 = blk.getXtalPPM(i3, eui2)
 
     Pwr = blk.getRxPower(i1, eui2)
+    Fpp = blk.getFpPower(i1, eui2)
 
     T41 = T4 - T1
     T32 = T3 - T2
@@ -100,7 +101,7 @@ def DECA_TWR(blk, tmr, remote, delay, rawts=False):
     blk.PurgeBlink(i2)
     blk.PurgeBlink(i3)
     
-    return (Lof,Dof,Rtt,Err,Est,Pwr)
+    return (Lof,Dof,Rtt,Err,Est,Pwr,Fpp)
 
             
 def DECA_FAST_TWR(blk, tmr, remote, delay, rawts=False):
@@ -136,6 +137,7 @@ def DECA_FAST_TWR(blk, tmr, remote, delay, rawts=False):
     F6 = blk.getXtalPPM(i3, eui2)
 
     Pwr = blk.getRxPower(i1, eui2)
+    Fpp = blk.getFpPower(i1, eui2)
     
     T41 = T4 - T1
     T32 = T3 - T2
@@ -162,7 +164,7 @@ def DECA_FAST_TWR(blk, tmr, remote, delay, rawts=False):
     blk.PurgeBlink(i2)
     blk.PurgeBlink(i3)
     
-    return (Lof,Dof,Rtt,Err,Est,Pwr)
+    return (Lof,Dof,Rtt,Err,Est,Pwr,Fpp)
 
             
 def main():
@@ -232,18 +234,20 @@ def main():
 
     delays = []
     powers = []
-    rounds = []
+    fpathp = []
+    rtrips = []
 
     eprint('Blinker starting')
 
     try:
         for i in range(args.count):
             try:
-                (Lof,Dof,Rtt,Ppm,Ppe,Pwr) = algo(blk, tmr, remotes, (delay1,delay2,args.wait), rawts=args.raw)
+                (Lof,Dof,Rtt,Ppm,Ppe,Pwr,Fpp) = algo(blk, tmr, remotes, (delay1,delay2,args.wait), rawts=args.raw)
                 if Lof > 0 and Lof < 100:
                     delays.append(Dof)
                     powers.append(Pwr)
-                    rounds.append(Rtt)
+                    fpathp.append(Fpp)
+                    rtrips.append(Rtt/1E6)
                     Tcnt += 1
                     if VERBOSE > 0:
                         Plog = DW1000.RxPower2dBm(Pwr,64)
@@ -279,29 +283,34 @@ def main():
         Dmed = np.median(delays)
         Pavg = np.mean(powers)
         Pstd = np.std(powers)
+        Favg = np.mean(fpathp)
+        Fstd = np.std(fpathp)
         Lavg = Davg * C_AIR * 1E-9
         Lstd = Dstd * C_AIR * 1E-9
         Lmed = Dmed * C_AIR * 1E-9
         Plog = DW1000.RxPower2dBm(Pavg,64)
         Pstl = DW1000.RxPower2dBm(Pavg+Pstd,64) - Plog
-        Ravg = np.mean(rounds)
-        Rstd = np.std(rounds)
+        Flog = DW1000.RxPower2dBm(Favg,64)
+        Fstl = DW1000.RxPower2dBm(Favg+Fstd,64) - Flog
+        Ravg = np.mean(rtrips)
+        Rstd = np.std(rtrips)
 
-        (Pavg,Pstd) = fpeak(delays)
+        (Navg,Nstd) = fpeak(delays)
         
-        Mavg = Pavg * C_AIR * 1E-9
-        Mstd = Pstd * C_AIR * 1E-9
+        Mavg = Navg * C_AIR * 1E-9
+        Mstd = Nstd * C_AIR * 1E-9
         
         print()
         print('FINAL STATISTICS:')
         print('  Samples:  {} [{:.1f}%]'.format(Tcnt,100*Tcnt/args.count))
-        print('  Peak.Avg: {:.3f}m {:.3f}ns'.format(Mavg,Pavg))
-        print('  Peak.Std: {:.3f}m {:.3f}ns'.format(Mstd,Pstd))
+        print('  Peak.Avg: {:.3f}m {:.3f}ns'.format(Mavg,Navg))
+        print('  Peak.Std: {:.3f}m {:.3f}ns'.format(Mstd,Nstd))
         print('  Average:  {:.3f}m {:.3f}ns'.format(Lavg,Davg))
         print('  Std.Dev:  {:.3f}m {:.3f}ns'.format(Lstd,Dstd))
         print('  Median:   {:.3f}m {:.3f}ns'.format(Lmed,Dmed))
         print('  RTT.Avg:  {:.3f}ms {:.3f}ms'.format(Ravg,Rstd))
         print('  PWR.Avg:  {:.1f}dBm {:.2f}dBm'.format(Plog,Pstl))
+        print('  FPP.Avg:  {:.1f}dBm {:.2f}dBm'.format(Flog,Fstl))
 
         if args.hist or args.plot:
             
@@ -334,8 +343,8 @@ def main():
                 ax.text(0.80, 0.90, r'p={:.3f}m'.format(Mstd), transform=ax.transAxes, size='x-large')
                 ax.text(0.80, 0.85, r'$\mu$={:.3f}m'.format(Lavg), transform=ax.transAxes, size='x-large')
                 ax.text(0.80, 0.80, r'$\sigma$={:.3f}m'.format(Lstd), transform=ax.transAxes, size='x-large')
-                ax.text(0.90, 0.95, r'P={:.3f}ns'.format(Pavg), transform=ax.transAxes, size='x-large')
-                ax.text(0.90, 0.90, r'p={:.3f}ns'.format(Pstd), transform=ax.transAxes, size='x-large')
+                ax.text(0.90, 0.95, r'P={:.3f}ns'.format(Navg), transform=ax.transAxes, size='x-large')
+                ax.text(0.90, 0.90, r'p={:.3f}ns'.format(Nstd), transform=ax.transAxes, size='x-large')
                 ax.text(0.90, 0.85, r'$\mu$={:.3f}ns'.format(Davg), transform=ax.transAxes, size='x-large')
                 ax.text(0.90, 0.80, r'$\sigma$={:.3f}ns'.format(Dstd), transform=ax.transAxes, size='x-large')
                 ax.grid(True)
