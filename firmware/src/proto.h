@@ -47,7 +47,7 @@ void tag_start(void);
 void tag_with_period(int period);
 void tag(void);
 void tag_average(int period, int count);
-void tagipv6_with_period(int period);
+void tagipv6_with_period(int period, int period_idle, int transition_time);
 void tagipv6(void);
 void anchor(void);
 void stop(void);

@@ -6,6 +6,7 @@
 #include <stdint.h>
 
 void accel_spi_init(void);
+void accel_spi_version(int version);
 void accel_spi_start(void);
 void accel_spi_stop(void);
 void accel_spi_write(uint8_t value);

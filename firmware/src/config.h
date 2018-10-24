@@ -32,7 +32,13 @@
 	X(tx_power,          0x0017) \
 	X(smart_tx_power,    0x0018) \
 	X(turnaround_delay,  0x0019) \
-	X(rxtimeout,         0x001a)
+	X(rxtimeout,         0x001a) \
+	X(tag_period_idle,   0x001b) \
+	X(tag_transition_time, 0x001c) \
+	X(accel_sensitivity, 0x001d) \
+	X(accel_exponent,    0x001e) \
+	X(accel_mode,        0x001f) \
+	X(accel_count,       0x0020)
 
 #define CONFIG_KEY_INVALID 0x0000
 

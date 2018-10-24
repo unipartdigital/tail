@@ -297,7 +297,7 @@ void fn_aread(void)
 	int i;
 
 	if (!token_int(&reg, 16)) {
-		write_string("Usage: read <register> [length]\r\n");
+		write_string("Usage: aread <register> [length]\r\n");
 		return;
 	}
 
@@ -319,11 +319,23 @@ void fn_awrite(void)
 	int value;
 
 	if ((!token_int(&reg, 16)) || (!token_int(&value, 0))) {
-		write_string("Usage: write <register> <value>\r\n");
+		write_string("Usage: awrite <register> <value>\r\n");
 		return;
 	}
 
 	accel_write(reg, value);
+}
+
+void fn_accel(void)
+{
+	uint16_t x, y, z;
+	accel_readings(&x, &y, &z);
+	write_int(x);
+	write_string(" ");
+	write_int(y);
+	write_string(" ");
+	write_int(z);
+	write_string("\r\n");
 }
 
 void fn_stop(void)
@@ -405,9 +417,14 @@ void fn_ranchor(void)
 void fn_tagipv6(void)
 {
 	int period = 1000;
+	int period_idle = 100000;
+	int transition_time = 10;
 	(void) token_int(&period, 0);
+	(void) token_int(&period_idle, 0);
+	(void) token_int(&transition_time, 0);
 
-	tagipv6_with_period(TIME_FROM_MS(period));
+	tagipv6_with_period(TIME_FROM_MS(period), TIME_FROM_MS(period_idle),
+			TIME_FROM_SECONDS(transition_time));
 }
 
 void fn_power(void)
@@ -785,7 +802,8 @@ static command command_table[] = {
 		{"power", &fn_power},
 		{"smartpower", &fn_smartpower},
 		{"turnaround_delay", &fn_turnaround_delay},
-		{"rxtimeout", &fn_rxtimeout}
+		{"rxtimeout", &fn_rxtimeout},
+		{"accel", &fn_accel}
 };
 
 void fn_help(void)
