@@ -5,6 +5,7 @@
 #include "time.h"
 #include "proto.h"
 #include "config.h"
+#include "accel.h"
 
 #include "em_gpio.h"
 
@@ -121,7 +122,11 @@ typedef struct {
 	ipv6_addr_t target_ipv6_addr;
 	uint16_t source_port;
 	uint16_t dest_port;
-	int period;
+	int period_active;
+	int period_idle;
+	int transition_time;
+	uint32_t last_event;
+	bool active;
 } tag_data_t;
 
 #define DEFAULT_IPV6_ADDR {0xff, 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}
@@ -136,7 +141,10 @@ tag_data_t tag_data = {
         .target_ipv6_addr = DEFAULT_IPV6_ADDR,
 		.source_port = 0xf0b0,
         .dest_port = 0xf0b0,
-        .period = TIME_FROM_SECONDS(1)
+        .period_active = TIME_FROM_SECONDS(1),
+		.period_idle = TIME_FROM_SECONDS(100),
+		.transition_time = TIME_FROM_SECONDS(10),
+		.active = false
 };
 
 #define READ16(buf, i) (buf[i] + (buf[i+1] << 8))
@@ -671,12 +679,31 @@ void ipv6_udp_checksum(uint8_t *buf, address_t *mac_addr, ipv6_addr_t ipv6_addr,
 	txbuf[payload_offset-1] = (checksum >> 0) & 0xff;
 }
 
+void tagipv6_set_event(uint32_t now)
+{
+	int period;
+
+	/* XXX there's a very occasional wraparound problem here. */
+	int time_diff = time_sub(now, accel_last_activity());
+	if ((time_diff >= 0) && (time_diff < tag_data.transition_time)) {
+		period = tag_data.period_active;
+	} else {
+		period = tag_data.period_idle;
+	}
+
+    uint32_t time = time_add(tag_data.last_event, period);
+    time_event_at(tagipv6_start, time);
+}
+
 void tagipv6_start(void)
 {
     int offset, udp_offset;
     uint8_t voltage, temperature;
 
-    time_event_in(tagipv6_start, tag_data.period);
+    tag_data.active = true;
+
+    tag_data.last_event = time_now();
+    tagipv6_set_event(tag_data.last_event);
 
     proto_header(txbuf);
     offset = proto_dest(txbuf, &tag_data.target_mac_addr);
@@ -721,7 +748,7 @@ void tagipv6_txdone(void)
 	device.radio_active = false;
 }
 
-void tagipv6_with_period(int period)
+void tagipv6_with_period(int period, int period_idle, int transition_time)
 {
 	proto_prepare();
     radio_callbacks tag_callbacks = {
@@ -745,17 +772,25 @@ void tagipv6_with_period(int period)
 	(void) config_get(config_key_tag_source_port, (uint8_t *)&tag_data.source_port, sizeof(tag_data.source_port));
 	(void) config_get(config_key_tag_dest_port, (uint8_t *)&tag_data.dest_port, sizeof(tag_data.dest_port));
 
-	tag_data.period = period;
+	tag_data.period_active = period;
+	tag_data.period_idle = period_idle;
+	tag_data.transition_time = transition_time;
 
 	tagipv6_start();
 }
 
 void tagipv6(void)
 {
-	int period = 0;
-	if (config_get(config_key_tag_period, (uint8_t *)&period, sizeof(int)) <= 0)
-		period = 1000;
-	tagipv6_with_period(TIME_FROM_MS(period));
+	uint32_t period_active = 0;
+	uint32_t period_idle = 0;
+	uint32_t transition_time = 0;
+	if (config_get(config_key_tag_period, (uint8_t *)&period_active, sizeof(int)) <= 0)
+		period_active = 1000;
+	if (config_get(config_key_tag_period_idle, (uint8_t *)&period_idle, sizeof(int)) <= 0)
+		period_idle = 100000;
+	if (config_get(config_key_tag_transition_time, (uint8_t *)&transition_time, sizeof(int)) <= 0)
+		transition_time = 10;
+	tagipv6_with_period(TIME_FROM_MS((uint64_t)period_active), TIME_FROM_MS((uint64_t)period_idle), TIME_FROM_SECONDS((uint64_t)transition_time));
 }
 
 void tag(void)
@@ -798,6 +833,7 @@ void stop(void)
 	time_event_clear(tagipv6_start);
     radio_txrxoff();
     device.radio_active = false;
+    tag_data.active = false;
 }
 
 #if 1
@@ -1021,6 +1057,13 @@ void proto_poll()
         tag_packet_failed = false;
         if (!tag_average_running)
             write_string("***ERROR***\r\n");
+    }
+    if (accel_interrupt_fired()) {
+#if 0
+    	write_string("Movement\r\n");
+#endif
+    	if (tag_data.active)
+    	    tagipv6_set_event(time_now());
     }
     if (!device.radio_active && !device.radio_sleeping) {
     	if (time_to_next_event() >= PROTO_PREPARETIME) {

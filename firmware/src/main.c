@@ -43,25 +43,6 @@ radio_config_t radio_config = {
 
 uint8_t xtal_trim;
 
-void int_init(void)
-{
-	/* PC9 is the radio, PC4 is the accelerometer */
-    GPIO_PinModeSet(gpioPortC, 4, gpioModeInput, 0);
-    /* Set rising edge interrupt for both pins */
-    GPIO_IntConfig(gpioPortC, 4, true, false, true);
-    /* Enable interrupt in core for even and odd gpio interrupts */
-    NVIC_ClearPendingIRQ(GPIO_EVEN_IRQn);
-    NVIC_EnableIRQ(GPIO_EVEN_IRQn);
-}
-
-int gpio_even = 0;
-
-void GPIO_EVEN_IRQHandler(void)
-{
-    GPIO_IntClear(GPIO_IntGet());
-    gpio_even++;
-}
-
 extern void *__StackTop;
 extern void *__StackLimit;
 extern void *__HeapLimit;
@@ -102,13 +83,11 @@ int main(void)
   /* Battery monitor disable - saves a couple of microamps */
   GPIO_PinModeSet(gpioPortD, 7, gpioModePushPull, 0);
 
-  int_init();
-
   delay(100);
   time_init();
   config_init();
   radio_init(true);
-  accel_init();
+  bool accel_present = accel_init();
 
   xtal_trim = 0x10; // Default value in radio driver
   if (config_get(config_key_xtal_trim, &xtal_trim, 1))
@@ -118,15 +97,34 @@ int main(void)
    * for the LFXO to be stable.
    */
   uart_init();
+
+  if (accel_present)
+      write_string("Accelerometer detected\r\n");
+  else
+	  write_string("No accelerometer detected\r\n");
+
   cli_init();
 
-  uint8_t accel_status = accel_read(0x08);
-  uint8_t accel_init = accel_read(0x0f);
+  uint8_t sniff_sensitivity = 2;
+  uint8_t sniff_exponent = 0;
+  uint8_t sniff_mode = 1;
+  uint8_t sniff_count = 0;
+  (void) config_get(config_key_accel_sensitivity, &sniff_sensitivity, 1);
+  (void) config_get(config_key_accel_exponent, &sniff_exponent, 1);
+  (void) config_get(config_key_accel_mode, &sniff_mode, 1);
+  (void) config_get(config_key_accel_count, &sniff_count, 1);
+  accel_enter_mode(ACCEL_STANDBY);
+  accel_config_power_mode(ACCEL_ULP, ACCEL_ULP);
+  accel_config_range_resolution(ACCEL_2G, ACCEL_6BITS);
+  accel_config_rate(ACCEL_ULP_ODR_25);
+  accel_config_threshold(sniff_sensitivity, sniff_sensitivity, sniff_sensitivity, sniff_exponent);
+  if (sniff_count > 0)
+      accel_config_detection_count(sniff_count-1, sniff_count-1, sniff_count-1, true);
+  else
+      accel_config_detection_count(0, 0, 0, false);
+  accel_config_sniff_mode(false, sniff_mode);
 
-  write_hex(accel_status);
-  write_string(":");
-  write_hex(accel_init);
-  write_string("\r\n");
+  accel_enter_mode(ACCEL_SNIFF);
 
 #if 0
   uint8_t seq[] = {8, 4, 1, 2, 0, 2, 1, 4, 8, 0};
