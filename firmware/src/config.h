@@ -38,7 +38,8 @@
 	X(accel_sensitivity, 0x001d) \
 	X(accel_exponent,    0x001e) \
 	X(accel_mode,        0x001f) \
-	X(accel_count,       0x0020)
+	X(accel_count,       0x0020) \
+	X(tag_two_way,       0x0021)
 
 #define CONFIG_KEY_INVALID 0x0000
 

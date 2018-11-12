@@ -127,6 +127,9 @@ typedef struct {
 	int transition_time;
 	uint32_t last_event;
 	bool active;
+	bool two_way;
+	uint64_t tx_stamp;
+	uint32_t two_way_window;
 } tag_data_t;
 
 #define DEFAULT_IPV6_ADDR {0xff, 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}
@@ -139,12 +142,15 @@ address_t default_target_addr = DEFAULT_TARGET_ADDR;
 tag_data_t tag_data = {
 		.target_mac_addr = DEFAULT_TARGET_ADDR,
         .target_ipv6_addr = DEFAULT_IPV6_ADDR,
-		.source_port = 0xf0b0,
-        .dest_port = 0xf0b0,
+		.source_port = DEFAULT_SOURCE_PORT,
+        .dest_port = DEFAULT_DEST_PORT,
         .period_active = TIME_FROM_SECONDS(1),
 		.period_idle = TIME_FROM_SECONDS(100),
 		.transition_time = TIME_FROM_SECONDS(10),
-		.active = false
+		.active = false,
+		.two_way = false,
+		.tx_stamp = 0,
+		.two_way_window = 0,
 };
 
 #define READ16(buf, i) (buf[i] + (buf[i+1] << 8))
@@ -186,6 +192,7 @@ tag_data_t tag_data = {
 #define TAIL_HEADER_LISTEN  0x40
 #define TAIL_HEADER_BATTERY 0x20
 #define TAIL_HEADER_CONFIG  0x10
+#define TAIL_HEADER_TIMING  0x08
 
 /* MAC frame (IEEE 802.15.4-2011)
  *
@@ -238,6 +245,11 @@ typedef struct packet {
 	uint8_t seq;
 	address_t source;
 	address_t dest;
+	ipv6_addr_t ipv6_source;
+	ipv6_addr_t ipv6_dest;
+	uint16_t source_port;
+	uint16_t dest_port;
+	int hlen;
 } packet_t;
 
 #define TIMESTAMP_READ(array) ((uint64_t)((array)[0]) + ((uint64_t)((array)[1]) << 8) + ((uint64_t)((array)[2]) << 16) + ((uint64_t)((array)[3]) << 24) + ((uint64_t)((array)[4]) << 32))
@@ -259,6 +271,8 @@ void proto_rxtimeout(void);
 void proto_rxerror(void);
 bool proto_despatch(uint8_t *buf, int len);
 void proto_prepare(void);
+void ipv6_addr_from_mac(ipv6_addr_t ipv6, address_t *mac);
+address_t my_mac_address(void);
 
 
 radio_callbacks proto_callbacks = {
@@ -536,25 +550,49 @@ void tag_with_period(int period)
 	tag_start();
 }
 
-int ipv6_header(uint8_t *buf, int offset, ipv6_addr_t a)
+int ipv6_header(uint8_t *buf, int offset, ipv6_addr_t a, address_t *mac_dest)
 {
 	int dam = 0;
-	if ((a[0] == 0xff) &&
+	bool multicast;
+
+	if (a[0] == 0xff) {
+		multicast = true;
+	    if (
 			(a[2] == 0) && (a[3] == 0) && (a[4] == 0) && (a[5] == 0) &&
 			(a[6] == 0) && (a[7] == 0) && (a[8] == 0) && (a[9] == 0) &&
 			(a[10] == 0)) {
-	    dam++;
-	    if ((a[11] == 0) && (a[12] == 0)) {
 	    	dam++;
-			if ((a[1] == 2) && (a[13] == 0) && (a[14] == 0)) {
-				dam++;
-			}
+		    if ((a[11] == 0) && (a[12] == 0)) {
+		    	dam++;
+				if ((a[1] == 2) && (a[13] == 0) && (a[14] == 0)) {
+					dam++;
+				}
+		    }
 	    }
+	} else {
+		multicast = false;
+		if ((a[0] == 0xfe) && (a[1] == 0x80) &&
+		    (a[2] == 0x00) && (a[3] == 0x00) &&
+		    (a[4] == 0x00) && (a[5] == 0x00) &&
+			(a[6] == 0x00) && (a[7] == 0x00)) {
+			ipv6_addr_t mac_ipv6_addr;
+			ipv6_addr_from_mac(mac_ipv6_addr, mac_dest);
+
+			dam = 1;
+
+			if (memcmp(a, mac_ipv6_addr, 16) == 0) {
+				dam = 3;
+			} else if ((a[8] == 0x00) && (a[9] == 0x00) &&
+					   (a[10] == 0x00) && (a[11] == 0xff) &&
+					   (a[12] == 0xfe) && (a[13] == 0x00)) {
+				dam = 2;
+			}
+		}
 	}
-    /* compressed IPv6 header */
-    /* XXX this will need revisiting to efficiently address non-multicast addresses */
+
+	/* compressed IPv6 header */
     buf[offset++] = 0x7f; /* iphc header TF=3, NH=1, HLIM=3 */
-    buf[offset++] = 0x38+dam; /* CID=0, SAC=0, SAM=3, M=1, DAC=0, DAM=dam */
+    buf[offset++] = 0x30 + dam + (multicast?0x08:0x00); /* CID=0, SAC=0, SAM=3, M=multicast, DAC=0, DAM=dam */
 
     switch (dam) {
     case 0:
@@ -562,21 +600,39 @@ int ipv6_header(uint8_t *buf, int offset, ipv6_addr_t a)
     	    buf[offset++] = a[i];
     	break;
     case 1:
-    	buf[offset++] = a[1];
-    	buf[offset++] = a[11];
-    	buf[offset++] = a[12];
-    	buf[offset++] = a[13];
-    	buf[offset++] = a[14];
-    	buf[offset++] = a[15];
+    	if (multicast) {
+        	buf[offset++] = a[1];
+        	buf[offset++] = a[11];
+        	buf[offset++] = a[12];
+        	buf[offset++] = a[13];
+        	buf[offset++] = a[14];
+        	buf[offset++] = a[15];
+    	} else {
+    		buf[offset++] = a[8];
+    		buf[offset++] = a[9];
+    		buf[offset++] = a[10];
+    		buf[offset++] = a[11];
+    		buf[offset++] = a[12];
+    		buf[offset++] = a[13];
+    		buf[offset++] = a[14];
+    		buf[offset++] = a[15];
+    	}
     	break;
     case 2:
-    	buf[offset++] = a[1];
-    	buf[offset++] = a[13];
-    	buf[offset++] = a[14];
-    	buf[offset++] = a[15];
+    	if (multicast) {
+        	buf[offset++] = a[1];
+        	buf[offset++] = a[13];
+        	buf[offset++] = a[14];
+        	buf[offset++] = a[15];
+    	} else {
+    		buf[offset++] = a[14];
+    		buf[offset++] = a[15];
+    	}
     	break;
     case 3:
-    	buf[offset++] = a[15];
+    	if (multicast) {
+        	buf[offset++] = a[15];
+    	}
     	break;
     }
 
@@ -634,22 +690,12 @@ void ipv6_udp_checksum(uint8_t *buf, address_t *mac_addr, ipv6_addr_t ipv6_addr,
 	}
 	int length = offset - payload_offset;
 
-	/* 128 bit source address */
-	checksum += 0xfe80; /* Link local prefix */
-	switch (mac_addr->type) {
-	case ADDR_SHORT:
-		checksum += mac_addr->pan ^ 0x0200; /* U/L bit */
-		checksum += 0x00ff;
-		checksum += 0xfe00;
-	    checksum += mac_addr->a.s;
-		break;
-	case ADDR_LONG:
-		checksum += ((mac_addr->a.l >> 48) & 0xffff) ^ 0x0200; /* U/L bit */
-		checksum += ((mac_addr->a.l >> 32) & 0xffff);
-		checksum += ((mac_addr->a.l >> 16) & 0xffff);
-		checksum += (mac_addr->a.l & 0xffff);
-		break;
-	}
+	/* 128 bits source address */
+	ipv6_addr_t source;
+	ipv6_addr_from_mac(source, mac_addr);
+	for (int i = 0; i < 16; i += 2)
+	    checksum += ((uint16_t)(source[i]) << 8) + source[i+1];
+
 	/* 128 bits dest address */
 	for (int i = 0; i < 16; i += 2)
 	    checksum += ((uint16_t)(ipv6_addr[i]) << 8) + ipv6_addr[i+1];
@@ -675,8 +721,45 @@ void ipv6_udp_checksum(uint8_t *buf, address_t *mac_addr, ipv6_addr_t ipv6_addr,
 
 	checksum = ~checksum;
 
-	txbuf[payload_offset-2] = (checksum >> 8) & 0xff;
-	txbuf[payload_offset-1] = (checksum >> 0) & 0xff;
+	buf[payload_offset-2] = (checksum >> 8) & 0xff;
+	buf[payload_offset-1] = (checksum >> 0) & 0xff;
+}
+
+
+bool ipv6_verify_checksum(packet_t *p, uint16_t checksum)
+{
+	uint32_t sum = checksum;
+	uint8_t *buf = p->payload + p->hlen;
+	int length = p->len - p->hlen;
+
+	for (int i = 0; i < 16; i += 2)
+	    sum += ((uint16_t)(p->ipv6_source[i]) << 8) + p->ipv6_source[i+1];
+
+	for (int i = 0; i < 16; i += 2)
+	    sum += ((uint16_t)(p->ipv6_dest[i]) << 8) + p->ipv6_dest[i+1];
+	/* upper-layer packet length plus uncompressed UDP header length */
+	sum += length + 8;
+
+	/* next header */
+	sum += 17; /* UDP next header */
+
+	/* UDP header */
+    sum += p->source_port;
+	sum += p->dest_port;
+	sum += length + 8;
+
+	for (int i = 0; i < (length & ~1); i += 2) {
+		sum += ((buf[i] << 8) | buf[i + 1]);
+	}
+	if (length & 1)
+		sum += (buf[length-1] << 8);
+
+	sum = (sum & 0xffff) + (sum >> 16);
+	sum = (sum & 0xffff) + (sum >> 16);
+
+	sum = (~sum) & 0xffff;
+
+	return sum == 0;
 }
 
 void tagipv6_set_event(uint32_t now)
@@ -695,6 +778,20 @@ void tagipv6_set_event(uint32_t now)
     time_event_at(tagipv6_start, time);
 }
 
+address_t my_mac_address(void)
+{
+	address_t mac_addr;
+    mac_addr.pan = device.pan;
+    if (device.associated) {
+        mac_addr.type = ADDR_SHORT;
+        mac_addr.a.s = device.short_addr;
+    } else {
+    	mac_addr.type = ADDR_LONG;
+        mac_addr.a.l = device.eui;
+    }
+    return mac_addr;
+}
+
 void tagipv6_start(void)
 {
     int offset, udp_offset;
@@ -708,7 +805,7 @@ void tagipv6_start(void)
     proto_header(txbuf);
     offset = proto_dest(txbuf, &tag_data.target_mac_addr);
     offset = proto_source(txbuf, offset);
-    offset = ipv6_header(txbuf, offset, tag_data.target_ipv6_addr);
+    offset = ipv6_header(txbuf, offset, tag_data.target_ipv6_addr, &tag_data.target_mac_addr);
     udp_offset = offset;
     offset = ipv6_udp_header(txbuf, offset, tag_data.source_port, tag_data.dest_port);
 
@@ -722,43 +819,25 @@ void tagipv6_start(void)
     txbuf[offset++] = device.volts_cal;
     txbuf[offset++] = device.temp_cal;
 
-    address_t source_mac_addr;
-
-    source_mac_addr.pan = device.pan;
-    if (device.associated) {
-        source_mac_addr.type = ADDR_SHORT;
-        source_mac_addr.a.s = device.short_addr;
-    } else {
-    	source_mac_addr.type = ADDR_LONG;
-        source_mac_addr.a.l = device.eui;
-    }
+    address_t source_mac_addr = my_mac_address();
 
     ipv6_udp_checksum(txbuf, &source_mac_addr, tag_data.target_ipv6_addr, tag_data.source_port, tag_data.dest_port, udp_offset, offset);
 
     radio_writepayload(txbuf, offset, 0);
     radio_txprepare(offset+2, 0, false);
+    radio_setrxtimeout(device.rxtimeout);
 
+    device.txtime_ptr = &tag_data.tx_stamp;
 	device.radio_active = true;
 
 	radio_txstart(false);
 }
 
-void tagipv6_txdone(void)
-{
-	device.radio_active = false;
-}
-
 void tagipv6_with_period(int period, int period_idle, int transition_time)
 {
 	proto_prepare();
-    radio_callbacks tag_callbacks = {
-    		.txdone = tagipv6_txdone,
-    		.rxdone = NULL,
-    		.rxtimeout = NULL,
-    		.rxerror = NULL
-    };
 
-	radio_setcallbacks(&tag_callbacks);
+	radio_setcallbacks(&proto_callbacks);
 
 	tag_data.target_mac_addr = default_target_addr;
     /* Do we want to be able to direct this packet differently at the MAC layer? */
@@ -771,10 +850,14 @@ void tagipv6_with_period(int period, int period_idle, int transition_time)
 
 	(void) config_get(config_key_tag_source_port, (uint8_t *)&tag_data.source_port, sizeof(tag_data.source_port));
 	(void) config_get(config_key_tag_dest_port, (uint8_t *)&tag_data.dest_port, sizeof(tag_data.dest_port));
+	(void) config_get(config_key_tag_two_way, (uint8_t *)&tag_data.two_way, sizeof(tag_data.two_way));
 
 	tag_data.period_active = period;
 	tag_data.period_idle = period_idle;
 	tag_data.transition_time = transition_time;
+
+	device.receive_after_transmit = tag_data.two_way;
+	device.continuous_receive = false;
 
 	tagipv6_start();
 }
@@ -1351,6 +1434,301 @@ bool tail_sync_beacon(packet_t *p)
     return false;
 }
 
+void ipv6_addr_from_mac(ipv6_addr_t ipv6, address_t *mac)
+{
+	ipv6[0] = 0xfe;
+	ipv6[1] = 0x80;
+	ipv6[2] = 0x00;
+	ipv6[3] = 0x00;
+	ipv6[4] = 0x00;
+	ipv6[5] = 0x00;
+	ipv6[6] = 0x00;
+	ipv6[7] = 0x00;
+	switch (mac->type) {
+	case ADDR_SHORT:
+		ipv6[8] = 0x00;
+		ipv6[9] = 0x00;
+		ipv6[10] = 0x00;
+		ipv6[11] = 0xff;
+		ipv6[12] = 0xfe;
+		ipv6[13] = 0x00;
+		ipv6[14] = mac->a.s >> 8;
+		ipv6[15] = mac->a.s & 0xff;
+		break;
+	case ADDR_LONG:
+		ipv6[8]  =((mac->a.l >> 56) & 0xff) ^ 0x02; /* U/L bit */
+		ipv6[9]  = (mac->a.l >> 48) & 0xff;
+		ipv6[10] = (mac->a.l >> 40) & 0xff;
+		ipv6[11] = (mac->a.l >> 32) & 0xff;
+		ipv6[12] = (mac->a.l >> 24) & 0xff;
+		ipv6[13] = (mac->a.l >> 16) & 0xff;
+		ipv6[14] = (mac->a.l >>  8) & 0xff;
+		ipv6[15] = (mac->a.l >>  0) & 0xff;
+		break;
+	default:
+		ipv6[8] = 0x00;
+		ipv6[9] = 0x00;
+		ipv6[10] = 0x00;
+		ipv6[11] = 0x00;
+		ipv6[12] = 0x00;
+		ipv6[13] = 0x00;
+		ipv6[14] = 0x00;
+		ipv6[15] = 0x00;
+		break;
+	}
+}
+
+bool tail_timing(packet_t *p, int hlen)
+{
+	uint64_t ttx, td1, td2;
+	int offset, udp_offset;
+
+	ttx = p->timestamp + device.turnaround_delay;
+	ttx = ttx & ~0x1ff;
+
+	td1 = p->timestamp - tag_data.tx_stamp;
+	td2 = ttx - tag_data.tx_stamp;
+
+	proto_header(txbuf);
+	offset = proto_reply(txbuf, p);
+
+	offset = ipv6_header(txbuf, offset, p->ipv6_source, &p->source);
+    udp_offset = offset;
+    offset = ipv6_udp_header(txbuf, offset, p->dest_port, p->source_port);
+
+	txbuf[offset++] = TAIL_HEADER_TIMING;
+
+	TIMESTAMP_WRITE(txbuf+offset, td1);
+	offset += 5;
+	TIMESTAMP_WRITE(txbuf+offset, td2);
+	offset += 5;
+
+	address_t source_mac_addr = my_mac_address();
+    ipv6_udp_checksum(txbuf, &source_mac_addr, p->ipv6_source, p->dest_port, p->source_port, udp_offset, offset);
+
+    radio_writepayload(txbuf, offset, 0);
+    radio_txprepare(offset+2, 0, true);
+    radio_setstarttime(ttx >> 8);
+    radio_txstart(true);
+
+    return true;
+}
+
+bool tagipv6_rx(packet_t *p)
+{
+	memset(p->ipv6_source, 0, 16);
+	memset(p->ipv6_dest, 0, 16);
+	p->ipv6_source[0] = 0xfe;
+	p->ipv6_source[1] = 0x80;
+	p->ipv6_source[11] = 0xff;
+	p->ipv6_source[12] = 0xfe;
+	p->ipv6_dest[0] = 0xfe;
+	p->ipv6_dest[1] = 0x80;
+	p->ipv6_dest[11] = 0xff;
+	p->ipv6_dest[12] = 0xfe;
+
+	int hlen = 2;
+
+	if (p->len < 3)
+		return false;
+
+	int tf = (p->payload[0] >> 3) & 0x03;
+	bool nh = p->payload[0] & 0x04;
+	int hlim = p->payload[0] & 0x03;
+	bool cid = (p->payload[1] >> 6) & 0x03;
+	bool sac = p->payload[1] & 0x40;
+	int sam = (p->payload[1] >> 4) & 0x03;
+	bool m = p->payload[1] & 0x08;
+	bool dac = p->payload[1] & 0x04;
+	int dam = p->payload[1] & 0x03;
+
+	int sci = 0;
+	int dci = 0;
+
+	/* This follows the DAM field */
+	if (cid) {
+		int context = p->payload[hlen];
+		sci = (context >> 4) & 0x0f;
+		dci = (context >> 0) & 0x0f;
+		hlen++;
+	}
+
+	(void)sci;
+	(void)dci;
+
+	/* We don't care about the traffic class and flow label headers */
+	hlen += ((const int[]){4,3,1,0})[tf];
+
+	/* Next header */
+	if (!nh)
+	{
+		/* We only support UDP */
+		if (p->payload[hlen] != 17)
+			return false;
+		hlen++;
+	}
+
+	/* Hop limit */
+	if (hlim == 0)
+		hlen++;
+
+	/* We don't support context-based address compression */
+	if (sac || dac)
+		return false;
+
+	switch (sam) {
+	case 0:
+		memcpy(p->ipv6_source, p->payload+hlen, 16);
+		hlen += 16;
+		break;
+	case 1:
+		memcpy(p->ipv6_source+8, p->payload+hlen, 8);
+		hlen += 8;
+		break;
+	case 2:
+		memcpy(p->ipv6_source+14, p->payload+hlen, 2);
+		hlen += 2;
+		break;
+	case 3:
+		ipv6_addr_from_mac(p->ipv6_source, &p->source);
+		break;
+	}
+
+	switch (dam) {
+	case 0:
+		memcpy(p->ipv6_dest, p->payload+hlen, 16);
+		hlen += 16;
+		break;
+	case 1:
+		if (m) {
+			p->ipv6_dest[1] = p->payload[hlen];
+			memcpy(p->ipv6_dest+11, p->payload+hlen+1, 5);
+			hlen += 6;
+		} else {
+			memcpy(p->ipv6_dest+8, p->payload+hlen, 8);
+			hlen += 8;
+		}
+		break;
+	case 2:
+		if (m) {
+			p->ipv6_dest[1] = p->payload[hlen];
+			p->ipv6_dest[11] = 0;
+			p->ipv6_dest[12] = 0;
+			memcpy(p->ipv6_dest+13, p->payload+hlen+1, 3);
+			hlen += 4;
+		} else {
+			memcpy(p->ipv6_dest+14, p->payload+hlen, 2);
+			hlen += 2;
+		}
+		break;
+	case 3:
+		if (m) {
+			p->ipv6_dest[11] = 0;
+			p->ipv6_dest[12] = 0;
+			p->ipv6_dest[1] = 2;
+			p->ipv6_dest[15] = p->payload[hlen];
+			hlen += 1;
+		} else {
+			ipv6_addr_from_mac(p->ipv6_dest, &p->dest);
+			break;
+		}
+	}
+
+	/* We know that the memory exists after the end of the header so
+	 * we can defer checking it until here. Nevertheless, we do need
+	 * to check it because we should reject a packet with a truncated
+	 * or invalid header.
+	 */
+	if (p->len < hlen)
+		return false;
+
+	/* Reject anything not addressed to us */
+	ipv6_addr_t my_ipv6;
+	address_t my_mac;
+	my_mac = my_mac_address();
+	ipv6_addr_from_mac(my_ipv6, &my_mac);
+	if (memcmp(my_ipv6, p->ipv6_dest, 16) != 0)
+		return false;
+
+	/* Decode UDP header */
+
+	/* We require a UDP LOWPAN_NHC packet */
+	if ((p->payload[hlen] & 0xf8) != 0xf0)
+		return false;
+
+	bool nhc_c = p->payload[hlen] & 0x04;
+	int nhc_p = p->payload[hlen] & 0x03;
+
+	hlen++;
+
+	/* If the checksum is elided, we should reject the packet, as there is
+	 * no higher level protocol which will checksum the data for us.
+	 */
+	if (nhc_c)
+		return false;
+
+	switch (nhc_p) {
+	case 0:
+		p->source_port = (p->payload[hlen]   << 8) | p->payload[hlen+1];
+		p->dest_port   = (p->payload[hlen+2] << 8) | p->payload[hlen+3];
+		hlen += 4;
+		break;
+	case 1:
+		p->source_port = (p->payload[hlen]   << 8) | p->payload[hlen+1];
+		p->dest_port   = 0xf0                      | p->payload[hlen+2];
+		hlen += 3;
+		break;
+	case 2:
+		p->source_port = 0xf0                      | p->payload[hlen];
+		p->dest_port   = (p->payload[hlen+1] << 8) | p->payload[hlen+2];
+		hlen += 3;
+		break;
+	case 3:
+		p->source_port = (p->payload[hlen] >> 4)   | 0xf0b0;
+		p->dest_port   = (p->payload[hlen] & 0x0f) | 0xf0b0;
+		hlen += 1;
+		break;
+	}
+
+	uint16_t checksum = (p->payload[hlen] << 8) | p->payload[hlen+1];
+	hlen += 2;
+
+	p->hlen = hlen;
+	int length = p->len - hlen;
+
+	/* Reject anything not sent to the correct port */
+	if (p->dest_port != tag_data.source_port)
+		return false;
+
+	/* We need at least one byte in the payload for the tail header, may
+	 * as well combine this check here to reject anything with an incomplete
+	 * UDP header as well
+	 */
+	if (length < 1)
+		return false;
+
+	/* Verify UDP checksum */
+
+	(void)checksum;
+	if (!ipv6_verify_checksum(p, checksum))
+		return false;
+
+	/* Decode tail packet and despatch */
+	int tail_header = p->payload[p->hlen];
+
+	if (tail_header & TAIL_HEADER_CONFIG) {
+		/* XXX we need to implement this */
+		// tail_config(p, hlen);
+		return false;
+	}
+
+	if (tail_header & TAIL_HEADER_TIMING) {
+		return tail_timing(p, hlen);
+	}
+
+	return false;
+}
+
 /* Return true if a packet transmitted */
 bool proto_despatch(uint8_t *buf, int len)
 {
@@ -1436,6 +1814,21 @@ bool proto_despatch(uint8_t *buf, int len)
 
 	len -= pp;
 	p.payload = buf+pp;
+	/* 2 bytes of CRC follow the payload */
+	p.len = len - 2;
+
+	/* Here's a good place to check that the packet is indeed for us. */
+	if (p.dest.type != ADDR_NONE)
+		if ((p.dest.pan != device.pan) && (p.dest.pan != PAN_BROADCAST))
+			return false;
+
+	if (p.dest.type == ADDR_SHORT)
+		if ((p.dest.a.s != device.short_addr) && (p.dest.a.s != ADDR_SHORT_BROADCAST))
+			return false;
+
+	if (p.dest.type == ADDR_LONG)
+		if (p.dest.a.l != device.eui)
+			return false;
 
 	switch (p.frame_type) {
 	case 0:
@@ -1460,6 +1853,11 @@ bool proto_despatch(uint8_t *buf, int len)
 			return tail_range4(&p);
 		case TAIL_SYNC_BEACON:
 			return tail_sync_beacon(&p);
+		default:
+			if ((buf[pp] & 0xe0) == 0x60) {
+				/* IPHC header */
+				return tagipv6_rx(&p);
+			}
 		}
 		break;
 	case 2:
