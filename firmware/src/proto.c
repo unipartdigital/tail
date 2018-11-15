@@ -1487,7 +1487,7 @@ bool tail_timing(packet_t *p, int hlen)
 	ttx = ttx & ~0x1ff;
 
 	td1 = p->timestamp - tag_data.tx_stamp;
-	td2 = ttx - tag_data.tx_stamp;
+	td2 = ttx - tag_data.tx_stamp + device.antenna_delay_tx;
 
 	proto_header(txbuf);
 	offset = proto_reply(txbuf, p);
