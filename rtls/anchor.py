@@ -120,6 +120,8 @@ class TimestampInfo(Structure):
         ("fp_pwr", c_uint32),
         ("ttcko", c_uint32),
         ("ttcki", c_uint32),
+        ("temp", c_uint16),
+        ("volt", c_uint16),
     ]
 
     def __iter__(self):

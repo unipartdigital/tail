@@ -76,7 +76,44 @@ RFP3 = interp.LSQUnivariateSpline(DATA[:,3],DATA[:,0],[10.0-105,22.5-105])
 
 class DW1000:
 
-    def RxPower2dBm(power,prf):
+    def RxCompCm(dist,txpwr,rxpwr,prf,bw):
+        C = 0.0
+        if prf == 64:
+            if bw == 900:
+                if rxpwr < -90:
+                    P = [ 0.0183970957, 4.44641309, 227.515172 ]
+                elif rxpwr < -70:
+                    P = [ 0.0444305694, 8.90189810, 417.601424 ]
+                else:
+                    P = [ -0.03358327, -2.46361584,  4.70575174 ]
+            if bw == 500:
+                if rxpwr < -95:
+                    P = [ 0.00167748918, 0.480519481, 21.9312229 ]
+                elif rxpwr < -85:
+                    P = [ 0.0160714286, 3.20714286, 151.048214 ]
+                elif rxpwr < -75:
+                    P = [ 0.0517857143, 9.06428571, 390.955357 ]
+                elif rxpwr < -65:
+                    P = [ -0.0504464286, -6.34250000, -189.165625 ]
+                else:
+                    P = [ -0.00483682984, -0.315687646, 9.83479021 ]
+            C = np.polyval(P,rxpwr)
+        return C
+
+    def RxComp(dist,txpwr,rxpwr,prf,bw):
+        return DW1000.RxCompCm(dist,txpwr,rxpwr,prf,bw) / 100
+
+    def RxCompTime(dist,txpwr,rxpwr,prf,bw):
+        return DW1000.RxComp(dist,txpwr,rxpwr,prf,bw) / C_AIR
+
+    def RxCompNs(dist,txpwr,rxpwr,prf,bw):
+        return DW1000.RxCompTime(dist,txpwr,rxpwr,prf,bw) * 1E9
+
+    def RxCompRaw(dist,txpwr,rxpwr,prf,bw):
+        return DW1000.RxCompTime(dist,txpwr,rxpwr,prf,bw) * DW1000_CLOCK_HZ 
+
+    
+    def RxPower2dBm(power,prf=64):
         Plog = 10*math.log10(power)
         if prf == 16:
             Plog -= 113.77
@@ -442,6 +479,14 @@ class Blinker():
                 power = (FPA1*FPA1 + FPA2*FPA2 + FPA3*FPA3) / (RXPACC*RXPACC)
                 return power
         raise ValueError
+
+    def getTemp(self,index,eui):
+        raw = self.blinks[index]['anchors'][eui]['tsi']['temp']
+        return 0.01*raw
+
+    def getVolt(self,index,eui):
+        raw = self.blinks[index]['anchors'][eui]['tsi']['volt']
+        return 0.001*raw
 
     def GetBlinkId(self,time=0.0):
         bid = self.bid

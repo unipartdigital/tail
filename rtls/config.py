@@ -77,6 +77,8 @@ DW1000_TSINFO_ATTRS = (
     'fp_pwr',
     'ttcko',
     'ttcki',
+    'temp',
+    'volt',
 )
 
 

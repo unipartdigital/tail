@@ -46,6 +46,11 @@ DEBUG = 0
 
 def DECA_TWR(blk, tmr, remote, delay, rawts=False):
 
+    if rawts:
+        SCL = DW1000_CLOCK_GHZ
+    else:
+        SCL = 1<<32
+
     adr1 = remote[0].addr
     adr2 = remote[1].addr
     eui1 = remote[0].eui
@@ -73,8 +78,10 @@ def DECA_TWR(blk, tmr, remote, delay, rawts=False):
     F2 = blk.getXtalPPM(i1, eui2)
     F6 = blk.getXtalPPM(i3, eui2)
 
-    Pwr = blk.getRxPower(i1, eui2)
-    Fpp = blk.getFpPower(i1, eui2)
+    Pwr = blk.getRxPower(i2, eui1)
+    Fpp = blk.getFpPower(i2, eui1)
+    Tmp = blk.getTemp(i2,eui1)
+    Vol = blk.getVolt(i2,eui1)
 
     T41 = T4 - T1
     T32 = T3 - T2
@@ -84,14 +91,8 @@ def DECA_TWR(blk, tmr, remote, delay, rawts=False):
     T62 = T6 - T2
     
     Tof = (T41*T63 - T32*T54) / (T51+T62)
-    
-    if rawts:
-        Dof = Tof / DW1000_CLOCK_GHZ
-        Rtt = T41 / DW1000_CLOCK_GHZ
-    else:
-        Dof = Tof / (1<<32)
-        Rtt = T41 / (1<<32)
-        
+    Dof = Tof / SCL
+    Rtt = T41 / SCL
     Lof = Dof * C_AIR * 1E-9
         
     Est = (F2 + F6) / 2
@@ -101,11 +102,16 @@ def DECA_TWR(blk, tmr, remote, delay, rawts=False):
     blk.PurgeBlink(i2)
     blk.PurgeBlink(i3)
     
-    return (Lof,Dof,Rtt,Err,Est,Pwr,Fpp)
+    return (Lof,Dof,Rtt,Err,Est,Pwr,Fpp,Tmp,Vol)
 
-            
+
 def DECA_FAST_TWR(blk, tmr, remote, delay, rawts=False):
     
+    if rawts:
+        SCL = DW1000_CLOCK_GHZ
+    else:
+        SCL = 1<<32
+
     adr1 = remote[0].addr
     adr2 = remote[1].addr
     eui1 = remote[0].eui
@@ -136,9 +142,11 @@ def DECA_FAST_TWR(blk, tmr, remote, delay, rawts=False):
     F2 = blk.getXtalPPM(i1, eui2)
     F6 = blk.getXtalPPM(i3, eui2)
 
-    Pwr = blk.getRxPower(i1, eui2)
-    Fpp = blk.getFpPower(i1, eui2)
-    
+    Pwr = blk.getRxPower(i2, eui1)
+    Fpp = blk.getFpPower(i2, eui1)
+    Tmp = blk.getTemp(i2,eui1)
+    Vol = blk.getVolt(i2,eui1)
+
     T41 = T4 - T1
     T32 = T3 - T2
     T54 = T5 - T4
@@ -147,14 +155,8 @@ def DECA_FAST_TWR(blk, tmr, remote, delay, rawts=False):
     T62 = T6 - T2
     
     Tof = (T41*T63 - T32*T54) / (T51+T62)
-    
-    if rawts:
-        Dof = Tof / DW1000_CLOCK_GHZ
-        Rtt = T41 / DW1000_CLOCK_GHZ
-    else:
-        Dof = Tof / (1<<32)
-        Rtt = T41 / (1<<32)
-        
+    Dof = Tof / SCL
+    Rtt = T41 / SCL
     Lof = Dof * C_AIR * 1E-9
         
     Est = (F2 + F6) / 2
@@ -164,7 +166,7 @@ def DECA_FAST_TWR(blk, tmr, remote, delay, rawts=False):
     blk.PurgeBlink(i2)
     blk.PurgeBlink(i3)
     
-    return (Lof,Dof,Rtt,Err,Est,Pwr,Fpp)
+    return (Lof,Dof,Rtt,Err,Est,Pwr,Fpp,Tmp,Vol)
 
             
 def main():
@@ -186,10 +188,10 @@ def main():
     parser.add_argument('-P', '--plot', action='store_true', default=False, help='Plot histogram')
     parser.add_argument('-R', '--raw', action='store_true', default=False, help='Use raw timestamps')
     parser.add_argument('--ewma', type=int, default=CFG.ewma)
-    parser.add_argument('--range', type=float, default=CFG.range)
-    parser.add_argument('--binsize', type=float, default=CFG.binsize)
     parser.add_argument('--delay1', type=float, default=None)
     parser.add_argument('--delay2', type=float, default=None)
+    parser.add_argument('--range', type=float, default=CFG.range)
+    parser.add_argument('--binsize', type=float, default=CFG.binsize)
     parser.add_argument('remote', type=str, nargs='+', help="Remote address")
     
     args = parser.parse_args()
@@ -242,32 +244,49 @@ def main():
     try:
         for i in range(args.count):
             try:
-                (Lof,Dof,Rtt,Ppm,Ppe,Pwr,Fpp) = algo(blk, tmr, remotes, (delay1,delay2,args.wait), rawts=args.raw)
-                if Lof > 0 and Lof < 100:
-                    delays.append(Dof)
-                    powers.append(Pwr)
-                    fpathp.append(Fpp)
-                    rtrips.append(Rtt/1E6)
-                    Tcnt += 1
-                    if VERBOSE > 0:
-                        Plog = DW1000.RxPower2dBm(Pwr,64)
-                        Ldif = Lof - Lfil
-                        Lvar += (Ldif*Ldif - Lvar) / args.ewma
-                        if Tcnt < args.ewma:
-                            Lfil += Ldif / Tcnt
-                        else:
-                            Lfil += Ldif / args.ewma
-                        print('{:.3f}m {:.3f}m -- Dist:{:.3f}m ToF:{:.3f}ns Xerr:{:+.3f}ppm Xest:{:+.3f}ppm Rx:{:.1f}dBm Rtt:{:.3f}ms'.format(Lfil,math.sqrt(Lvar),Lof,Dof,Ppm*1E6,Ppe*1E6,Plog,Rtt*1E-6))
-                else:
-                    if VERBOSE > 0:
-                        eprint('*')
-                    else:
-                        eprints('*')
-            except (ValueError,KeyError,TimeoutError):
+                (Lof,Dof,Rtt,Ppm,Ppe,Pwr,Fpp,Tmp,Vol) = algo(blk, tmr, remotes, (delay1,delay2,args.wait), rawts=args.raw)
+                
+                if Lof < 0 or Lof > 100:
+                    raise ValueError
+
+                Plog = DW1000.RxPower2dBm(Pwr,64)
+                
+                delays.append(Dof)
+                powers.append(Pwr)
+                fpathp.append(Fpp)
+                rtrips.append(Rtt/1E6)
+                
+                Tcnt += 1
+                
                 if VERBOSE > 0:
-                    eprint('?')
-                else:
-                    eprints('?')
+                    Ldif = Lof - Lfil
+                    Lvar += (Ldif*Ldif - Lvar) / args.ewma
+                    if Tcnt < args.ewma:
+                        Lfil += Ldif / Tcnt
+                    else:
+                        Lfil += Ldif / args.ewma
+                    msg  = '{:.3f}m '.format(Lfil)
+                    msg += '{:.3f}m '.format(math.sqrt(Lvar))
+                    msg += '-- '
+                    msg += 'Lof:{:.3f}m '.format(Lof)
+                    msg += 'ToF:{:.3f}ns '.format(Dof)
+                    msg += 'Xerr:{:+.3f}ppm '.format(Ppm*1E6)
+                    msg += 'Xest:{:+.3f}ppm '.format(Ppe*1E6)
+                    msg += 'Rx:{:.1f}dBm '.format(Plog)
+                    msg += 'Temp:{:.2f}C '.format(Tmp)
+                    msg += 'Volt:{:.3f}V '.format(Vol)
+                    msg += 'Rtt:{:.3f}ms '.format(Rtt*1E-6)
+                    print(msg)
+            
+            except (TimeoutError):
+                eprints('T')
+            except (KeyError):
+                eprints('?')
+            except (ValueError):
+                eprints('*')
+            except (ZeroDivisionError):
+                eprints('0')
+
             if VERBOSE == 0 and i%10 == 0:
                 eprints('.')
             
@@ -302,15 +321,15 @@ def main():
         
         print()
         print('FINAL STATISTICS:')
-        print('  Samples:  {} [{:.1f}%]'.format(Tcnt,100*Tcnt/args.count))
-        print('  Peak.Avg: {:.3f}m {:.3f}ns'.format(Mavg,Navg))
-        print('  Peak.Std: {:.3f}m {:.3f}ns'.format(Mstd,Nstd))
-        print('  Average:  {:.3f}m {:.3f}ns'.format(Lavg,Davg))
-        print('  Std.Dev:  {:.3f}m {:.3f}ns'.format(Lstd,Dstd))
-        print('  Median:   {:.3f}m {:.3f}ns'.format(Lmed,Dmed))
-        print('  RTT.Avg:  {:.3f}ms {:.3f}ms'.format(Ravg,Rstd))
-        print('  PWR.Avg:  {:.1f}dBm {:.2f}dBm'.format(Plog,Pstl))
-        print('  FPP.Avg:  {:.1f}dBm {:.2f}dBm'.format(Flog,Fstl))
+        print('  Samples:  {} [{:.1f}%]'.format(Tcnt,(100*Tcnt/args.count)-100))
+        print('  Peak.Avg: {:.3f}m ={:.3f}ns'.format(Mavg,Navg))
+        print('  Peak.Std: {:.3f}m ={:.3f}ns'.format(Mstd,Nstd))
+        print('  Average:  {:.3f}m ={:.3f}ns'.format(Lavg,Davg))
+        print('  Std.Dev:  {:.3f}m ={:.3f}ns'.format(Lstd,Dstd))
+        print('  Median:   {:.3f}m ={:.3f}ns'.format(Lmed,Dmed))
+        print('  RTT.Avg:  {:.3f}ms [{:.3f}ms]'.format(Ravg,Rstd))
+        print('  PWR.Avg:  {:.1f}dBm [{:.2f}dBm]'.format(Plog,Pstl))
+        print('  FPP.Avg:  {:.1f}dBm [{:.2f}dBm]'.format(Flog,Fstl))
 
         if args.hist or args.plot:
             
