@@ -47,21 +47,15 @@ def hyperjump(b0,bs,bi,di,sigma,theta):
     x = lin.solve(Gbb,Gbh)
     return x[0:3]
 
-def hyperlater(B,R,S,delta=None,theta=0.045,maxiter=8):
-    if R.size < 6:
+def hyperlater(B0,B,R,S,delta=None,theta=0.045,maxiter=8):
+    if B.size < 5:
         raise np.linalg.LinAlgError('Not enough inputs')
     N = 1
-    I = np.argsort(R)
-    I0,Ii = I[0],I[1:]
-    B0,Bi = B[I0],B[Ii]
-    R0,Ri = R[I0],R[Ii]
-    Ri0 = Ri-R0
-    Si0 = S[Ii]+S[I0]
-    X = hypercone(B0,Bi,Ri0)
-    Y = hyperjump(B0,X,Bi,Ri0,Si0,theta)
+    X = hypercone(B0,B,R)
+    Y = hyperjump(B0,X,B,R,S,theta)
     if delta is None:
         delta = np.amin(S)
     while N < maxiter and dist(X,Y) > delta:
-        Y,X,N = hyperjump(B0,Y,Bi,Ri0,Si0,theta),Y,N+1
+        Y,X,N = hyperjump(B0,Y,B,R,S,theta),Y,N+1
     return Y,N
 
