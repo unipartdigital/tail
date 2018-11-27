@@ -25,7 +25,6 @@ class Config():
     blink_speed  = 1.0
     blink_delay  = 0.010
     blink_wait   = 0.250
-    blink_power  = '3+8'
 
 CFG = Config()
 
@@ -51,30 +50,55 @@ def power2dBm(val):
         return (a,b)
     else:
         raise ValueError
-        
+
+
+def print_data(data):
+    (Time,Host1,Host2,Pwr,Dof,Lof,PPM,S1,P1,F1,N1,C1,V1,S2,P2,F2,N2,C2,V2) = data
+    msg = '   '
+    msg += ' {:.3f}m'.format(Lof)
+    msg += ' {:.3f}ns'.format(Dof)
+    msg += ' Clk:{:+.3f}ppm'.format(PPM)
+    msg += ' PWR:{:.1f}dBm:{:.1f}dBm'.format(DW1000.RxPower2dBm(P1),DW1000.RxPower2dBm(P2))
+    msg += ' FPR:{:.1f}dBm:{:.1f}dBm'.format(DW1000.RxPower2dBm(F1),DW1000.RxPower2dBm(F2))
+    msg += ' Noise:{}:{}'.format(N1,N2)
+    msg += ' Temp:{:.2f}C:{:.2f}C'.format(C1,C2)
+    msg += ' Volt:{:.3f}V:{:.3f}V'.format(V1,V2)
+    eprint(msg)
+
 
 def print_csv(file,index,data):
     if file is not None:
-        (Time,Host1,Host2,Pwr,Dof,Lof,PPM,S1,P1,F1,N1,S2,P2,F2,N2) = data
-        msg  = time.strftime('%Y/%m/%d,%H:%M:%S')
-        msg += ',{}'.format(Time)
-        msg += ',{}'.format(index)
-        msg += ',{}'.format(Host1)
-        msg += ',{}'.format(Host2)
-        msg += ',{0[0]:.0f},{0[1]:.1f}'.format(power2dBm(Pwr))
-        msg += ',{:.3f}'.format(Dof)
-        msg += ',{:.3f}'.format(Lof)
-        msg += ',{:.3f}'.format(PPM)
-        msg += ',{:.2f}'.format(P1)
-        msg += ',{:.2f}'.format(F1)
-        msg += ',{}'.format(N1)
-        msg += ',{:.2f}'.format(P2)
-        msg += ',{:.2f}'.format(F2)
-        msg += ',{}'.format(N2)
+        (Time,Host1,Host2,Pwr,Dof,Lof,PPM,S1,P1,F1,N1,C1,V1,S2,P2,F2,N2,C2,V2) = data
+        (Tx1,Tx2) = power2dBm(Pwr)
+        msg  = time.strftime('%Y/%m/%d,%H:%M:%S')		# 0,1
+        msg += ',{}'.format(Time)				# 2
+        msg += ',{}'.format(index)				# 3
+        msg += ',{}'.format(Host1)				# 4
+        msg += ',{}'.format(Host2)				# 5
+        msg += ',{:.0f}'.format(Tx1)				# 6
+        msg += ',{:.1f}'.format(Tx2)				# 7
+        msg += ',{:.1f}'.format(Tx1+Tx2)			# 8
+        msg += ',{:.3f}'.format(Dof)				# 9
+        msg += ',{:.3f}'.format(Lof)				# 10
+        msg += ',{:.3f}'.format(PPM)				# 11
+        msg += ',{:.2f}'.format(P1)				# 12
+        msg += ',{:.2f}'.format(DW1000.RxPower2dBm(P1))		# 13
+        msg += ',{:.2f}'.format(F1)				# 14
+        msg += ',{:.2f}'.format(DW1000.RxPower2dBm(F1))		# 15
+        msg += ',{:.0f}'.format(N1)				# 16
+        msg += ',{:.2f}'.format(C1)				# 17
+        msg += ',{:.3f}'.format(V1)				# 18
+        msg += ',{:.2f}'.format(P2)				# 19
+        msg += ',{:.2f}'.format(DW1000.RxPower2dBm(P2))		# 20
+        msg += ',{:.2f}'.format(F2)				# 21
+        msg += ',{:.2f}'.format(DW1000.RxPower2dBm(F2))		# 22
+        msg += ',{:.0f}'.format(N2)				# 23
+        msg += ',{:.2f}'.format(C2)				# 24
+        msg += ',{:.3f}'.format(V2)				# 25
         msg += '\n'
         file.write(msg)
 
-
+        
 def DECA_TWR(blk, tmr, remote, delay, power=None, rawts=False):
 
     if rawts:
@@ -95,7 +119,6 @@ def DECA_TWR(blk, tmr, remote, delay, power=None, rawts=False):
         rem2.SetAttr('tx_power', power)
     
     Tm = tmr.sync()
-    
     i1 = blk.Blink(adr1,Tm)
     Tm = tmr.nap(delay[0])
     i2 = blk.Blink(adr2,Tm)
@@ -111,16 +134,21 @@ def DECA_TWR(blk, tmr, remote, delay, power=None, rawts=False):
     T5 = blk.getTS(i3, eui1, rawts)
     T6 = blk.getTS(i3, eui2, rawts)
     
-    P1 = DW1000.RxPower2dBm(blk.getRxPower(i1, eui2),64)
-    P2 = DW1000.RxPower2dBm(blk.getRxPower(i2, eui1),64)
-    F1 = DW1000.RxPower2dBm(blk.getFpPower(i1, eui2),64)
-    F2 = DW1000.RxPower2dBm(blk.getFpPower(i2, eui1),64)
-    
-    N1 = blk.getNoise(i1,eui2)
-    S1 = blk.getSNR(i1,eui2)
-    N2 = blk.getNoise(i2,eui1)
-    S2 = blk.getSNR(i2,eui1)
+    P1 = blk.getRxPower(i2, eui1)
+    P2 = blk.getRxPower(i1, eui2)
+    F1 = blk.getFpPower(i2, eui1)
+    F2 = blk.getFpPower(i1, eui2)
 
+    C1 = blk.getTemp(i1,eui1)
+    V1 = blk.getVolt(i1,eui1)
+    C2 = blk.getTemp(i2,eui2)
+    V2 = blk.getVolt(i2,eui2)
+
+    N1 = blk.getNoise(i2,eui1)
+    S1 = blk.getSNR(i2,eui1)
+    N2 = blk.getNoise(i1,eui2)
+    S2 = blk.getSNR(i1,eui2)
+    
     T41 = T4 - T1
     T32 = T3 - T2
     T54 = T5 - T4
@@ -143,7 +171,7 @@ def DECA_TWR(blk, tmr, remote, delay, power=None, rawts=False):
     blk.PurgeBlink(i2)
     blk.PurgeBlink(i3)
     
-    return (Time,remote[0].host,remote[1].host,power,Dof,Lof,PPM,S1,P1,F1,N1,S2,P2,F2,N2)
+    return (Time,remote[0].host,remote[1].host,power,Dof,Lof,PPM,S1,P1,F1,N1,C1,V1,S2,P2,F2,N2,C2,V2)
 
 
 def main():
@@ -162,7 +190,7 @@ def main():
     parser.add_argument('-d', '--delay', type=float, default=CFG.blink_delay, help='Delay between blinks')
     parser.add_argument('-w', '--wait', type=float, default=CFG.blink_wait, help='Time to wait timestamp reception')
     parser.add_argument('-p', '--port', type=int, default=RPC_PORT, help='UDP port')
-    parser.add_argument('-P', '--power', type=str, default=None, help='Tx power levels')
+    parser.add_argument('-P', '--sweep', type=str, default=None, help='Tx power levels')
     parser.add_argument('-R', '--raw', action='store_true', default=False, help='Use raw timestamps')
     parser.add_argument('--delay1', type=float, default=None)
     parser.add_argument('--delay2', type=float, default=None)
@@ -180,17 +208,17 @@ def main():
     else:
         out = None
         
+    if args.sweep is not None:
+        powers = args.sweep.split(',')
+    else:
+        powers = [ None ]
+
     delay1 = args.delay
     delay2 = args.delay
     if args.delay1 is not None:
         delay1 = args.delay1
     if args.delay2 is not None:
         delay2 = args.delay2
-
-    if args.power is not None:
-        powers = args.power.split(',')
-    else:
-        powers = [ CFG.blink_power ]
 
     rpc = tail.RPC(('', args.port))
 
@@ -218,43 +246,41 @@ def main():
 
     eprint('Blinker starting')
 
-    twait = max(0, 1.0/args.speed - delay1 - delay2)
+    twait = max(0, 1.0/args.speed - delay1 - delay2 - delay1)
     index = 1
+    count = 1
 
     try:
-        while index < args.count:
+        while count < args.count:
+            count += 1
+
             for (rem1,rem2) in remotes:
                 for pwr in powers:
+                    
                     if VERBOSE == 1:
                         eprints('.')
                     if VERBOSE > 1:
                         eprint('Ranging {}:{} @ PWR:{}'.format(rem1.host,rem2.host,pwr))
-                    done = False
-                    while not done:
-                        tmr.nap(twait)
-                        try:
-                            data = algo(blk, tmr, (rem1,rem2), (delay1,delay2,args.wait), power=pwr, rawts=args.raw)
-                            print_csv(out,index,data)
-                            index += 1
-                            done = True
-                            if VERBOSE > 1:
-                                (Time,Host1,Host2,Power,Dof,Lof,PPM,S1,P1,F1,N1,S2,P2,F2,N2) = data
-                                msg = '   '
-                                msg += ' {:.3f}m'.format(Lof)
-                                msg += ' {:.3f}ns'.format(Dof)
-                                msg += ' Clk:{:+.3f}ppm'.format(PPM)
-                                msg += ' PWR:{:.1f}dBm:{:.1f}dBm'.format(P1,P2)
-                                msg += ' FPR:{:.1f}dBm:{:.1f}dBm'.format(F1,F2)
-                                msg += ' Noise:{}:{}'.format(N1,N2)
-                                eprint(msg)
-                        except (TimeoutError):
-                            eprints('T')
-                        except (KeyError):
-                            eprints('?')
-                        except (ValueError):
-                            eprints('*')
-                        except (ZeroDivisionError):
-                            eprints('0')
+                        
+                    tmr.nap(twait)
+                    
+                    try:
+                        data = algo(blk, tmr, (rem1,rem2), (delay1,delay2,args.wait), power=pwr, rawts=args.raw)
+                    
+                        if VERBOSE > 1:
+                            print_data(data)
+                                
+                        print_csv(out,index,data)
+                        index += 1
+                                
+                    except (TimeoutError):
+                        eprints('T')
+                    except (KeyError):
+                        eprints('?')
+                    except (ValueError):
+                        eprints('*')
+                    except (ZeroDivisionError):
+                        eprints('0')
                             
     except KeyboardInterrupt:
         eprint('\nStopping...')

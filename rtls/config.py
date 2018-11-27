@@ -77,6 +77,8 @@ DW1000_TSINFO_ATTRS = (
     'fp_pwr',
     'ttcko',
     'ttcki',
+    'temp',
+    'volt',
 )
 
 
@@ -208,14 +210,14 @@ DW1000_DEVICE_CALIB = {
     '70b3d5b1e0000016': {
         'bss'      : 2,
         'host'     : 'bss3',
-        'xtalt'	   : 18,
+        'xtalt'	   : 17,
         'antd'     : 0x404a,
         'coord'    : (8.567, 5.807, 0.035),
     },
     '70b3d5b1e0000017': {
         'bss'      : 3,
         'host'     : 'bss4',
-        'xtalt'	   : 16,
+        'xtalt'	   : 15,
         'antd'     : 0x4032,
         'coord'    : (0.175, 5.860, 0.035),
     },
@@ -232,6 +234,22 @@ DW1000_DEVICE_CALIB = {
         'xtalt'	   : 16,
         'antd'     : 0x4018,
         'coord'    : (2.299, 6.140, 1.270),
+    },
+    '70b3d5b1e0000020': {
+        'xtalt'	   : 22,
+        'antd'     : 0x401b,
+    },
+    '70b3d5b1e0000021': {
+        'xtalt'	   : 22,
+        'antd'     : 0x4015,
+    },
+    '70b3d5b1e0000022': {
+        'xtalt'	   : 23,
+        'antd'     : 0x4023,
+    },
+    '70b3d5b1e0000023': {
+        'xtalt'	   : 23,
+        'antd'     : 0x401e,
     },
 }
 
