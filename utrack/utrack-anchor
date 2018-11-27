@@ -25,7 +25,7 @@ from ctypes import *
 
 class Config():
 
-    utrack_server            = '127.0.0.1:8000'
+    utrack_server            = None
 
     utrack_device_id         = 'TailStation'
     utrack_station_group     = 'TailGroup'
@@ -185,6 +185,8 @@ class Timestamp(Structure):
 
 def uTrackReport(eui,cmd,rssi=42,txpwr=42):
     print('*{:3s} <{}>'.format(cmd.upper(),eui))
+    if cfg.utrack_server is None:
+        return
     try:
         requests.post(
             'http://' + cfg.utrack_server + cfg.utrack_event_url,
@@ -454,7 +456,7 @@ def main():
     parser.add_argument('-p', '--port', type=int, default=cfg.twr_port)
     parser.add_argument('-P', '--mcast-port', type=int, default=cfg.mcast_port)
     parser.add_argument('-r', '--radius', type=float, default=cfg.utrack_in_distance)
-    parser.add_argument('-s', '--server', type=str, default=cfg.utrack_server)
+    parser.add_argument('-s', '--server', type=str, default=None)
     
     args = parser.parse_args()
 
