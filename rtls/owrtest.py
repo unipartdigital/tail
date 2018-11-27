@@ -342,13 +342,13 @@ def TDOF5(blk, tmr, remote, delay, rawts=False):
     #
     #     [1]             [2]              [3]
     #
-    # (a)  *  --->--->--- T1  ---<>--<>--- T2
+    # (a)  *  --->--->--- T2  ---<>--<>--- T1
     #                                          \__delay[0]
     #                                          /
-    # (b)                 T4  ---->--->--- T3
+    # (b)                 T3  ---->--->--- T4
     #                                          \__delay[1]
     #                                          /
-    # (c)  *  --->--->--- T5  ---<>--<>--- T6
+    # (c)  *  --->--->--- T6  ---<>--<>--- T5
     #
     
     adr1 = remote[0].addr
@@ -409,6 +409,98 @@ def TDOF5(blk, tmr, remote, delay, rawts=False):
     return (Lerr,Derr,TDOA,REAL,TDER)
 
 
+def TDOF6(blk, tmr, remote, delay, rawts=False):
+
+    #
+    #     [1]             [?]             [?]
+    #
+    # (a)  *  --->--->--- T2 ---<>--<>--- T1
+    #                                         \__delay[0]
+    #                                         /
+    # (b)                 T3 ---->--->--- T4
+    #                                         \__delay[1]
+    #                                         /
+    # (c)  *  --->--->--- T6 ---<>--<>--- T5
+    #
+    
+    if rawts:
+        SCL = DW1000_CLOCK_GHZ
+    else:
+        SCL = 1<<32
+        
+    adr1 = remote[0].addr
+    eui1 = remote[0].eui
+
+    Tm = tmr.sync()
+    ia = blk.Blink(adr1,Tm)
+    
+    blk.WaitBlinks((ia,),remote,delay[0])
+
+    Ps = np.full(len(remote),np.NaN)
+    for i in range(1,len(remote)):
+        try:
+            Ps[i] = -blk.getRxPower(ia,remote[i].eui)
+        except (ValueError,IndexError):
+            pass
+    
+    Ix = np.argsort(Ps)
+
+    I2 = Ix[0]
+    I3 = Ix[1]
+
+    rems = [ remote[0], remote[I2], remote[I3] ]
+    
+    adr2 = rems[1].addr
+    adr3 = rems[2].addr
+    eui2 = rems[1].eui
+    eui3 = rems[2].eui
+
+    dprint(' >>> rems = {} {} {}'.format(eui1,eui2,eui3))
+    
+    Tm = tmr.nap(delay[0])
+    ib = blk.Blink(adr2,Tm)
+    Tm = tmr.nap(delay[1])
+    ic = blk.Blink(adr1,Tm)
+    
+    blk.WaitBlinks((ia,ib,ic),rems,delay[2])
+
+    T1 = blk.getTS(ia, eui3, rawts)
+    T2 = blk.getTS(ia, eui2, rawts)
+    T3 = blk.getTS(ib, eui2, rawts)
+    T4 = blk.getTS(ib, eui3, rawts)
+    T5 = blk.getTS(ic, eui3, rawts)
+    T6 = blk.getTS(ic, eui2, rawts)
+
+    J12 = GetDistJiffies(eui1,eui2,SCL)
+    J13 = GetDistJiffies(eui1,eui3,SCL)
+    J23 = GetDistJiffies(eui2,eui3,SCL)
+    dprint(' >>> J12:{} J13:{} J23:{}'.format(J12,J13,J23))
+    
+    T41 = T4 - T1
+    T32 = T3 - T2
+    T54 = T5 - T4
+    T63 = T6 - T3
+    T51 = T5 - T1
+    T62 = T6 - T2
+    
+    TTOT = 2 * (T41*T63 - T32*T54) // (T51+T62)
+    TDOA = TTOT - J23
+    REAL = J12 - J13
+    TDER = TDOA - REAL
+    dprint(' >>> TDOA:{} REAL:{} ERROR:{}'.format(TDOA,REAL,TDER))
+
+    Derr = TDER / SCL
+    Lerr = Derr * C_AIR * 1E-9
+    dprint(' >>> Error: {:.3f}ns {:.3f}m'.format(Derr,Lerr))
+
+    blk.PurgeBlink(ia)
+    blk.PurgeBlink(ib)
+    blk.PurgeBlink(ic)
+    
+    return (Lerr,Derr,TDOA,REAL,TDER)
+
+
+
 def main():
     
     global VERBOSE, DEBUG
@@ -427,10 +519,10 @@ def main():
     parser.add_argument('-H', '--hist', action='store_true', default=False, help='Print histogram')
     parser.add_argument('-P', '--plot', action='store_true', default=False, help='Plot histogram')
     parser.add_argument('-R', '--raw', action='store_true', default=False, help='Use raw timestamps')
-    parser.add_argument('--range', type=float, default=CFG.range)
-    parser.add_argument('--binsize', type=float, default=CFG.binsize)
     parser.add_argument('--delay1', type=float, default=None)
     parser.add_argument('--delay2', type=float, default=None)
+    parser.add_argument('--range', type=float, default=CFG.range)
+    parser.add_argument('--binsize', type=float, default=CFG.binsize)
     parser.add_argument('remote', type=str, nargs='+', help="Remote address")
     
     args = parser.parse_args()
@@ -450,6 +542,8 @@ def main():
         algo = TDOF4
     elif args.algo == 'TDOF5' or args.algo == '5':
         algo = TDOF5
+    elif args.algo == 'TDOF6' or args.algo == '6':
+        algo = TDOF6
     else:
         raise ValueError
     
@@ -555,7 +649,10 @@ def main():
 
             if args.plot:
                 fig,ax = plot.subplots(figsize=(15,10),dpi=80)
-                ax.set_title('Error distribution {} {} {}'.format(remotes[0].host,remotes[1].host,remotes[2].host))
+                msg = 'Error distribution with'
+                for rem in remotes:
+                    msg += ' {}'.format(rem.host)
+                ax.set_title(msg)
                 ax.set_xlabel('Error [ns]')
                 ax.set_ylabel('Samples')
                 ax.text(0.80, 0.95, r'$\mu$={:.3f}m'.format(Lavg), transform=ax.transAxes, size='x-large')
@@ -569,8 +666,7 @@ def main():
                 plot.show()
         
     else:
-        print()
-        print('NO SUITABLE SAMPLES')
+        eprint('\nNO SUITABLE SAMPLES\n')
 
     
 
