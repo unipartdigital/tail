@@ -1,0 +1,76 @@
+#!/usr/bin/python3
+#
+# uTrack Station example client
+#
+
+import socket
+import argparse
+import json
+
+
+UTRACK_SERVER = 'localhost'
+UTRACK_PORT = 6299
+
+
+class TailPipe:
+
+    def __init__(self, server=UTRACK_SERVER, port=UTRACK_PORT):
+        self.server = server
+        self.port = port
+        self.sock = None
+        self.buff = b''
+        
+    def connect(self):
+        self.buff = b''
+        self.sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+        self.sock.connect(socket.getaddrinfo(self.server,self.port,socket.AF_INET6)[0][4])
+
+    def close(self):
+        if self.sock is not None:
+            self.sock.close()
+            self.sock = None
+
+    def recv(self):
+        if self.sock is not None:
+            while True:
+                msg = self.sock.recv(1024)
+                if len(msg) == 0:
+                    raise BrokenPipeError
+                lim = msg.find(31)
+                if lim < 0:
+                    self.buff += msg
+                else:
+                    msg = self.buff + msg[0:lim]
+                    self.buff = msg[lim:]
+                    return msg
+        else:
+            raise ConnectionError
+        
+
+def SocketLoop(host,port):
+    pipe = TailPipe(host,port)
+    try:
+        pipe.connect()
+        while True:
+            msg = pipe.recv()
+            data = json.loads(msg.decode())
+            print(data)
+    except Exception as err:
+        print('Exiting: {}'.format(err))
+
+
+def main():
+    
+    parser = argparse.ArgumentParser(description="uTrack Anchor client example")
+    
+    parser.add_argument('-s', '--server', type=str, default=UTRACK_SERVER)
+    parser.add_argument('-p', '--port', type=int, default=UTRACK_PORT)
+    
+    args = parser.parse_args()
+    
+    SocketLoop(args.server,args.port)
+    
+
+if __name__ == "__main__":
+    main()
+

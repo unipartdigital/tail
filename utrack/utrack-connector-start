@@ -1,0 +1,11 @@
+#!/bin/bash
+
+ANCHORS='08'
+
+for X in ${ANCHORS}
+do
+    ip -6 neigh replace fe80::72b3:d5b1:e000:01$X lladdr 70:b3:d5:b1:e0:00:01:$X dev lowpan0
+done
+
+exec /sbin/utrack-connector "$@"
+
