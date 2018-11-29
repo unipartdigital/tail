@@ -1,16 +1,14 @@
 #!/usr/bin/python3
 #
-# uTrack Station example client
+# uTrack Connector example client
 #
 
-import socket
 import argparse
+import socket
 import json
-
 
 UTRACK_SERVER = 'localhost'
 UTRACK_PORT = 6299
-
 
 class TailPipe:
 
@@ -31,20 +29,19 @@ class TailPipe:
             self.sock = None
 
     def recv(self):
-        if self.sock is not None:
-            while True:
-                msg = self.sock.recv(1024)
-                if len(msg) == 0:
-                    raise BrokenPipeError
-                lim = msg.find(31)
-                if lim < 0:
-                    self.buff += msg
-                else:
-                    msg = self.buff + msg[0:lim]
-                    self.buff = msg[lim:]
-                    return msg
-        else:
+        if self.sock is None:
             raise ConnectionError
+        while True:
+            lim = self.buff.find(31)
+            if lim < 0:
+                data = self.sock.recv(1024)
+                if len(data) == 0:
+                    raise BrokenPipeError
+                self.buff += data
+            else:
+                msg = self.buff[0:lim]
+                self.buff = self.buff[lim+1:]
+                return msg
         
 
 def SocketLoop(host,port):
@@ -52,16 +49,17 @@ def SocketLoop(host,port):
     try:
         pipe.connect()
         while True:
-            msg = pipe.recv()
-            data = json.loads(msg.decode())
-            print(data)
+            msg = pipe.recv().decode()
+            tag = json.loads(msg)
+            print('Tag: <{}> distance: {:.3f}m'.format(tag['EUI'], tag['Dist']/1000))
+            
     except Exception as err:
         print('Exiting: {}'.format(err))
 
 
 def main():
     
-    parser = argparse.ArgumentParser(description="uTrack Anchor client example")
+    parser = argparse.ArgumentParser(description="uTrack Connector client example")
     
     parser.add_argument('-s', '--server', type=str, default=UTRACK_SERVER)
     parser.add_argument('-p', '--port', type=int, default=UTRACK_PORT)
