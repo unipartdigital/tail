@@ -12,16 +12,21 @@ UTRACK_PORT = 6299
 
 class TailPipe:
 
-    def __init__(self, server=UTRACK_SERVER, port=UTRACK_PORT):
+    def __init__(self, server=UTRACK_SERVER, port=UTRACK_PORT, ipv6=False):
         self.server = server
         self.port = port
+        self.ipv6 = ipv6
         self.sock = None
         self.buff = b''
         
     def connect(self):
         self.buff = b''
-        self.sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
-        self.sock.connect(socket.getaddrinfo(self.server,self.port,socket.AF_INET6)[0][4])
+        if self.ipv6:
+            self.sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+            self.sock.connect(socket.getaddrinfo(self.server,self.port,socket.AF_INET6)[0][4])
+        else:
+            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.sock.connect(socket.getaddrinfo(self.server,self.port,socket.AF_INET)[0][4])
 
     def close(self):
         if self.sock is not None:
@@ -44,8 +49,8 @@ class TailPipe:
                 return msg
         
 
-def SocketLoop(host,port):
-    pipe = TailPipe(host,port)
+def SocketLoop(host,port,ipv6):
+    pipe = TailPipe(host,port,ipv6)
     try:
         pipe.connect()
         while True:
@@ -63,10 +68,11 @@ def main():
     
     parser.add_argument('-s', '--server', type=str, default=UTRACK_SERVER)
     parser.add_argument('-p', '--port', type=int, default=UTRACK_PORT)
+    parser.add_argument('-6', '--ipv6', action='store_true', default=False)
     
     args = parser.parse_args()
     
-    SocketLoop(args.server,args.port)
+    SocketLoop(args.server,args.port,args.ipv6)
     
 
 if __name__ == "__main__":
