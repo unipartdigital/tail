@@ -53,9 +53,6 @@ C_AIR = 299705000
 
 DW1000_CLOCK_GHZ = 63.8976
 
-IPV6_ERR_QUEUE_OFFSET = 0
-UDP6_ERR_QUEUE_OFFSET = 31
-
 
 for name,value in (
         ('SO_TIMESTAMPING', 37),
@@ -143,6 +140,8 @@ class TimestampInfo(Structure):
         ("fp_pwr", c_uint32),
         ("ttcko", c_uint32),
         ("ttcki", c_uint32),
+        ("temp", c_uint16),
+        ("volt", c_uint16),
     ]
 
     def __iter__(self):
@@ -175,7 +174,7 @@ def uTrackReportTag(eui,dist):
             s.send(data)
         except:
             utrack_sockets.remove(s)
-            print('Removed client {}'.format(s))
+            dprint('Removed client {}'.format(s))
 
 
 def PurgeTWRs():
@@ -239,6 +238,7 @@ def GetAnclTs(ancl):
             tss = Timestamp.from_buffer_copy(raw)
     return tss
 
+
 def RecvMcast(msock,tsock):
     (data,ancl,_,rem) = msock.recvmsg(4096, 1024, 0)
     (flags,) = struct.unpack('B', data[0:1])
@@ -269,7 +269,6 @@ def RecvTag(tsock):
     tss = GetAnclTs(ancl)
     dprint('RecvTag(<{}>,{},{},{})'.format(tag,flags,T1,T2))
     if tag in twr_status:
-        EUI = twr_status[tag]['eui'].hex()
         twr_status[tag]['times'][3] = T1
         twr_status[tag]['times'][4] = T2
         twr_status[tag]['times'][5] = tss.tsinfo.rawts
@@ -278,7 +277,8 @@ def RecvTag(tsock):
         except Exception as err:
             eprint('TWR failed: {}'.format(err))
         else:
-            uTrackReportTag(EUI,dis)
+            eui = twr_status[tag]['eui'].hex()
+            uTrackReportTag(eui,dis)
         del twr_status[tag]
 
 
@@ -347,7 +347,7 @@ def SocketLoop():
                     if flags & select.POLLIN:
                         (csock,caddr) = usock.accept()
                         utrack_sockets.append(csock)
-                        print('New client: {}'.format(caddr))
+                        dprint('New client: {}'.format(caddr))
                 if fd == msock.fileno():
                     if flags & select.POLLIN:
                         RecvMcast(msock,tsock)
