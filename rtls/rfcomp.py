@@ -109,7 +109,7 @@ def XSpline(spline,X):
     return None
 
 
-def DistComp(dist,txpwr,rxpwr,ch,prf):
+def DistComp(dist,ch,prf):
     if ch in (4,7):
         rfw = 900
     else:
@@ -263,7 +263,7 @@ for i in range(len(RX)):
     ZL = np.zeros(100)
     for i in range(100):
         YL[i] = XSpline(SPL,XL[i])
-        ZL[i] = DistComp(XL[i],None,None,1,16)
+        ZL[i] = DistComp(XL[i],1,16)
     ax.plot(XL,YL)
     #ax.plot(XL,ZL)
 
@@ -319,7 +319,7 @@ for i in range(len(RX)):
     ZL = np.zeros(100)
     for i in range(100):
         YL[i] = XSpline(SPL,XL[i])
-        ZL[i] = DistComp(XL[i],None,None,7,16)
+        ZL[i] = DistComp(XL[i],7,16)
     ax.plot(XL,YL)
     #ax.plot(XL,ZL)
 
@@ -379,7 +379,7 @@ for i in range(len(RX)):
     ZL = np.zeros(100)
     for i in range(100):
         YL[i] = XSpline(SPL,XL[i])
-        ZL[i] = DistComp(XL[i],None,None,5,64)
+        ZL[i] = DistComp(XL[i],5,64)
     ax.plot(XL,YL)
     ax.plot(XL,ZL)
 
@@ -443,7 +443,7 @@ for i in range(len(RX)):
     ZL = np.zeros(100)
     for i in range(100):
         YL[i] = XSpline(SPL,XL[i])
-        ZL[i] = DistComp(XL[i],None,None,7,64)
+        ZL[i] = DistComp(XL[i],7,64)
     ax.plot(XL,YL)
     ax.plot(XL,ZL)
 

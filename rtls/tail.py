@@ -35,10 +35,12 @@ def eprints(*args, **kwargs):
     
 def frange(a,b,c):
     L = b-a
-    N = int(L/c) + 1
-    D = [ (x/N)*L+a for x in range(N) ]
-    return np.array(D)
-    
+    N = int(L/c)
+    #D = [ (x/N)*L+a for x in range(N+1) ]
+    #R = np.array(D)
+    R = np.linspace(a,b,N+1)
+    return R
+
 def fpeak(delays, drange=5.0, dwin=0.25, threshold=0.75 ):
     Data = np.array(delays)
     Davg = np.mean(Data)
@@ -121,26 +123,27 @@ def XSpline(spline,X):
 
 class DW1000:
 
-    def RxCompCm(Dist,TxPwr,RxPwr,CH,PRF):
-        if CH in (4,7):
+    def RxComp(Dist,CH,PRF):
+        if CH in (1,2,3,5):
+            BW = 500
+        elif CH in (4,7):
             BW = 900
         else:
-            BW = 500
+            raise ValueError
+        if PRF not in (16,64):
+            raise ValueError
         Spl = CompSplines[BW][PRF]
-        Cor = XSpline(Spl,Dist)
+        Cor = XSpline(Spl,Dist) / 100
         return Cor
 
-    def RxComp(Dist,TxPwr,RxPwr,CH,PRF):
-        return DW1000.RxCompCm(Dist,TxPwr,RxPwr,CH,PRF) / 100
+    def RxCompTime(Dist,CH,PRF):
+        return DW1000.RxComp(Dist,CH,PRF) / C_AIR
 
-    def RxCompTime(Dist,TxPwr,RxPwr,CH,PRF):
-        return DW1000.RxComp(Dist,TxPwr,RxPwr,CH,PRF) / C_AIR
+    def RxCompNs(Dist,CH,PRF):
+        return DW1000.RxCompTime(Dist,CH,PRF) * 1E9
 
-    def RxCompNs(Dist,TxPwr,RxPwr,CH,PRF):
-        return DW1000.RxCompTime(Dist,TxPwr,RxPwr,CH,PRF) * 1E9
-
-    def RxCompRaw(Dist,TxPwr,RxPwr,CH,PRF):
-        return DW1000.RxCompTime(Dist,TxPwr,RxPwr,CH,PRF) * DW1000_CLOCK_HZ
+    def RxCompRaw(Dist,CH,PRF):
+        return DW1000.RxCompTime(Dist,CH,PRF) * DW1000_CLOCK_HZ
 
 
     def RxPower2dBm(power,prf=64):

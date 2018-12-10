@@ -9,7 +9,6 @@ import math
 import queue
 import socket
 import json
-import pprint
 import argparse
 import threading
 import tail

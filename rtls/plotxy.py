@@ -98,6 +98,8 @@ def main():
     XSUM = np.zeros(args.bins)
     YSUM = np.zeros(args.bins)
     XCNT = np.zeros(args.bins)
+    XAVG = np.zeros(args.bins)
+    YAVG = np.zeros(args.bins)
     
     BINS = np.linspace(min(X),max(X),args.bins)
 
@@ -110,15 +112,16 @@ def main():
         if XCNT[b] > 0:
             XAVG[b] = XSUM[b] / XCNT[b]
             YAVG[b] = YSUM[b] / XCNT[b]
+            print('{}: [{},{}] XAVG:{} YAVG:{}'.format(b,BINS[b],BINS[b+1],XAVG[b],YAVG[b]))
         else:
-            XAVG[b] = 0.0
-            YAVG[b] = 0.0
+            XAVG[b] = None
+            YAVG[b] = None
             
 
     print('AVG:{:.3f} STD:{:.3f}'.format(AVG,STD))
 
     plt.scatter(X,Y)
-    plt.plot(XAVG,YAVG)
+    plt.plot(XAVG,YAVG,'r*')
     
     if args.lin:
         C = np.polyfit(X,Y,1)
