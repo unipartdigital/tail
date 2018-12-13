@@ -23,6 +23,8 @@ from config import *
 class Config():
 
     rx_power     = -75.0
+    at_total     = None
+    
     tx_power     = (0,8)
 
     rawts        = True
@@ -33,8 +35,16 @@ class Config():
 
 CFG = Config()
 
-DEBUG = 0
 VERBOSE = 0
+
+
+PI = math.pi
+CS = 299792458
+CC = 4*PI/CS
+FC = ( None, 3494.4, 3993.6, 4492.8, 3993.6, 6489.6, None, 6489.6 )
+
+def DAI(m,fc,pt):
+    return pt - 20*np.log10(m*CC*fc*1e6)
 
 
 def TxPwrs2Hex(txpwr):
@@ -115,7 +125,7 @@ def PWRTWR(blk, tmr, remote, delay, txpwr=None, rawts=False):
 
     Tof = (T41*T63 - T32*T54) / (T51+T62)
     Dof = Tof / SCL
-    Lof = Dof * C_AIR * 1E-9
+    Lof = Dof * CS * 1E-9
     
     if Lof < 0 or Lof > 100:
         raise ValueError
@@ -137,20 +147,22 @@ def main():
 
     DW1000.AddParserArguments(parser)
 
-    parser.add_argument('-D', '--debug', action='count', default=0)
     parser.add_argument('-v', '--verbose', action='count', default=0)
+    parser.add_argument('-D', '--debug', action='count', default=0)
     parser.add_argument('-n', '--count', type=int, default=CFG.blink_count)
     parser.add_argument('-d', '--delay', type=float, default=CFG.blink_delay)
     parser.add_argument('-w', '--wait', type=float, default=CFG.blink_wait)
     parser.add_argument('-p', '--port', type=int, default=RPC_PORT)
     parser.add_argument('-R', '--raw', action='store_true', default=False)
     parser.add_argument('-P', '--power', type=float, default=CFG.rx_power)
+    parser.add_argument('-A', '--atten', type=float, default=CFG.at_total)
+    
     parser.add_argument('remote', type=str, nargs='+', help="Remote address")
     
     args = parser.parse_args()
     
     VERBOSE = args.verbose
-    
+
     CFG.blink_count = args.count
     CFG.blink_delay = args.delay
     CFG.blink_wait = args.wait
@@ -178,8 +190,11 @@ def main():
     tmr = tail.Timer()
     blk = tail.Blinker(rpc, args.debug)
 
-    txpwr = [ list(CFG.tx_power), list(CFG.tx_power) ]
+    ch  = int(remotes[0].GetAttr('channel'))
+    prf = int(remotes[0].GetAttr('prf'))
     
+    txpwr = [ list(CFG.tx_power), list(CFG.tx_power) ]
+
     try:
         while True:
 
@@ -217,7 +232,8 @@ def main():
                     tmps[1].append(C2)
 
                     if VERBOSE>2:
-                        prints('\rRx: {:.1f}dBm {:.1f}dBm '.format(DW1000.RxPower2dBm(P1,64),DW1000.RxPower2dBm(P2,64)))
+                        prints('\rRx: {:.1f}dBm {:.1f}dBm '.format(DW1000.RxPower2dBm(P1,prf),
+                                                                   DW1000.RxPower2dBm(P2,prf)))
                     elif VERBOSE>1:
                         if Tcnt%10==0:
                             prints('.')
@@ -240,14 +256,14 @@ def main():
                 Dstd = np.std(dofs)
                 Dmed = np.median(dofs)
                 
-                Lavg = Davg * C_AIR * 1E-9
-                Lstd = Dstd * C_AIR * 1E-9
-                Lmed = Dmed * C_AIR * 1E-9
+                Lavg = Davg * CS * 1E-9
+                Lstd = Dstd * CS * 1E-9
+                Lmed = Dmed * CS * 1E-9
                 
                 (Navg,Nstd) = fpeak(dofs)
         
-                Mavg = Navg * C_AIR * 1E-9
-                Mstd = Nstd * C_AIR * 1E-9
+                Mavg = Navg * CS * 1E-9
+                Mstd = Nstd * CS * 1E-9
 
                 PPMavg = np.mean(ppms)
                 PPMstd = np.std(ppms)
@@ -257,18 +273,23 @@ def main():
                 P1avg = np.mean(pwrs[1])
                 P1std = np.std(pwrs[1])
                 
-                P0log = DW1000.RxPower2dBm(P0avg,64)
-                P0stl = DW1000.RxPower2dBm(P0avg+P0std,64) - P0log
-                P1log = DW1000.RxPower2dBm(P1avg,64)
-                P1stl = DW1000.RxPower2dBm(P1avg+P1std,64) - P1log
+                P0log = DW1000.RxPower2dBm(P0avg,prf)
+                P0stl = DW1000.RxPower2dBm(P0avg+P0std,prf) - P0log
+                P1log = DW1000.RxPower2dBm(P1avg,prf)
+                P1stl = DW1000.RxPower2dBm(P1avg+P1std,prf) - P1log
 
                 T0avg = np.mean(tmps[0])
                 T0std = np.std(tmps[0])
                 T1avg = np.mean(tmps[1])
                 T1std = np.std(tmps[1])
 
-                print()
-                print('STATISTICS:')
+                if args.atten is not None:
+                    target_power = DAI(Lavg,FC[ch],args.atten)
+                else:
+                    target_power = args.power
+
+                print('\n')
+                print('STATISTICS: [CH{},PRF{}]'.format(ch,prf))
                 print('    Samples:   {} [{:.1f}%]'.format(Tcnt,(100*Tcnt/args.count)-100))
                 print('    Peak.Avg:  {:.3f}m ~{:.3f}ns'.format(Mavg,Navg))
                 print('    Peak.Std:  {:.3f}m ~{:.3f}ns'.format(Mstd,Nstd))
@@ -289,37 +310,37 @@ def main():
                 ## Adjust Tx Power
                 ##
                 
-                if txpwr[0][0] > 0 and P1log > args.power + 1.5:
+                if txpwr[0][0] > 0 and P1log > target_power + 1.5:
                     txpwr[0][0] -= 3
-                elif txpwr[0][1] > 0 and P1log > args.power + 0.25:
+                elif txpwr[0][1] > 0 and P1log > target_power + 0.25:
                     txpwr[0][1] -= 0.5
                     
-                if txpwr[0][0] < 18 and P1log < args.power - 1.5:
+                if txpwr[0][0] < 18 and P1log < target_power - 1.5:
                     txpwr[0][0] += 3
-                elif txpwr[0][1] < 15.5 and P1log < args.power - 0.25:
+                elif txpwr[0][1] < 15.5 and P1log < target_power - 0.25:
                     txpwr[0][1] += 0.5
 
-                if txpwr[1][0] > 0 and P0log > args.power + 1.5:
+                if txpwr[1][0] > 0 and P0log > target_power + 1.5:
                     txpwr[1][0] -= 3
-                elif txpwr[1][1] > 0 and P0log > args.power + 0.25:
+                elif txpwr[1][1] > 0 and P0log > target_power + 0.25:
                     txpwr[1][1] -= 0.5
                 
-                if txpwr[1][0] < 18 and P0log < args.power - 1.5:
+                if txpwr[1][0] < 18 and P0log < target_power - 1.5:
                     txpwr[1][0] += 3
-                elif txpwr[1][1] < 15.5 and P0log < args.power - 0.25:
+                elif txpwr[1][1] < 15.5 and P0log < target_power - 0.25:
                     txpwr[1][1] += 0.5
 
-                while txpwr[0][1] < 5 and txpwr[0][0] > 0:
+                while txpwr[0][1] < 3 and txpwr[0][0] > 0:
                     txpwr[0][0] -= 3
                     txpwr[0][1] += 3.0
-                while txpwr[0][1] > 11 and txpwr[0][0] < 18:
+                while txpwr[0][1] > 7 and txpwr[0][0] < 18:
                     txpwr[0][0] += 3
                     txpwr[0][1] -= 3.0
 
-                while txpwr[1][1] < 5 and txpwr[1][0] > 0:
+                while txpwr[1][1] < 3 and txpwr[1][0] > 0:
                     txpwr[1][0] -= 3
                     txpwr[1][1] += 3.0
-                while txpwr[1][1] > 11 and txpwr[1][0] < 18:
+                while txpwr[1][1] > 7 and txpwr[1][0] < 18:
                     txpwr[1][0] += 3
                     txpwr[1][1] -= 3.0
 

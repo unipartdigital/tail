@@ -123,7 +123,7 @@ def XSpline(spline,X):
 
 class DW1000:
 
-    def RxComp(Dist,CH,PRF):
+    def RxComp(PWR,CH,PRF):
         if CH in (1,2,3,5):
             BW = 500
         elif CH in (4,7):
@@ -133,17 +133,17 @@ class DW1000:
         if PRF not in (16,64):
             raise ValueError
         Spl = CompSplines[BW][PRF]
-        Cor = XSpline(Spl,Dist) / 100
+        Cor = XSpline(Spl,PWR) / 100
         return Cor
 
-    def RxCompTime(Dist,CH,PRF):
-        return DW1000.RxComp(Dist,CH,PRF) / C_AIR
+    def RxCompTime(PWR,CH,PRF):
+        return DW1000.RxComp(PWR,CH,PRF) / C_AIR
 
-    def RxCompNs(Dist,CH,PRF):
-        return DW1000.RxCompTime(Dist,CH,PRF) * 1E9
+    def RxCompNs(PWR,CH,PRF):
+        return DW1000.RxCompTime(PWR,CH,PRF) * 1E9
 
-    def RxCompRaw(Dist,CH,PRF):
-        return DW1000.RxCompTime(Dist,CH,PRF) * DW1000_CLOCK_HZ
+    def RxCompRaw(PWR,CH,PRF):
+        return DW1000.RxCompTime(PWR,CH,PRF) * DW1000_CLOCK_HZ
 
 
     def RxPower2dBm(power,prf=64):
@@ -161,7 +161,7 @@ class DW1000:
             if Plog < -105:
                 return Plog
             elif Plog < -77:
-                return float(RFP3(Plog))
+                return float(RFP2(Plog))
             else:
                 return -65
         raise ValueError
@@ -571,7 +571,7 @@ class Blinker():
             tss = int(args.get('tss'),16)
             bid = int(args.get('bid'))
         except:
-            eprint('BlinkRecv: data missing')
+            #eprint('BlinkRecv: data missing')
             return
         if bid in self.blinks:
             with self.blinks[bid]['wait']:
@@ -593,7 +593,7 @@ class Blinker():
             tss = int(args.get('tss'),16)
             bid = int(args.get('bid'))
         except:
-            eprint('BlinkXmit: data missing')
+            #eprint('BlinkXmit: data missing')
             return
         if bid in self.blinks:
             with self.blinks[bid]['wait']:
