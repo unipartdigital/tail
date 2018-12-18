@@ -23,6 +23,9 @@ from pprint import pprint
 from config import *
 
 
+VERBOSE = 0
+DEBUG = 0
+
 def prints(*args, **kwargs):
     print(*args, end='', flush=True, **kwargs)
 
@@ -31,6 +34,18 @@ def eprint(*args, **kwargs):
 
 def eprints(*args, **kwargs):
     print(*args, file=sys.stderr, end='', flush=True, **kwargs)
+
+def vprint(level, *args, **kwargs):
+    if VERBOSE >= level:
+        print(*args, file=sys.stderr, **kwargs)
+
+def veprint(level, *args, **kwargs):
+    if VERBOSE >= level:
+        print(*args, file=sys.stderr, **kwargs)
+
+def veprints(level, *args, **kwargs):
+    if VERBOSE >= level:
+        prints(*args, file=sys.stderr, **kwargs)
 
     
 def frange(a,b,c):

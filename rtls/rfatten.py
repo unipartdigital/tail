@@ -99,6 +99,7 @@ def main():
     parser.add_argument('-c', '--channel', type=int, default=CFG.Ch, help='channel')
     parser.add_argument('-d', '--distance', type=float, default=CFG.Dist, help='distance')
     parser.add_argument('-P', '--power', type=float, default=CFG.Power, help='power')
+    parser.add_argument('-C', '--cal', type=float, default=None)
     
     args = parser.parse_args()
 
@@ -112,13 +113,17 @@ def main():
 
     if DAI(Dist,FC[Ch],Pt) != Pwr:
         raise ValueError
-    
 
     print('Channel   : {}'.format(Ch))
     print('Distance  : {:.3f}m'.format(Dist))
     print('Power     : {:.1f}dBm'.format(Pwr))
     print('Atten     : {:.1f}dBm'.format(Pt))
 
+    if args.cal is not None:
+        cal_dis = args.cal
+        cal_pwr = DAI(cal_dis,FC[Ch],Pt)
+        print('Calib:    : {:.1f}dBm @{:.3f}m'.format(cal_pwr,cal_dis))
+    
     Plot(Ch,Pt)
 
 
