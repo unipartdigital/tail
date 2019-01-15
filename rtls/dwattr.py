@@ -28,6 +28,8 @@ def main():
     
     parser.add_argument('-v', '--verbose', action='count', default=0)
     parser.add_argument('-p', '--port', type=int, default=RPC_PORT)
+    parser.add_argument('-s', '--summary', action='store_true', default=False)
+    
     parser.add_argument('remote', type=str, nargs='+', help="Remote address")
     
     args = parser.parse_args()
@@ -48,7 +50,7 @@ def main():
     DW1000.HandlePrintArguments(args,remotes)
 
     if VERBOSE > 0:
-        DW1000.PrintAllRemoteAttrs(remotes)
+        DW1000.PrintAllRemoteAttrs(remotes,args.summary)
 
     rpc.stop()
 

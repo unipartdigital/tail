@@ -144,7 +144,7 @@ def main():
     DW1000.HandleArguments(args,remotes)
 
     if VERBOSE > 2:
-        DW1000.PrintAllRemoteAttrs(remotes)
+        DW1000.PrintAllRemoteAttrs(remotes,summary=True)
 
     tmr = tail.Timer()
     blk = tail.Blinker(rpc, args.debug)

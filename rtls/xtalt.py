@@ -2,6 +2,8 @@
 #
 # Xtal Trim analysis for Tail algorithm development
 #
+# Usage:  xtalt.py xmit* recv1 recv2 recv3 ... [usual args]
+#
 
 import sys
 import math
@@ -26,8 +28,6 @@ from config import *
 
 class Config():
 
-    rawts        = False
-    
     blink_count  = 100
     blink_delay  = 0.010
     blink_wait   = 0.100
@@ -37,9 +37,14 @@ CFG = Config()
 VERBOSE = 0
 
 
-def xtalt_ppm(blk, tx, rxs, rems, tmr):
+def XTAL_PPM(blk, tmr, tx, rxs, rawts=True, CH=7, PRF=64):
 
-    if VERBOSE > 0:
+    if rawts:
+        SCL = DW1000_CLOCK_GHZ
+    else:
+        SCL = 1<<32
+
+    if VERBOSE > 1:
         print('BLINK {} <{}>'.format(tx.host,tx.eui))
 
     tm = tmr.sync()
@@ -48,57 +53,64 @@ def xtalt_ppm(blk, tx, rxs, rems, tmr):
     i2 = blk.Blink(tx.addr,tm)
 
     try:
-        blk.WaitBlinks((i1,i2),rems,CFG.blink_wait)
+        blk.WaitBlinks((i1,i2),rxs,CFG.blink_wait)
         
     except (TimeoutError):
         pass
         
-    Fcnt = 0.0
+    Fcnt = 0
     Fsum = 0.0
+    Esum = 0.0
+    Psum = 0.0
     
     for rx in rxs:
         try:
-            T1 = blk.getTS(i1, tx.eui, CFG.rawts)
-            T2 = blk.getTS(i1, rx.eui, CFG.rawts)
-            T3 = blk.getTS(i2, tx.eui, CFG.rawts)
-            T4 = blk.getTS(i2, rx.eui, CFG.rawts)
+            T1 = blk.getTS(i1, tx.eui, rawts)
+            T2 = blk.getTS(i1, rx.eui, rawts)
+            T3 = blk.getTS(i2, tx.eui, rawts)
+            T4 = blk.getTS(i2, rx.eui, rawts)
             
             F2 = blk.getXtalPPM(i1, rx.eui)
             F4 = blk.getXtalPPM(i2, rx.eui)
             
             P2 = blk.getRxPower(i1, rx.eui)
             P4 = blk.getRxPower(i2, rx.eui)
+
+            P24 = (P2+P4)/2
             
             T31 = T3 - T1
             T42 = T4 - T2
             
-            Pwr = DW1000.RxPower2dBm((P2+P4)/2,64)
+            Pwr = DW1000.RxPower2dBm(P24,PRF)
             Est = (F2 + F4) / 2
             Err = (T42 - T31) / T42
             
             Fcnt += 1
             Fsum += Err
+            Esum += Est
+            Psum += P24
 
-            if VERBOSE > 0:
+            Pwr = DW1000.RxPower2dBm(P24,PRF)
+            
+            if VERBOSE > 1:
                 print('    {:<8s} <{:s}>   {:7.3f}ppm {:7.3f}ppm {:6.1f}dBm'.format(rx.host,rx.eui,Err*1E6,Est*1E6,Pwr))
                 
         except (ValueError,KeyError):
-            if VERBOSE > 0:
-                print('     {:<8s} <{:s}>   ?'.format(rx.host,rx.eui))
+            if VERBOSE > 1:
+                print('    {:<8s} <{:s}>'.format(rx.host,rx.eui))
 
-    if Fcnt > 0:
-        Fppm = Fsum/Fcnt
-    else:
-        Fppm = None
+    Favg = Fsum/Fcnt
+    Eavg = Esum/Fcnt
+    Pavg = Psum/Fcnt
     
-    return Fppm
+    return (Favg,Eavg,Pavg,Fcnt)
 
 
 def main():
     
     global VERBOSE
     
-    parser = argparse.ArgumentParser(description="RTLS server")
+    parser = argparse.ArgumentParser(description="XTALT test")
 
     DW1000.AddParserArguments(parser)
 
@@ -148,43 +160,61 @@ def main():
     tmr = tail.Timer()
     blk = tail.Blinker(rpc, args.debug)
     
-    Pcnt = 0
-    Psum = 0
+    ch  = int(xmitters[0].GetAttr('channel'))
+    prf = int(xmitters[0].GetAttr('prf'))
+    
+    Scnt = 0
+    Bcnt = 0
+    Fsum = 0.0
+    Esum = 0.0
+    Psum = 0.0
     
     eprint('Blinker starting')
 
     try:
         for i in range(CFG.blink_count):
 
-            Fppm = xtalt_ppm(blk, xmitters[0], rceivers, remotes, tmr)
+            try:
+                (Favg,Eavg,Pavg,Fcnt) = XTAL_PPM(blk, tmr, xmitters[0], rceivers, rawts=args.raw, CH=ch, PRF=prf)
 
-            if Fppm is not None:
+                Bcnt += 1
+                Scnt += Fcnt
+                Fsum += Favg*Fcnt
+                Esum += Eavg*Fcnt
+                Psum += Pavg*Fcnt
+
+                Pwr = DW1000.RxPower2dBm(Pavg,prf)
                 
-                Pcnt += 1
-                Psum += Fppm
-            
-                if VERBOSE > 0:
-                    print('    =============================================================')
-                    print('    AVERAGE                       {:7.3f}ppm'.format(Fppm*1E6))
+                if VERBOSE > 1:
+                    print('    ==============================================================')
+                    print('    AVERAGE                       {:7.3f}ppm {:7.3f}ppm {:6.1f}dBm'.format(Favg*1E6,Eavg*1E6,Pwr))
                     print()
 
+            except (ValueError,KeyError,ZeroDivisionError):
+                pass
+                    
     except KeyboardInterrupt:
         eprint('\nStopping...')
 
     blk.stop()
     rpc.stop()
 
-    if Pcnt > 0:
+    if Scnt > 0:
         
-        Pavg = Psum/Pcnt
+        Favg = Fsum/Scnt
+        Eavg = Esum/Scnt
+        Pavg = Psum/Scnt
         
+        Pwr = DW1000.RxPower2dBm(Pavg,prf)
+                
         print()
         print('FINAL STATISTICS:')
-        print('  Samples:  {}'.format(Pcnt))
-        print('  Average:  {:.3f}ppm'.format(Pavg*1E6))
+        print('  Blinks:   {}'.format(Bcnt))
+        print('  Samples:  {}'.format(Scnt))
+        print('  XTALT:    {:.3f}ppm'.format(Favg*1E6))
+        print('  XEST:     {:.3f}ppm'.format(Eavg*1E6))
+        print('  POWER:    {:.1f}dBm'.format(Pwr))
         
-    eprint('\nDone')
-    
 
 if __name__ == "__main__":
     main()

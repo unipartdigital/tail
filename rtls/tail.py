@@ -176,65 +176,74 @@ class DW1000:
             if Plog < -105:
                 return Plog
             elif Plog < -77:
-                return float(RFP2(Plog))
+                return float(RFP3(Plog))
             else:
                 return -65
         raise ValueError
 
-    def Pwr2Hex(val):
-        loc = val.find('+')
-        if loc > 0:
-            a = float(val[:loc])
-            b = float(val[loc:])
+    def TxPowerValue(txpwr):
+        n = txpwr.find('+')
+        if n > 0:
+            a = float(txpwr[:n])
+            b = float(txpwr[n:])
             c = int(a / 3)
             d = int(b * 2)
             if c<0 or c>6:
                 raise ValueError
-            if int(a) != 3*c:
+            if a != 3*c:
                 raise ValueError
             if d<0 or d>31:
                 raise ValueError
             if b != d/2:
                 raise ValueError
-            e = (6 - c) << 5
-            return (e|d)
+            c = (6 - c) << 5
+            return (c|d)
         else:
-            a = int(val,0)
-            if a<0:
-                raise ValueError
+            a = int(txpwr,0)
             return a
 
-    def TxPower(val):
-        if isinstance(val,str):
-            n = val.count(':')
+    def DecodeTxPower(txpwr):
+        if isinstance(txpwr,int):
+            return txpwr
+        
+        elif isinstance(txpwr,float):
+            return int(txpwr) ## convert to a+b?
+            
+        elif isinstance(txpwr,str):
+            n = txpwr.count(':')
             if n == 3:
-                N = val.findall(':')
-                A = DW1000.Pwr2Hex(val[:N[0]])
-                B = DW1000.Pwr2Hex(val[N[0]+1,N[1]])
-                C = DW1000.Pwr2Hex(val[N[1]+1,N[2]])
-                D = DW1000.Pwr2Hex(val[N[2]+1:])
+                N = txpwr.findall(':')
+                A = DW1000.TxPowerValue(txpwr[:N[0]])
+                B = DW1000.TxPowerValue(txpwr[N[0]+1,N[1]])
+                C = DW1000.TxPowerValue(txpwr[N[1]+1,N[2]])
+                D = DW1000.TxPowerValue(txpwr[N[2]+1:])
+                if A<0 or B<0 or C<0 or D<0:
+                    raise ValueError
                 if A>255 or B>255 or C>255 or D>255:
                     raise ValueError
                 return '0x{:02x}{:02x}{:02x}{:02x}'.format(A,B,C,D)
             elif n == 1:
-                N = val.find(':')
-                A = DW1000.Pwr2Hex(val[:N])
-                B = DW1000.Pwr2Hex(val[N+1:])
+                N = txpwr.find(':')
+                A = DW1000.TxPowerValue(txpwr[:N])
+                B = DW1000.TxPowerValue(txpwr[N+1:])
+                if A<0 or B<0:
+                    raise ValueError
                 if A>255 or B>255:
                     raise ValueError
                 return '0x{:02x}{:02x}{:02x}{:02x}'.format(A,A,B,B)
             elif n == 0:
-                A = DW1000.Pwr2Hex(val)
+                A = DW1000.TxPowerValue(txpwr)
+                if A<0:
+                    raise ValueError
                 if A<256:
                     return '0x{:02x}{:02x}{:02x}{:02x}'.format(A,A,A,A)
                 else:
                     return '0x{:08x}'.format(A)
-                raise ValueError
-        else:
-            return val
+        raise ValueError
+
 
     CONV = {
-        'tx_power':  TxPower,
+        'tx_power':  DecodeTxPower,
     }
 
     # Order is important
@@ -252,11 +261,12 @@ class DW1000:
         'fpr_threshold',
         'noise_threshold',
     )
+    
 
     def __init__(self,host,port,rpc):
         self.rpc  = rpc
         self.host = host
-        self.addr = socket.getaddrinfo(host, port, socket.AF_INET6)[0][4]
+        self.addr = socket.getaddrinfo(host, port, socket.AF_INET)[0][4]
         self.eui  = rpc.getEUI(self.addr)
 
     def GetCoord(self):
@@ -285,10 +295,24 @@ class DW1000:
             value = self.GetAttr(attr)
             eprint('  {:20s}: {}'.format(attr, value))
     
-    def PrintAllRemoteAttrs(remotes):
-        for remote in remotes:
-            remote.PrintAttrs()
-                
+    def PrintAllRemoteAttrs(remotes,summary=False):
+        if summary:
+            eprints(' {:24s}'.format('HOSTS'))
+            for rem in remotes:
+                eprints(' {:10s}'.format(rem.host[:9]))
+            for attr in DW1000.ATTRS:
+                eprints('\n  {:20s}:  '.format(attr))
+                for rem in remotes:
+                    value = rem.GetAttr(attr)
+                    eprints(' {:10s}'.format(str(value)))
+            eprint()
+        else:
+            for rem in remotes:
+                eprint('{} <{}>'.format(rem.host,rem.eui))
+                for attr in DW1000.ATTRS:
+                    value = rem.GetAttr(attr)
+                    eprint('  {:20s}: {}'.format(attr,value))
+
     def AddPrintArguments(parser):
         parser.add_argument('--print-eui', action='store_true', default=False, help='Print EUI64 value')
         for attr in DW1000.ATTRS:
@@ -356,7 +380,7 @@ class RPC:
         self.seqnum = 1
         self.handler = {}
         self.pending = {}
-        self.sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.bind(bind)
         self.lock = threading.Lock()

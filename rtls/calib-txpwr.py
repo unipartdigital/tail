@@ -25,7 +25,8 @@ class Config():
     rx_power     = -75.0
     at_total     = None
     
-    tx_power     = (0,8)
+    tx_power     = [0,8]
+    tx_coarse    = None
 
     rawts        = True
     
@@ -156,6 +157,7 @@ def main():
     parser.add_argument('-R', '--raw', action='store_true', default=False)
     parser.add_argument('-P', '--power', type=float, default=CFG.rx_power)
     parser.add_argument('-A', '--atten', type=float, default=CFG.at_total)
+    parser.add_argument('-C', '--coarse', type=int, default=CFG.tx_coarse)
     
     parser.add_argument('remote', type=str, nargs='+', help="Remote address")
     
@@ -195,6 +197,10 @@ def main():
     
     txpwr = [ list(CFG.tx_power), list(CFG.tx_power) ]
 
+    if args.coarse is not None:
+        txpwr[0][0] = args.coarse
+        txpwr[1][0] = args.coarse
+        
     try:
         while True:
 
@@ -310,53 +316,21 @@ def main():
                 ## Adjust Tx Power
                 ##
                 
-                if txpwr[0][0] > 0 and P1log > target_power + 1.5:
-                    txpwr[0][0] -= 3
-                elif txpwr[0][1] > 0 and P1log > target_power + 0.25:
+                if txpwr[0][1] > 0 and P1log > target_power + 0.25:
                     txpwr[0][1] -= 0.5
-                    
-                if txpwr[0][0] < 18 and P1log < target_power - 1.5:
-                    txpwr[0][0] += 3
-                elif txpwr[0][1] < 15.5 and P1log < target_power - 0.25:
+                if txpwr[0][1] < 15.5 and P1log < target_power - 0.25:
                     txpwr[0][1] += 0.5
-
-                if txpwr[1][0] > 0 and P0log > target_power + 1.5:
-                    txpwr[1][0] -= 3
-                elif txpwr[1][1] > 0 and P0log > target_power + 0.25:
-                    txpwr[1][1] -= 0.5
                 
-                if txpwr[1][0] < 18 and P0log < target_power - 1.5:
-                    txpwr[1][0] += 3
-                elif txpwr[1][1] < 15.5 and P0log < target_power - 0.25:
+                if txpwr[1][1] > 0 and P0log > target_power + 0.25:
+                    txpwr[1][1] -= 0.5
+                if txpwr[1][1] < 15.5 and P0log < target_power - 0.25:
                     txpwr[1][1] += 0.5
 
-                while txpwr[0][1] < 3 and txpwr[0][0] > 0:
-                    txpwr[0][0] -= 3
-                    txpwr[0][1] += 3.0
-                while txpwr[0][1] > 7 and txpwr[0][0] < 18:
-                    txpwr[0][0] += 3
-                    txpwr[0][1] -= 3.0
-
-                while txpwr[1][1] < 3 and txpwr[1][0] > 0:
-                    txpwr[1][0] -= 3
-                    txpwr[1][1] += 3.0
-                while txpwr[1][1] > 7 and txpwr[1][0] < 18:
-                    txpwr[1][0] += 3
-                    txpwr[1][1] -= 3.0
-
-                if txpwr[0][0] < 0:
-                    txpwr[0][0] = 0
-                if txpwr[0][0] > 18:
-                    txpwr[0][0] = 18
                 if txpwr[0][1] < 0:
                     txpwr[0][1] = 0.0
                 if txpwr[0][1] > 15.5:
                     txpwr[0][1] = 15.5
                 
-                if txpwr[1][0] < 0:
-                    txpwr[1][0] = 0
-                if txpwr[1][0] > 18:
-                    txpwr[1][0] = 18
                 if txpwr[1][1] < 0:
                     txpwr[1][1] = 0.0
                 if txpwr[1][1] > 15.5:

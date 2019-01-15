@@ -59,10 +59,8 @@ def DECA_TWR(blk, tmr, remote, delay, rawts=False):
     
     i1 = blk.Blink(adr1,Tm)
     Tm = tmr.nap(delay[0])
-    
     i2 = blk.Blink(adr2,Tm)
     Tm = tmr.nap(delay[1])
-    
     i3 = blk.Blink(adr1,Tm)
     
     blk.WaitBlinks((i1,i2,i3),remote,delay[2])
@@ -79,6 +77,7 @@ def DECA_TWR(blk, tmr, remote, delay, rawts=False):
 
     Pwr = blk.getRxPower(i2, eui1)
     Fpp = blk.getFpPower(i2, eui1)
+    
     Tmp = blk.getTemp(i2,eui1)
     Vol = blk.getVolt(i2,eui1)
 
@@ -143,6 +142,7 @@ def DECA_FAST_TWR(blk, tmr, remote, delay, rawts=False):
 
     Pwr = blk.getRxPower(i2, eui1)
     Fpp = blk.getFpPower(i2, eui1)
+    
     Tmp = blk.getTemp(i2,eui1)
     Vol = blk.getVolt(i2,eui1)
 
@@ -205,6 +205,7 @@ def main():
         
     delay1 = args.delay
     delay2 = args.delay
+    
     if args.delay1 is not None:
         delay1 = args.delay1
     if args.delay2 is not None:
@@ -228,6 +229,9 @@ def main():
     tmr = tail.Timer()
     blk = tail.Blinker(rpc, args.debug)
 
+    ch  = int(remotes[0].GetAttr('channel'))
+    prf = int(remotes[0].GetAttr('prf'))
+    
     Tcnt = 0
     Rsum = 0.0
     Lfil = 0.0
@@ -248,8 +252,6 @@ def main():
                 if Lof < 0 or Lof > 100:
                     raise ValueError
 
-                Plog = DW1000.RxPower2dBm(Pwr,64)
-                
                 delays.append(Dof)
                 powers.append(Pwr)
                 fpathp.append(Fpp)
@@ -258,6 +260,7 @@ def main():
                 Tcnt += 1
                 
                 if VERBOSE > 0:
+                    Plog = DW1000.RxPower2dBm(Pwr,prf)
                     Ldif = Lof - Lfil
                     Lvar += (Ldif*Ldif - Lvar) / args.ewma
                     if Tcnt < args.ewma:
@@ -271,7 +274,7 @@ def main():
                     msg += 'ToF:{:.3f}ns '.format(Dof)
                     msg += 'Xerr:{:+.3f}ppm '.format(Ppm*1E6)
                     msg += 'Xest:{:+.3f}ppm '.format(Ppe*1E6)
-                    msg += 'Rx:{:.1f}dBm '.format(Plog)
+                    msg += 'Pwr:{:.1f}dBm '.format(Plog)
                     msg += 'Temp:{:.2f}C '.format(Tmp)
                     msg += 'Volt:{:.3f}V '.format(Vol)
                     msg += 'Rtt:{:.3f}ms '.format(Rtt*1E-6)
@@ -306,10 +309,10 @@ def main():
         Lavg = Davg * C_AIR * 1E-9
         Lstd = Dstd * C_AIR * 1E-9
         Lmed = Dmed * C_AIR * 1E-9
-        Plog = DW1000.RxPower2dBm(Pavg,64)
-        Pstl = DW1000.RxPower2dBm(Pavg+Pstd,64) - Plog
-        Flog = DW1000.RxPower2dBm(Favg,64)
-        Fstl = DW1000.RxPower2dBm(Favg+Fstd,64) - Flog
+        Plog = DW1000.RxPower2dBm(Pavg,prf)
+        Pstl = DW1000.RxPower2dBm(Pavg+Pstd,prf) - Plog
+        Flog = DW1000.RxPower2dBm(Favg,prf)
+        Fstl = DW1000.RxPower2dBm(Favg+Fstd,prf) - Flog
         Ravg = np.mean(rtrips)
         Rstd = np.std(rtrips)
 
