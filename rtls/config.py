@@ -189,21 +189,21 @@ DW1000_DEVICE_CALIB = {
     '70b3d5b1e0000013': {
         'bss'      : 5,
         'host'     : 'bss6',
-        'xtalt'	   : 16,
+        'xtalt'	   : 15,
         'antd'     : 0x402f,
         'coord'    : (6.177, 0.185, 1.255),
     },
     '70b3d5b1e0000014': {
         'bss'      : 0,
         'host'     : 'bss1',
-        'xtalt'	   : 17,
+        'xtalt'	   : 16,
         'antd'     : 0x4049,
         'coord'    : (0.150, 0.475, 0.035),
     },
     '70b3d5b1e0000015': {
         'bss'      : 1,
         'host'     : 'bss2',
-        'xtalt'	   : 15,
+        'xtalt'	   : 14,
         'antd'     : 0x4040,
         'coord'    : (8.545, 0.420, 0.035),
     },
@@ -231,25 +231,97 @@ DW1000_DEVICE_CALIB = {
     '70b3d5b1e0000019': {
         'bss'      : 7,
         'host'     : 'bss8',
-        'xtalt'	   : 16,
+        'xtalt'	   : 15,
         'antd'     : 0x4018,
         'coord'    : (2.299, 6.140, 1.270),
     },
+    '70b3d5b1e000001a': {
+        'xtalt'	   : 15,
+        'antd'     : 0x4020,
+    },
+    '70b3d5b1e000001b': {
+        'xtalt'	   : 16,
+        'antd'     : 0x4020,
+    },
+    '70b3d5b1e000001c': {
+        'xtalt'	   : 16,
+        'antd'     : 0x4020,
+    },
+    '70b3d5b1e000001d': {
+        'xtalt'	   : 16,
+        'antd'     : 0x4020,
+    },
+    '70b3d5b1e000001e': {
+        'xtalt'	   : 16,
+        'antd'     : 0x4020,
+    },
+    '70b3d5b1e000001f': {
+        'xtalt'	   : 16,
+        'antd'     : 0x4020,
+    },
     '70b3d5b1e0000020': {
-        'xtalt'	   : 22,
+        'xtalt'	   : 16,
         'antd'     : 0x401b,
     },
     '70b3d5b1e0000021': {
-        'xtalt'	   : 22,
+        'xtalt'	   : 15,
         'antd'     : 0x4015,
     },
     '70b3d5b1e0000022': {
-        'xtalt'	   : 23,
+        'xtalt'	   : 16,
         'antd'     : 0x4023,
     },
     '70b3d5b1e0000023': {
-        'xtalt'	   : 23,
+        'xtalt'	   : 15,
         'antd'     : 0x401e,
+    },
+    '70b3d5b1e0000024': {
+        'xtalt'	   : 15,
+        'antd'     : 0x4020,
+    },
+    '70b3d5b1e0000025': {
+        'xtalt'	   : 16,
+        'antd'     : 0x4020,
+    },
+    '70b3d5b1e0000026': {
+        'xtalt'	   : 16,
+        'antd'     : 0x4020,
+    },
+    '70b3d5b1e0000027': {
+        'xtalt'	   : 16,
+        'antd'     : 0x4020,
+    },
+    '70b3d5b1e0000028': {
+        'xtalt'	   : 16,
+        'antd'     : 0x4020,
+    },
+    '70b3d5b1e0000029': {
+        'xtalt'	   : 16,
+        'antd'     : 0x4020,
+    },
+    '70b3d5b1e000002a': { # Unstable?
+        'xtalt'	   : 16,
+        'antd'     : 0x4020,
+    },
+    '70b3d5b1e000002b': {
+        'xtalt'	   : 16,
+        'antd'     : 0x4020,
+    },
+    '70b3d5b1e000002c': {
+        'xtalt'	   : 16,
+        'antd'     : 0x4020,
+    },
+    '70b3d5b1e000002d': {
+        'xtalt'	   : 16,
+        'antd'     : 0x4020,
+    },
+    '70b3d5b1e000002e': {
+        'xtalt'	   : 16,
+        'antd'     : 0x4020,
+    },
+    '70b3d5b1e000002f': {
+        'xtalt'	   : 16,
+        'antd'     : 0x4020,
     },
 }
 
