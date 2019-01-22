@@ -50,18 +50,18 @@ def DECA_TWR(blk, tmr, remote, delay, rawts=False):
     else:
         SCL = 1<<32
 
-    adr1 = remote[0].addr
-    adr2 = remote[1].addr
+    rem1 = remote[0]
+    rem2 = remote[1]
     eui1 = remote[0].eui
     eui2 = remote[1].eui
 
     Tm = tmr.sync()
     
-    i1 = blk.Blink(adr1,Tm)
+    i1 = blk.Blink(rem1,Tm)
     Tm = tmr.nap(delay[0])
-    i2 = blk.Blink(adr2,Tm)
+    i2 = blk.Blink(rem2,Tm)
     Tm = tmr.nap(delay[1])
-    i3 = blk.Blink(adr1,Tm)
+    i3 = blk.Blink(rem1,Tm)
     
     blk.WaitBlinks((i1,i2,i3),remote,delay[2])
     
@@ -110,8 +110,8 @@ def DECA_FAST_TWR(blk, tmr, remote, delay, rawts=False):
     else:
         SCL = 1<<32
 
-    adr1 = remote[0].addr
-    adr2 = remote[1].addr
+    rem1 = remote[0]
+    rem2 = remote[1]
     eui1 = remote[0].eui
     eui2 = remote[1].eui
 
@@ -121,12 +121,12 @@ def DECA_FAST_TWR(blk, tmr, remote, delay, rawts=False):
     i2 = blk.GetBlinkId(Tm)
     i3 = blk.GetBlinkId(Tm)
 
-    blk.TriggerBlink(adr2,i1,i2)
-    blk.TriggerBlink(adr1,i2,i3)
+    blk.TriggerBlink(rem2,i1,i2)
+    blk.TriggerBlink(rem1,i2,i3)
     
     tmr.nap(delay[0])
     
-    blk.BlinkID(adr1,i1)
+    blk.BlinkID(rem1,i1)
     
     blk.WaitBlinks((i1,i2,i3),remote,delay[2])
     
@@ -219,7 +219,7 @@ def main():
             anchor = DW1000(host,args.port,rpc)
             remotes.append(anchor)
         except:
-            eprint('Remote {} exist does not'.format(host))
+            eprint('Remote {} not available'.format(host))
 
     DW1000.HandleArguments(args,remotes)
     
@@ -229,8 +229,8 @@ def main():
     tmr = tail.Timer()
     blk = tail.Blinker(rpc, args.debug)
 
-    ch  = int(remotes[0].GetAttr('channel'))
-    prf = int(remotes[0].GetAttr('prf'))
+    ch  = int(remotes[0].GetDWAttr('channel'))
+    prf = int(remotes[0].GetDWAttr('prf'))
     
     Tcnt = 0
     Rsum = 0.0

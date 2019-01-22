@@ -78,8 +78,8 @@ def PWRTWR(blk, tmr, remote, delay, txpwr=None, rawts=False):
     eui2 = rem2.eui
 
     if txpwr is not None:
-        rem1.SetAttr('tx_power', TxPwrs2Hex(txpwr[0]))
-        rem2.SetAttr('tx_power', TxPwrs2Hex(txpwr[1]))
+        rem1.SetDWAttr('tx_power', TxPwrs2Hex(txpwr[0]))
+        rem2.SetDWAttr('tx_power', TxPwrs2Hex(txpwr[1]))
     
     Tm = tmr.sync()
     i1 = blk.Blink(adr1,Tm)
@@ -182,7 +182,7 @@ def main():
 
     for rem in remotes:
         for attr in DW1000_CALIB_CONFIG:
-            rem.SetAttr(attr, DW1000_CALIB_CONFIG[attr])
+            rem.SetDWAttr(attr, DW1000_CALIB_CONFIG[attr])
     
     DW1000.HandleArguments(args,remotes)
 
@@ -192,8 +192,8 @@ def main():
     tmr = tail.Timer()
     blk = tail.Blinker(rpc, args.debug)
 
-    ch  = int(remotes[0].GetAttr('channel'))
-    prf = int(remotes[0].GetAttr('prf'))
+    ch  = int(remotes[0].GetDWAttr('channel'))
+    prf = int(remotes[0].GetDWAttr('prf'))
     
     txpwr = [ list(CFG.tx_power), list(CFG.tx_power) ]
 

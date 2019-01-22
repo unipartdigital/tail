@@ -48,9 +48,9 @@ def XTAL_PPM(blk, tmr, tx, rxs, rawts=True, CH=7, PRF=64):
         print('BLINK {} <{}>'.format(tx.host,tx.eui))
 
     tm = tmr.sync()
-    i1 = blk.Blink(tx.addr,tm)
+    i1 = blk.Blink(tx,tm)
     tm = tmr.nap(CFG.blink_delay)
-    i2 = blk.Blink(tx.addr,tm)
+    i2 = blk.Blink(tx,tm)
 
     try:
         blk.WaitBlinks((i1,i2),rxs,CFG.blink_wait)
@@ -160,8 +160,8 @@ def main():
     tmr = tail.Timer()
     blk = tail.Blinker(rpc, args.debug)
     
-    ch  = int(xmitters[0].GetAttr('channel'))
-    prf = int(xmitters[0].GetAttr('prf'))
+    ch  = int(xmitters[0].GetDWAttr('channel'))
+    prf = int(xmitters[0].GetDWAttr('prf'))
     
     Scnt = 0
     Bcnt = 0
@@ -186,8 +186,8 @@ def main():
                 Pwr = DW1000.RxPower2dBm(Pavg,prf)
                 
                 if VERBOSE > 1:
-                    print('    ==============================================================')
-                    print('    AVERAGE                       {:7.3f}ppm {:7.3f}ppm {:6.1f}dBm'.format(Favg*1E6,Eavg*1E6,Pwr))
+                    print('    ==================================================================')
+                    print('    AVERAGE                           {:7.3f}ppm {:7.3f}ppm {:6.1f}dBm'.format(Favg*1E6,Eavg*1E6,Pwr))
                     print()
 
             except (ValueError,KeyError,ZeroDivisionError):

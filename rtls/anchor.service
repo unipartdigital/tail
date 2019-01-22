@@ -1,10 +1,12 @@
 [Unit]
 Description=Tail Anchor Daemon
 Documentation=man:tail
+Requires=network.target
+After=network.target
 
 [Service]
 Type=simple
-ExecStart=/sbin/anchor -s blueberry.qs.unipart.io
+ExecStart=/sbin/anchor-start
 
 [Install]
 WantedBy=multi-user.target

@@ -139,7 +139,7 @@ def main():
 
     for rem in remotes:
         for attr in DW1000_CALIB_CONFIG:
-            rem.SetAttr(attr, DW1000_CALIB_CONFIG[attr])
+            rem.SetDWAttr(attr, DW1000_CALIB_CONFIG[attr])
     
     DW1000.HandleArguments(args,remotes)
 
@@ -154,11 +154,11 @@ def main():
         for tx in xmitters:
             if VERBOSE > 0:
                 eprint('Calibrating {} <{}>'.format(tx.host,tx.eui))
-            xtalt = int(tx.GetAttr('xtalt'))
+            xtalt = int(tx.GetDWAttr('xtalt'))
             while True:
                 Pcnt = 0
                 Psum = 0
-                tx.SetAttr('xtalt', xtalt)
+                tx.SetDWAttr('xtalt', xtalt)
                 for i in range(CFG.blink_count):
                     Fppm = xtalt_ppm(blk,tx,rceivers,remotes,tmr)
                     if Fppm is not None:

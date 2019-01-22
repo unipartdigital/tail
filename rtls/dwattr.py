@@ -43,8 +43,8 @@ def main():
         try:
             anchor = DW1000(host,args.port,rpc)
             remotes.append(anchor)
-        except:
-            eprint('Remote {} exist does not'.format(host))
+        except (ValueError,OSError,ConnectionRefusedError):
+            eprint('Remote {} not accessible'.format(host))
 
     DW1000.HandleArguments(args,remotes)
     DW1000.HandlePrintArguments(args,remotes)

@@ -19,12 +19,13 @@ import numpy as np
 import numpy.linalg as lin
 import scipy.interpolate as interp
 
-from pprint import pprint
 from config import *
+from pprint import pprint
 
 
 VERBOSE = 0
 DEBUG = 0
+
 
 def prints(*args, **kwargs):
     print(*args, end='', flush=True, **kwargs)
@@ -91,43 +92,6 @@ RFP2 = interp.LSQUnivariateSpline(DATA[:,2],DATA[:,0],[10.0-105,22.5-105])
 RFP3 = interp.LSQUnivariateSpline(DATA[:,3],DATA[:,0],[10.0-105,22.5-105])
 
 
-CompSplines = {
-    500: {
-        16: (
-             ((-95.0, -89.0), (455.2684032227685, 9.851533848614533, 0.051993231111100435)),
-             ((-89.0, -81.0), (622.1582642485359, 13.601867408230925, 0.07306251852581003)),
-             ((-81.0, -75.0), (-206.63577569900568, -6.862181359285285, -0.05325876022235132)),
-             ((-75.0, -69.0), (-14.553074442797616, -1.7399765082001553, -0.019110731344085252)),
-             ((-69.0, -61.0), (-65.34665835419767, -3.212254801451526, -0.02977941823739272)),
-        ),
-        64: (
-              ((-105.0, -91.0), (60.352219498834565, 1.259091772638299, 0.005614160222348175)),
-              (( -91.0, -81.0), (182.24644860110973, 3.938085215997636, 0.020333901101900254)),
-              (( -81.0, -75.0), (416.4655048521236, 9.72127075199398, 0.05603257081757784)),
-              (( -75.0, -67.0), (-235.36598188854484, -7.660900913339617, -0.05984856478355027)),
-              (( -67.0, -55.0), (-15.291050806896337, -1.0915006691080062, -0.010823194973097472)),
-        ),
-    },
-    900: {
-        16: (
-             ((-95.0, -89.0), (183.67480691132866, 3.6158987280067723, 0.013391462077503746)),
-             ((-89.0, -81.0), (909.6294873191769, 19.92948671225841, 0.10504083084258342)),
-             ((-81.0, -75.0), (-79.62234302197686, -4.496483922533177, -0.0457367625993812)),
-             ((-75.0, -69.0), (47.94037800579669, -1.094811223380935, -0.023058943654632458)),
-             ((-69.0, -61.0), (-95.74259549796217, -5.259534749105479, -0.05323809715869743)),
-        ),
-        64: (
-             ((-105.0, -95.0), (216.3308306122728, 4.1714254724783855, 0.01677363406513388)),
-             (( -95.0, -83.0), (148.11352408935457, 2.7353156634156304, 0.009215393273090733)),
-             (( -83.0, -75.0), (732.1532410581545, 16.808623222604062, 0.09399472336764236)),
-             (( -75.0, -67.0), (-20.421159267426496, -3.260069209064098, -0.039796838878970675)),
-             (( -67.0, -61.0), (-96.7161189002168, -5.537443600292282, -0.0567915127387808)),
-             (( -61.0, -55.0), (5.839529695372041, -2.1750623191076377, -0.029231829906617435)),
-        ),
-    },
-}
-
-
 def XSpline(spline,X):
     for S in spline:
         if S[0][0] < X <= S[0][1]:
@@ -136,8 +100,199 @@ def XSpline(spline,X):
     return None
 
 
+class Timer:
+
+    def __init__(self):
+        self.start = time.time()
+        self.timer = self.start
+
+    def get(self):
+        return self.timer - self.start
+    
+    def nap(self,delta):
+        self.timer += delta
+        while True:
+            now = time.time()
+            if now > self.timer:
+                break
+            time.sleep(self.timer - now)
+        return self.get()
+
+    def sync(self):
+        self.timer = time.time()
+        return self.get()
+
+
+class TailPipe:
+    
+    def __init__(self, sock=None):
+        self.buff = b''
+        self.sock = sock
+
+    def socket(family, type):
+        return TailPipe(socket.socket(family,type))
+    
+    def close(self):
+        if self.sock is not None:
+            self.sock.close()
+            self.sock = None
+
+    def recv(self):
+        data = self.sock.recv(4096)
+        if len(data) < 1:
+            raise BrokenPipeError
+        return data
+
+    def recvmsg(self):
+        while not self.hasmsg():
+            self.fillmsg()
+        return self.getmsg()
+
+    def fillmsg(self):
+        try:
+            self.buff += self.recv()
+        except ConnectionResetError:
+            raise BrokenPipeError
+        except ConnectionRefusedError:
+            #eprint('TailPipe recv: Connection Refused')
+            pass
+
+    def hasmsg(self):
+        return (self.buff.find(31) > 0)
+
+    def getmsg(self):
+        eom = self.buff.find(31)
+        if eom > 0:
+            msg = self.buff[0:eom]
+            self.buff = self.buff[eom+1:]
+            return msg
+        elif eom == 0:
+            self.buff = self.buff[1:]
+        return None
+
+    def send(self,data):
+        self.sock.send(data)
+
+    def sendmsg(self,data):
+        self.send(data + b'\x1f')
+
+
+class UDPPipe(TailPipe):
+    
+    def connect(remote=None, local=None):
+        pipe = UDPPipe.socket(socket.AF_INET,socket.SOCK_DGRAM)
+        pipe.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        if local is not None:
+            pipe.sock.bind(local)
+        if remote is not None:
+            pipe.sock.connect(remote)
+        return pipe
+
+
+class TCPPipe(TailPipe):
+
+    def connect(remote=None, local=None):
+        pipe = TCPPipe.socket(socket.AF_INET,socket.SOCK_STREAM)
+        if remote is not None:
+            pipe.sock.connect(remote)
+        return pipe
+
+
 class DW1000:
 
+    def __init__(self,host,port,rpc):
+        self.rpc  = rpc
+        self.host = host
+        self.port = port
+        self.addr = socket.getaddrinfo(host, port, socket.AF_INET)[0][4]
+        self.pipe = TCPPipe.connect(self.addr)
+        self.rpc.addPipe(self.pipe)
+        self.eui = rpc.getEUI(self)
+
+    def GetCoord(self):
+        return DW1000_DEVICE_CALIB[self.eui]['coord']
+
+    def GetDWAttr(self,attr):
+        return self.rpc.getDWAttr(self,attr)
+
+    def SetDWAttr(self,attr,value):
+        if attr in self.CONV:
+            value = self.CONV[attr](value)
+        return self.rpc.setDWAttr(self,attr,value)
+
+    def GetDWAttrDefault(self,attr):
+        if self.eui in DW1000_DEVICE_CALIB and attr in DW1000_DEVICE_CALIB[self.eui]:
+            val = DW1000_DEVICE_CALIB[self.eui][attr]
+        elif attr in DW1000_DEFAULT_CONFIG:
+            val = DW1000_DEFAULT_CONFIG[attr]
+        else:
+            val = None
+        return val
+
+    def PrintDWAttrs(self):
+        eprint('{} <{}>'.format(self.host,self.eui))
+        for attr in DW1000_ATTRS:
+            value = self.GetDWAttr(attr)
+            eprint('  {:20s}: {}'.format(attr, value))
+
+    ##
+    ## Static members
+    ##
+
+    def PrintAllRemoteAttrs(remotes,summary=False):
+        if summary:
+            eprints(' {:24s}'.format('HOSTS'))
+            for rem in remotes:
+                eprints(' {:10s}'.format(rem.host[:9]))
+            for attr in DW1000_ATTRS:
+                eprints('\n  {:20s}:  '.format(attr))
+                for rem in remotes:
+                    value = rem.GetDWAttr(attr)
+                    eprints(' {:10s}'.format(str(value)))
+            eprint()
+        else:
+            for rem in remotes:
+                eprint('{} <{}>'.format(rem.host,rem.eui))
+                for attr in DW1000_ATTRS:
+                    value = rem.GetDWAttr(attr)
+                    eprint('  {:20s}: {}'.format(attr,value))
+
+    def AddPrintArguments(parser):
+        parser.add_argument('--print-eui', action='store_true', default=False, help='Print EUI64 value')
+        for attr in DW1000_ATTRS:
+            parser.add_argument('--print-'+attr, action='store_true', default=False, help='Print attribute <{}> value'.format(attr))
+
+    def HandlePrintArguments(args,remotes):
+        ret = False
+        for rem in remotes:
+            if getattr(args, 'print_eui'):
+                print(rem.eui)
+            for attr in DW1000_ATTRS:
+                if getattr(args, 'print_'+attr):
+                    val = rem.GetDWAttr(attr)
+                    ret = True
+                    print(val)
+        return ret
+    
+    def AddParserArguments(parser):
+        parser.add_argument('--reset', action='store_true', default=False)
+        for attr in DW1000_ATTRS:
+            parser.add_argument('--' + attr, type=str, default=None)
+
+    def HandleArguments(args,remotes):
+        for rem in remotes:
+            for attr in DW1000_ATTRS:
+                val = None
+                if getattr(args,attr) is not None:
+                    if getattr(args,attr) == 'cal':
+                        val = rem.GetDWAttrDefault(attr)
+                    else:
+                        val = getattr(args,attr)
+                elif args.reset:
+                    val = rem.GetDWAttrDefault(attr)
+                if val is not None:
+                    rem.SetDWAttr(attr, val)
+    
     def RxComp(PWR,CH,PRF):
         if CH in (1,2,3,5):
             BW = 500
@@ -147,7 +302,7 @@ class DW1000:
             raise ValueError
         if PRF not in (16,64):
             raise ValueError
-        Spl = CompSplines[BW][PRF]
+        Spl = DW1000_COMP_SPLINES[BW][PRF]
         Cor = XSpline(Spl,PWR) / 100
         return Cor
 
@@ -159,7 +314,6 @@ class DW1000:
 
     def RxCompRaw(PWR,CH,PRF):
         return DW1000.RxCompTime(PWR,CH,PRF) * DW1000_CLOCK_HZ
-
 
     def RxPower2dBm(power,prf=64):
         Plog = 10*math.log10(power)
@@ -241,163 +395,43 @@ class DW1000:
                     return '0x{:08x}'.format(A)
         raise ValueError
 
-
+    # Parameter value conversions
     CONV = {
         'tx_power':  DecodeTxPower,
     }
 
-    # Order is important
-    ATTRS = (
-        'channel',
-        'pcode',
-        'prf',
-        'rate',
-        'txpsr',
-        'smart_power',
-        'tx_power',
-        'xtalt',
-        'antd',
-        'snr_threshold',
-        'fpr_threshold',
-        'noise_threshold',
-    )
-    
-
-    def __init__(self,host,port,rpc):
-        self.rpc  = rpc
-        self.host = host
-        self.addr = socket.getaddrinfo(host, port, socket.AF_INET)[0][4]
-        self.eui  = rpc.getEUI(self.addr)
-
-    def GetCoord(self):
-        return DW1000_DEVICE_CALIB[self.eui]['coord']
-
-    def GetAttr(self,attr):
-        return self.rpc.getAttr(self.addr,attr)
-
-    def SetAttr(self,attr,value):
-        if attr in self.CONV:
-            value = self.CONV[attr](value)
-        return self.rpc.setAttr(self.addr,attr,value)
-
-    def GetAttrDefault(self,attr):
-        if self.eui in DW1000_DEVICE_CALIB and attr in DW1000_DEVICE_CALIB[self.eui]:
-            val = DW1000_DEVICE_CALIB[self.eui][attr]
-        elif attr in DW1000_DEFAULT_CONFIG:
-            val = DW1000_DEFAULT_CONFIG[attr]
-        else:
-            val = None
-        return val
-
-    def PrintAttrs(self):
-        eprint('{} <{}>'.format(self.host,self.eui))
-        for attr in DW1000.ATTRS:
-            value = self.GetAttr(attr)
-            eprint('  {:20s}: {}'.format(attr, value))
-    
-    def PrintAllRemoteAttrs(remotes,summary=False):
-        if summary:
-            eprints(' {:24s}'.format('HOSTS'))
-            for rem in remotes:
-                eprints(' {:10s}'.format(rem.host[:9]))
-            for attr in DW1000.ATTRS:
-                eprints('\n  {:20s}:  '.format(attr))
-                for rem in remotes:
-                    value = rem.GetAttr(attr)
-                    eprints(' {:10s}'.format(str(value)))
-            eprint()
-        else:
-            for rem in remotes:
-                eprint('{} <{}>'.format(rem.host,rem.eui))
-                for attr in DW1000.ATTRS:
-                    value = rem.GetAttr(attr)
-                    eprint('  {:20s}: {}'.format(attr,value))
-
-    def AddPrintArguments(parser):
-        parser.add_argument('--print-eui', action='store_true', default=False, help='Print EUI64 value')
-        for attr in DW1000.ATTRS:
-            parser.add_argument('--print-'+attr, action='store_true', default=False, help='Print attribute <{}> value'.format(attr))
-
-    def HandlePrintArguments(args,remotes):
-        ret = False
-        for rem in remotes:
-            if getattr(args, 'print_eui'):
-                print(rem.eui)
-            for attr in DW1000.ATTRS:
-                if getattr(args, 'print_'+attr):
-                    val = rem.GetAttr(attr)
-                    ret = True
-                    print(val)
-        return ret
-    
-    def AddParserArguments(parser):
-        parser.add_argument('--reset', action='store_true', default=False)
-        for attr in DW1000.ATTRS:
-            parser.add_argument('--' + attr, type=str, default=None)
-
-    def HandleArguments(args,remotes):
-        for rem in remotes:
-            for attr in DW1000.ATTRS:
-                val = None
-                if getattr(args,attr) is not None:
-                    if getattr(args,attr) == 'cal':
-                        val = rem.GetAttrDefault(attr)
-                    else:
-                        val = getattr(args,attr)
-                elif args.reset:
-                    val = rem.GetAttrDefault(attr)
-                if val is not None:
-                    rem.SetAttr(attr, val)
-
-
-class Timer:
-
-    def __init__(self):
-        self.start = time.time()
-        self.timer = self.start
-
-    def get(self):
-        return self.timer - self.start
-    
-    def nap(self,delta):
-        self.timer += delta
-        while True:
-            now = time.time()
-            if now > self.timer:
-                break
-            time.sleep(self.timer - now)
-        return self.get()
-
-    def sync(self):
-        self.timer = time.time()
-        return self.get()
-
 
 class RPC:
     
-    def __init__(self,bind):
+    def __init__(self,udp=None):
         self.running = True
         self.seqnum = 1
+        self.fdset = set()
+        self.pipes = {}
         self.handler = {}
         self.pending = {}
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.sock.bind(bind)
+        if udp is not None:
+            pipe = UDPPipe.connect(local=udp)
+            self.addPipe(pipe)
         self.lock = threading.Lock()
         self.thread = threading.Thread(target=self.run)
         self.thread.start()
 
     def run(self):
         while self.running:
-            rset,wset,eset = select.select([self.sock],[],[],0.1)
-            if self.sock in rset:
-                self.recv()
+            (rset,wset,eset) = select.select(list(self.fdset),[],[],0.1)
+            for rsock in rset:
+                if rsock in self.pipes:
+                    pipe = self.pipes[rsock]
+                    pipe.fillmsg()
+                    while pipe.hasmsg():
+                        self.recv(pipe.getmsg())
+
 
     def stop(self):
         self.running = False
 
-    def recv(self):
-        (msg, rem) = self.sock.recvfrom(4096)
+    def recv(self,msg):
         try:
             data = json.loads(msg.decode())
             func = data.get('func')
@@ -412,14 +446,22 @@ class RPC:
         elif func in self.handler:
             self.handler[func](data)
     
-    def send(self,dest,func,args,seqn=0):
+    def send(self,rem,func,args,seqn=0):
         msg = {
             'func': func,
             'args': args,
             'seqn': seqn
         }
         data = json.dumps(msg).encode()
-        self.sock.sendto(data, dest)
+        rem.pipe.sendmsg(data)
+
+    def addPipe(self,pipe):
+        self.fdset.add(pipe.sock)
+        self.pipes[pipe.sock] = pipe
+
+    def delPipe(self,pipe):
+        self.fdset.discard(pipe.sock)
+        del self.pipes[pipe.sock]
 
     def register(self,name,func):
         self.handler[name] = func
@@ -457,28 +499,27 @@ class RPC:
             self.pending[seqn]['data'] = data
             self.pending[seqn]['wait'].set()
 
-    def call(self,dest,func,args,wait=1.0):
+    def call(self,rem,func,args,wait=1.0):
         seqn = self.getSeqNum()
         self.initRet(func,seqn)
-        self.send(dest,func,args,seqn)
+        self.send(rem,func,args,seqn)
         data = self.waitRet(func,seqn,wait)
         return data.get('args',{})
 
-    def getAttr(self,addr,attr):
-        return self.call(addr, 'getAttr', { 'attr': attr }).get('value',None)
+    def getDWAttr(self,rem,attr):
+        return self.call(rem, 'getAttr', { 'attr': attr }).get('value',None)
 
-    def setAttr(self,addr,attr,val):
-        return self.call(addr, 'setAttr', { 'attr': attr, 'value': val }).get('value',None)
+    def setDWAttr(self,rem,attr,val):
+        return self.call(rem, 'setAttr', { 'attr': attr, 'value': val }).get('value',None)
 
-    def getEUI(self,addr):
-        return self.call(addr, 'getEUI', { }).get('value',None)
+    def getEUI(self,rem):
+        return self.call(rem, 'getEUI', { }).get('value',None)
 
 
 
 class Blinker():
 
     def __init__(self,rpc,debug=0):
-        self.DEBUG = debug
         self.rpc = rpc
         self.bid = 1
         self.blinks = {}
@@ -573,16 +614,16 @@ class Blinker():
     def PurgeBlink(self,bid):
         del self.blinks[bid]
 
-    def Blink(self,addr,time):
+    def Blink(self,rem,time):
         bid = self.GetBlinkId(time)
-        self.rpc.send(addr, 'blink', {'bid':bid} )
+        self.rpc.send(rem, 'blink', {'bid':bid} )
         return bid
 
-    def BlinkID(self,addr,bid):
-        self.rpc.send(addr, 'blink', {'bid':bid} )
+    def BlinkID(self,rem,bid):
+        self.rpc.send(rem, 'blink', {'bid':bid} )
    
-    def TriggerBlink(self,addr,bid,pid):
-        self.rpc.send(addr, 'autoBlink', {'recv':bid, 'xmit':pid})
+    def TriggerBlink(self,rem,bid,pid):
+        self.rpc.send(rem, 'autoBlink', {'recv':bid, 'xmit':pid})
 
     def BlinksReceivedFor(self,bid,ancs):
         for anc in ancs:
@@ -600,7 +641,7 @@ class Blinker():
                             raise TimeoutError
     
     def BlinkRecv(self,data):
-        if self.DEBUG > 0:
+        if DEBUG > 0:
             pprint(data)
         try:
             args = data['args']
@@ -622,7 +663,7 @@ class Blinker():
                 self.blinks[bid]['wait'].notify_all()
 
     def BlinkXmit(self,data):
-        if self.DEBUG > 0:
+        if DEBUG > 0:
             pprint(data)
         try:
             args = data['args']
