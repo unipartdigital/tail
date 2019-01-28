@@ -1,0 +1,27 @@
+Reference, Value, Footprint, Datasheet, MFR, MPN, SPR, SPN, SPURL,Package,PosX,PosY,Rot,Side
+FID1,Fiducial,Fiducials:Fiducial_1mm_Dia_2.54mm_Outer_CopperTop,,-,-,-,-,-,Fiducial_1mm_Dia_2.54mm_Outer_CopperTop,117,-75,0,top
+FID2,Fiducial,Fiducials:Fiducial_1mm_Dia_2.54mm_Outer_CopperTop,,-,-,-,-,-,Fiducial_1mm_Dia_2.54mm_Outer_CopperTop,183,-75,0,top
+FID3,Fiducial,Fiducials:Fiducial_1mm_Dia_2.54mm_Outer_CopperTop,,-,-,-,-,-,Fiducial_1mm_Dia_2.54mm_Outer_CopperTop,117,-108,0,top
+J1,HOST_DEBUG,Pin_Headers:Pin_Header_Straight_2x05_Pitch1.27mm_SMD,,Samtec,FTSH-105-01-L-DV,Farnell,1667759,-,Pin_Header_Straight_2x05_Pitch1.27mm_SMD,120,-90.8,0,top
+J2,HOST_UART,Pin_Headers:Pin_Header_Straight_1x03_Pitch2.54mm,,Multicomp,2211-03G,Farnell,1593412,-,,,,,
+J3,HOST_POWER,Pin_Headers:Pin_Header_Straight_1x05_Pitch2.54mm,,Multicomp,2211S-05G,Farnell,1593414,-,,,,,
+J4,HOST_LEDS,Pin_Headers:Pin_Header_Straight_1x05_Pitch2.54mm,,Multicomp,2211S-05G,Farnell,1593414,-,,,,,
+J5,S13,jig:Harwin-Sleeve-S13-1.27mm,,Harwin,S13-503,Farnell,9960147,-,,,,,
+J6,S13,jig:Harwin-Sleeve-S13-1.27mm,,Harwin,S13-503,Farnell,9960147,-,,,,,
+J7,S13,jig:Harwin-Sleeve-S13-1.27mm,,Harwin,S13-503,Farnell,9960147,-,,,,,
+J8,S13,jig:Harwin-Sleeve-S13-1.27mm,,Harwin,S13-503,Farnell,9960147,-,,,,,
+J9,S13,jig:Harwin-Sleeve-S13-1.27mm,,Harwin,S13-503,Farnell,9960147,-,,,,,
+J10,S13,jig:Harwin-Sleeve-S13-1.27mm,,Harwin,S13-503,Farnell,9960147,-,,,,,
+J11,S13,jig:Harwin-Sleeve-S13-1.27mm,,Harwin,S13-503,Farnell,9960147,-,,,,,
+J12,S13,jig:Harwin-Sleeve-S13-1.27mm,,Harwin,S13-503,Farnell,9960147,-,,,,,
+J13,S13,jig:Harwin-Sleeve-S13-1.27mm,,Harwin,S13-503,Farnell,9960147,-,,,,,
+J14,S13,jig:Harwin-Sleeve-S13-1.27mm,,Harwin,S13-503,Farnell,9960147,-,,,,,
+J15,S13,jig:Harwin-Sleeve-S13-1.27mm,,Harwin,S13-503,Farnell,9960147,-,,,,,
+J16,S13,jig:Harwin-Sleeve-S13-1.27mm,,Harwin,S13-503,Farnell,9960147,-,,,,,
+J17,S13,jig:Harwin-Sleeve-S13-1.27mm,,Harwin,S13-503,Farnell,9960147,-,,,,,
+J18,S13,jig:Harwin-Sleeve-S13-1.27mm,,Harwin,S13-503,Farnell,9960147,-,,,,,
+J19,S13,jig:Harwin-Sleeve-S13-1.27mm,,Harwin,S13-503,Farnell,9960147,-,,,,,
+J20,S13,jig:Harwin-Sleeve-S13-1.27mm,,Harwin,S13-503,Farnell,9960147,-,,,,,
+J21,S13,jig:Harwin-Sleeve-S13-1.27mm,,Harwin,S13-503,Farnell,9960147,-,,,,,
+J22,S13,jig:Harwin-Sleeve-S13-1.27mm,,Harwin,S13-503,Farnell,9960147,-,,,,,
+J23,S13,jig:Harwin-Sleeve-S13-1.27mm,,Harwin,S13-503,Farnell,9960147,-,,,,,

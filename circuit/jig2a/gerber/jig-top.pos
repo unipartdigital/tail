@@ -1,0 +1,10 @@
+### Module positions - created on Mon Jan 28 20:54:53 2019 ###
+### Printed by Pcbnew version kicad 4.0.7-e2-6376~61~ubuntu18.04.1
+## Unit = mm, Angle = deg.
+## Side : top
+# Ref     Val         Package                                        PosX       PosY       Rot  Side
+FID1      Fiducial    Fiducial_1mm_Dia_2.54mm_Outer_CopperTop    117.0000   -75.0000    0.0000  top
+FID2      Fiducial    Fiducial_1mm_Dia_2.54mm_Outer_CopperTop    183.0000   -75.0000    0.0000  top
+FID3      Fiducial    Fiducial_1mm_Dia_2.54mm_Outer_CopperTop    117.0000  -108.0000    0.0000  top
+J1        HOST_DEBUG  Pin_Header_Straight_2x05_Pitch1.27mm_SMD   120.0000   -90.8000    0.0000  top
+## End

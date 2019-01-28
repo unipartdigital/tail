@@ -1,0 +1,542 @@
+EESchema Schematic File Version 2
+LIBS:power
+LIBS:device
+LIBS:switches
+LIBS:relays
+LIBS:motors
+LIBS:transistors
+LIBS:conn
+LIBS:linear
+LIBS:regul
+LIBS:74xx
+LIBS:cmos4000
+LIBS:adc-dac
+LIBS:memory
+LIBS:xilinx
+LIBS:microcontrollers
+LIBS:dsp
+LIBS:microchip
+LIBS:analog_switches
+LIBS:motorola
+LIBS:texas
+LIBS:intel
+LIBS:audio
+LIBS:interface
+LIBS:digital-audio
+LIBS:philips
+LIBS:display
+LIBS:cypress
+LIBS:siliconi
+LIBS:opto
+LIBS:atmel
+LIBS:contrib
+LIBS:valves
+LIBS:SymbolsSimilarEN60617+oldDIN617-RevE8
+LIBS:jig-cache
+EELAYER 25 0
+EELAYER END
+$Descr A4 11693 8268
+encoding utf-8
+Sheet 1 1
+Title ""
+Date ""
+Rev ""
+Comp ""
+Comment1 ""
+Comment2 ""
+Comment3 ""
+Comment4 ""
+$EndDescr
+$Comp
+L Conn_01x03 J2
+U 1 1 5C411FEF
+P 7200 3650
+F 0 "J2" H 7200 3850 50  0000 C CNN
+F 1 "HOST_UART" H 7200 3450 50  0000 C CNN
+F 2 "Pin_Headers:Pin_Header_Straight_1x03_Pitch2.54mm" H 7200 3650 50  0001 C CNN
+F 3 "" H 7200 3650 50  0001 C CNN
+F 4 "Multicomp" H 0   0   50  0001 C CNN "MFR"
+F 5 "2211-03G" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "1593412" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
+	1    7200 3650
+	1    0    0    -1  
+$EndComp
+$Comp
+L Conn_01x05 J4
+U 1 1 5C4121EB
+P 7100 2550
+F 0 "J4" H 7100 2850 50  0000 C CNN
+F 1 "HOST_LEDS" H 7100 2250 50  0000 C CNN
+F 2 "Pin_Headers:Pin_Header_Straight_1x05_Pitch2.54mm" H 7100 2550 50  0001 C CNN
+F 3 "" H 7100 2550 50  0001 C CNN
+F 4 "Multicomp" H 0   0   50  0001 C CNN "MFR"
+F 5 "2211S-05G" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "1593414" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
+	1    7100 2550
+	1    0    0    -1  
+$EndComp
+$Comp
+L Conn_01x05 J3
+U 1 1 5C41231B
+P 4550 2550
+F 0 "J3" H 4550 2850 50  0000 C CNN
+F 1 "HOST_POWER" H 4550 2250 50  0000 C CNN
+F 2 "Pin_Headers:Pin_Header_Straight_1x05_Pitch2.54mm" H 4550 2550 50  0001 C CNN
+F 3 "" H 4550 2550 50  0001 C CNN
+F 4 "Multicomp" H 0   0   50  0001 C CNN "MFR"
+F 5 "2211S-05G" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "1593414" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
+	1    4550 2550
+	1    0    0    -1  
+$EndComp
+$Comp
+L Dummy_FIDUCIAL_Passermarke_Type1_RevE_Date16Nov2011 FID1
+U 1 1 5C47453D
+P 10150 800
+F 0 "FID1" H 10150 950 50  0000 C CNN
+F 1 "Fiducial" H 10150 650 50  0000 C CNN
+F 2 "Fiducials:Fiducial_1mm_Dia_2.54mm_Outer_CopperTop" H 10150 800 50  0001 C CNN
+F 3 "" H 10150 800 50  0000 C CNN
+F 4 "-" H 0   0   50  0001 C CNN "MFR"
+F 5 "-" H 0   0   50  0001 C CNN "MPN"
+F 6 "-" H 0   0   50  0001 C CNN "SPR"
+F 7 "-" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
+	1    10150 800 
+	1    0    0    -1  
+$EndComp
+$Comp
+L Dummy_FIDUCIAL_Passermarke_Type1_RevE_Date16Nov2011 FID2
+U 1 1 5C4745DA
+P 10550 800
+F 0 "FID2" H 10550 950 50  0000 C CNN
+F 1 "Fiducial" H 10550 650 50  0000 C CNN
+F 2 "Fiducials:Fiducial_1mm_Dia_2.54mm_Outer_CopperTop" H 10550 800 50  0001 C CNN
+F 3 "" H 10550 800 50  0000 C CNN
+F 4 "-" H 0   0   50  0001 C CNN "MFR"
+F 5 "-" H 0   0   50  0001 C CNN "MPN"
+F 6 "-" H 0   0   50  0001 C CNN "SPR"
+F 7 "-" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
+	1    10550 800 
+	1    0    0    -1  
+$EndComp
+$Comp
+L Dummy_FIDUCIAL_Passermarke_Type1_RevE_Date16Nov2011 FID3
+U 1 1 5C4746D1
+P 10950 800
+F 0 "FID3" H 10950 950 50  0000 C CNN
+F 1 "Fiducial" H 10950 650 50  0000 C CNN
+F 2 "Fiducials:Fiducial_1mm_Dia_2.54mm_Outer_CopperTop" H 10950 800 50  0001 C CNN
+F 3 "" H 10950 800 50  0000 C CNN
+F 4 "-" H 0   0   50  0001 C CNN "MFR"
+F 5 "-" H 0   0   50  0001 C CNN "MPN"
+F 6 "-" H 0   0   50  0001 C CNN "SPR"
+F 7 "-" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
+	1    10950 800 
+	1    0    0    -1  
+$EndComp
+$Comp
+L Conn_02x05_Odd_Even J1
+U 1 1 5C41218E
+P 4850 3650
+F 0 "J1" H 4900 4000 50  0000 C CNN
+F 1 "HOST_DEBUG" H 4900 3250 50  0000 C CNN
+F 2 "Pin_Headers:Pin_Header_Straight_2x05_Pitch1.27mm_SMD" H 4850 3650 50  0001 C CNN
+F 3 "" H 4850 3650 50  0001 C CNN
+F 4 "Samtec" H 4850 3650 60  0001 C CNN "MFR"
+F 5 "FTSH-105-01-L-DV" H 4850 3650 60  0001 C CNN "MPN"
+F 6 "Farnell" H 4850 3650 60  0001 C CNN "SPR"
+F 7 "1667759" H 4850 3650 60  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
+	1    4850 3650
+	1    0    0    -1  
+$EndComp
+$Comp
+L Conn_01x01 J11
+U 1 1 5C4874D3
+P 3950 2350
+F 0 "J11" H 4100 2350 50  0000 C CNN
+F 1 "S13" H 4150 2350 50  0001 C CNN
+F 2 "jig:Harwin-Sleeve-S13-1.27mm" H 3950 2350 50  0001 C CNN
+F 3 "" H 3950 2350 50  0001 C CNN
+F 4 "Harwin" H 3950 2350 60  0001 C CNN "MFR"
+F 5 "S13-503" H 3950 2350 60  0001 C CNN "MPN"
+F 6 "Farnell" H 3950 2350 60  0001 C CNN "SPR"
+F 7 "9960147" H 3950 2350 60  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
+	1    3950 2350
+	-1   0    0    1   
+$EndComp
+$Comp
+L Conn_01x01 J12
+U 1 1 5C48755A
+P 3950 2450
+F 0 "J12" H 4100 2450 50  0000 C CNN
+F 1 "S13" H 4150 2450 50  0001 C CNN
+F 2 "jig:Harwin-Sleeve-S13-1.27mm" H 3950 2450 50  0001 C CNN
+F 3 "" H 3950 2450 50  0001 C CNN
+F 4 "Harwin" H 0   0   50  0001 C CNN "MFR"
+F 5 "S13-503" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "9960147" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
+	1    3950 2450
+	-1   0    0    1   
+$EndComp
+$Comp
+L Conn_01x01 J13
+U 1 1 5C487589
+P 3950 2550
+F 0 "J13" H 4100 2550 50  0000 C CNN
+F 1 "S13" H 4150 2550 50  0001 C CNN
+F 2 "jig:Harwin-Sleeve-S13-1.27mm" H 3950 2550 50  0001 C CNN
+F 3 "" H 3950 2550 50  0001 C CNN
+F 4 "Harwin" H 0   0   50  0001 C CNN "MFR"
+F 5 "S13-503" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "9960147" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
+	1    3950 2550
+	-1   0    0    1   
+$EndComp
+$Comp
+L Conn_01x01 J14
+U 1 1 5C4875C8
+P 3950 2650
+F 0 "J14" H 4100 2650 50  0000 C CNN
+F 1 "S13" H 4150 2650 50  0001 C CNN
+F 2 "jig:Harwin-Sleeve-S13-1.27mm" H 3950 2650 50  0001 C CNN
+F 3 "" H 3950 2650 50  0001 C CNN
+F 4 "Harwin" H 0   0   50  0001 C CNN "MFR"
+F 5 "S13-503" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "9960147" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
+	1    3950 2650
+	-1   0    0    1   
+$EndComp
+$Comp
+L Conn_01x01 J15
+U 1 1 5C48762B
+P 3950 2750
+F 0 "J15" H 4100 2750 50  0000 C CNN
+F 1 "S13" H 4150 2750 50  0001 C CNN
+F 2 "jig:Harwin-Sleeve-S13-1.27mm" H 3950 2750 50  0001 C CNN
+F 3 "" H 3950 2750 50  0001 C CNN
+F 4 "Harwin" H 0   0   50  0001 C CNN "MFR"
+F 5 "S13-503" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "9960147" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
+	1    3950 2750
+	-1   0    0    1   
+$EndComp
+$Comp
+L Conn_01x01 J16
+U 1 1 5C4884C7
+P 6500 2350
+F 0 "J16" H 6650 2350 50  0000 C CNN
+F 1 "S13" H 6700 2350 50  0001 C CNN
+F 2 "jig:Harwin-Sleeve-S13-1.27mm" H 6500 2350 50  0001 C CNN
+F 3 "" H 6500 2350 50  0001 C CNN
+F 4 "Harwin" H 0   0   50  0001 C CNN "MFR"
+F 5 "S13-503" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "9960147" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
+	1    6500 2350
+	-1   0    0    1   
+$EndComp
+$Comp
+L Conn_01x01 J17
+U 1 1 5C488582
+P 6500 2450
+F 0 "J17" H 6650 2450 50  0000 C CNN
+F 1 "S13" H 6700 2450 50  0001 C CNN
+F 2 "jig:Harwin-Sleeve-S13-1.27mm" H 6500 2450 50  0001 C CNN
+F 3 "" H 6500 2450 50  0001 C CNN
+F 4 "Harwin" H 0   0   50  0001 C CNN "MFR"
+F 5 "S13-503" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "9960147" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
+	1    6500 2450
+	-1   0    0    1   
+$EndComp
+$Comp
+L Conn_01x01 J18
+U 1 1 5C4885C7
+P 6500 2550
+F 0 "J18" H 6650 2550 50  0000 C CNN
+F 1 "S13" H 6700 2550 50  0001 C CNN
+F 2 "jig:Harwin-Sleeve-S13-1.27mm" H 6500 2550 50  0001 C CNN
+F 3 "" H 6500 2550 50  0001 C CNN
+F 4 "Harwin" H 0   0   50  0001 C CNN "MFR"
+F 5 "S13-503" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "9960147" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
+	1    6500 2550
+	-1   0    0    1   
+$EndComp
+$Comp
+L Conn_01x01 J19
+U 1 1 5C488662
+P 6500 2650
+F 0 "J19" H 6650 2650 50  0000 C CNN
+F 1 "S13" H 6700 2650 50  0001 C CNN
+F 2 "jig:Harwin-Sleeve-S13-1.27mm" H 6500 2650 50  0001 C CNN
+F 3 "" H 6500 2650 50  0001 C CNN
+F 4 "Harwin" H 0   0   50  0001 C CNN "MFR"
+F 5 "S13-503" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "9960147" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
+	1    6500 2650
+	-1   0    0    1   
+$EndComp
+$Comp
+L Conn_01x01 J20
+U 1 1 5C4886AB
+P 6500 2750
+F 0 "J20" H 6650 2750 50  0000 C CNN
+F 1 "S13" H 6700 2750 50  0001 C CNN
+F 2 "jig:Harwin-Sleeve-S13-1.27mm" H 6500 2750 50  0001 C CNN
+F 3 "" H 6500 2750 50  0001 C CNN
+F 4 "Harwin" H 0   0   50  0001 C CNN "MFR"
+F 5 "S13-503" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "9960147" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
+	1    6500 2750
+	-1   0    0    1   
+$EndComp
+$Comp
+L Conn_01x01 J21
+U 1 1 5C4891DB
+P 6550 3550
+F 0 "J21" H 6700 3550 50  0000 C CNN
+F 1 "S13" H 6800 3550 50  0001 C CNN
+F 2 "jig:Harwin-Sleeve-S13-1.27mm" H 6550 3550 50  0001 C CNN
+F 3 "" H 6550 3550 50  0001 C CNN
+F 4 "Harwin" H 0   0   50  0001 C CNN "MFR"
+F 5 "S13-503" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "9960147" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
+	1    6550 3550
+	-1   0    0    1   
+$EndComp
+$Comp
+L Conn_01x01 J22
+U 1 1 5C489236
+P 6550 3650
+F 0 "J22" H 6700 3650 50  0000 C CNN
+F 1 "S13" H 6800 3650 50  0001 C CNN
+F 2 "jig:Harwin-Sleeve-S13-1.27mm" H 6550 3650 50  0001 C CNN
+F 3 "" H 6550 3650 50  0001 C CNN
+F 4 "Harwin" H 0   0   50  0001 C CNN "MFR"
+F 5 "S13-503" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "9960147" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
+	1    6550 3650
+	-1   0    0    1   
+$EndComp
+$Comp
+L Conn_01x01 J23
+U 1 1 5C489289
+P 6550 3750
+F 0 "J23" H 6700 3750 50  0000 C CNN
+F 1 "S13" H 6800 3750 50  0001 C CNN
+F 2 "jig:Harwin-Sleeve-S13-1.27mm" H 6550 3750 50  0001 C CNN
+F 3 "" H 6550 3750 50  0001 C CNN
+F 4 "Harwin" H 0   0   50  0001 C CNN "MFR"
+F 5 "S13-503" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "9960147" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
+	1    6550 3750
+	-1   0    0    1   
+$EndComp
+$Comp
+L Conn_01x01 J6
+U 1 1 5C489855
+P 3850 3550
+F 0 "J6" H 4000 3550 50  0000 C CNN
+F 1 "S13" H 4050 3550 50  0001 C CNN
+F 2 "jig:Harwin-Sleeve-S13-1.27mm" H 3850 3550 50  0001 C CNN
+F 3 "" H 3850 3550 50  0001 C CNN
+F 4 "Harwin" H 0   0   50  0001 C CNN "MFR"
+F 5 "S13-503" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "9960147" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
+	1    3850 3550
+	1    0    0    -1  
+$EndComp
+$Comp
+L Conn_01x01 J8
+U 1 1 5C4898B4
+P 3850 3650
+F 0 "J8" H 4000 3650 50  0000 C CNN
+F 1 "S13" H 4050 3650 50  0001 C CNN
+F 2 "jig:Harwin-Sleeve-S13-1.27mm" H 3850 3650 50  0001 C CNN
+F 3 "" H 3850 3650 50  0001 C CNN
+F 4 "Harwin" H 0   0   50  0001 C CNN "MFR"
+F 5 "S13-503" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "9960147" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
+	1    3850 3650
+	1    0    0    -1  
+$EndComp
+$Comp
+L Conn_01x01 J10
+U 1 1 5C489947
+P 3850 3750
+F 0 "J10" H 4000 3750 50  0000 C CNN
+F 1 "S13" H 4050 3750 50  0001 C CNN
+F 2 "jig:Harwin-Sleeve-S13-1.27mm" H 3850 3750 50  0001 C CNN
+F 3 "" H 3850 3750 50  0001 C CNN
+F 4 "Harwin" H 0   0   50  0001 C CNN "MFR"
+F 5 "S13-503" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "9960147" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
+	1    3850 3750
+	1    0    0    -1  
+$EndComp
+$Comp
+L Conn_01x01 J5
+U 1 1 5C48999A
+P 4300 3550
+F 0 "J5" H 4450 3550 50  0000 C CNN
+F 1 "S13" H 4500 3550 50  0001 C CNN
+F 2 "jig:Harwin-Sleeve-S13-1.27mm" H 4300 3550 50  0001 C CNN
+F 3 "" H 4300 3550 50  0001 C CNN
+F 4 "Harwin" H 0   0   50  0001 C CNN "MFR"
+F 5 "S13-503" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "9960147" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
+	1    4300 3550
+	-1   0    0    1   
+$EndComp
+$Comp
+L Conn_01x01 J7
+U 1 1 5C489A15
+P 4300 3650
+F 0 "J7" H 4450 3650 50  0000 C CNN
+F 1 "S13" H 4500 3650 50  0001 C CNN
+F 2 "jig:Harwin-Sleeve-S13-1.27mm" H 4300 3650 50  0001 C CNN
+F 3 "" H 4300 3650 50  0001 C CNN
+F 4 "Harwin" H 0   0   50  0001 C CNN "MFR"
+F 5 "S13-503" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "9960147" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
+	1    4300 3650
+	-1   0    0    1   
+$EndComp
+$Comp
+L Conn_01x01 J9
+U 1 1 5C489A68
+P 4300 3750
+F 0 "J9" H 4450 3750 50  0000 C CNN
+F 1 "S13" H 4500 3750 50  0001 C CNN
+F 2 "jig:Harwin-Sleeve-S13-1.27mm" H 4300 3750 50  0001 C CNN
+F 3 "" H 4300 3750 50  0001 C CNN
+F 4 "Harwin" H 0   0   50  0001 C CNN "MFR"
+F 5 "S13-503" H 0   0   50  0001 C CNN "MPN"
+F 6 "Farnell" H 0   0   50  0001 C CNN "SPR"
+F 7 "9960147" H 0   0   50  0001 C CNN "SPN"
+F 8 "-" H 0   0   50  0001 C CNN "SPURL"
+	1    4300 3750
+	-1   0    0    1   
+$EndComp
+Wire Wire Line
+	4150 2350 4350 2350
+Wire Wire Line
+	4150 2450 4350 2450
+Wire Wire Line
+	4150 2550 4350 2550
+Wire Wire Line
+	4150 2650 4350 2650
+Wire Wire Line
+	4150 2750 4350 2750
+Wire Wire Line
+	6700 2350 6900 2350
+Wire Wire Line
+	6700 2450 6900 2450
+Wire Wire Line
+	6700 2550 6900 2550
+Wire Wire Line
+	6700 2650 6900 2650
+Wire Wire Line
+	6700 2750 6900 2750
+Wire Wire Line
+	3650 3550 3650 3350
+Wire Wire Line
+	3650 3350 5150 3350
+Wire Wire Line
+	3650 3750 3650 4100
+Wire Wire Line
+	5250 3250 3550 3250
+Wire Wire Line
+	3550 3250 3550 3650
+Wire Wire Line
+	3550 3650 3650 3650
+Wire Wire Line
+	6750 3550 7000 3550
+Wire Wire Line
+	6750 3650 7000 3650
+Wire Wire Line
+	6750 3750 7000 3750
+Wire Wire Line
+	5150 3350 5150 3450
+Wire Wire Line
+	4500 3550 4500 3450
+Wire Wire Line
+	4500 3450 4650 3450
+Wire Wire Line
+	5150 3550 5250 3550
+Wire Wire Line
+	5250 3550 5250 3250
+Wire Wire Line
+	4500 3650 4550 3650
+Wire Wire Line
+	4550 3650 4550 3950
+Wire Wire Line
+	4550 3950 5150 3950
+Wire Wire Line
+	5150 3950 5150 3850
+Wire Wire Line
+	3650 4100 5250 4100
+Wire Wire Line
+	5250 4100 5250 3650
+Wire Wire Line
+	5250 3650 5150 3650
+Wire Wire Line
+	4600 3750 4500 3750
+Wire Wire Line
+	4600 3550 4600 3850
+Wire Wire Line
+	4600 3550 4650 3550
+Wire Wire Line
+	4600 3650 4650 3650
+Wire Wire Line
+	4600 3850 4650 3850
+Connection ~ 4600 3650
+Connection ~ 4600 3750
+NoConn ~ 5150 3750
+NoConn ~ 4650 3750
+$EndSCHEMATC
