@@ -1,0 +1,592 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<export version="D">
+  <design>
+    <source>/home/gavan/Nextcloud/unipart/git/tail/circuit/jig2a/jig.sch</source>
+    <date>Mon 28 Jan 2019 20:36:39 GMT</date>
+    <tool>Eeschema 4.0.7-e2-6376~61~ubuntu18.04.1</tool>
+    <sheet number="1" name="/" tstamps="/">
+      <title_block>
+        <title/>
+        <company/>
+        <rev/>
+        <date/>
+        <source>jig.sch</source>
+        <comment number="1" value=""/>
+        <comment number="2" value=""/>
+        <comment number="3" value=""/>
+        <comment number="4" value=""/>
+      </title_block>
+    </sheet>
+  </design>
+  <components>
+    <comp ref="J2">
+      <value>HOST_UART</value>
+      <footprint>Pin_Headers:Pin_Header_Straight_1x03_Pitch2.54mm</footprint>
+      <fields>
+        <field name="MFR">Multicomp</field>
+        <field name="MPN">2211-03G</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">1593412</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="conn" part="Conn_01x03"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>5C411FEF</tstamp>
+    </comp>
+    <comp ref="J4">
+      <value>HOST_LEDS</value>
+      <footprint>Pin_Headers:Pin_Header_Straight_1x05_Pitch2.54mm</footprint>
+      <fields>
+        <field name="MFR">Multicomp</field>
+        <field name="MPN">2211S-05G</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">1593414</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="conn" part="Conn_01x05"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>5C4121EB</tstamp>
+    </comp>
+    <comp ref="J3">
+      <value>HOST_POWER</value>
+      <footprint>Pin_Headers:Pin_Header_Straight_1x05_Pitch2.54mm</footprint>
+      <fields>
+        <field name="MFR">Multicomp</field>
+        <field name="MPN">2211S-05G</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">1593414</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="conn" part="Conn_01x05"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>5C41231B</tstamp>
+    </comp>
+    <comp ref="FID1">
+      <value>Fiducial</value>
+      <footprint>Fiducials:Fiducial_1mm_Dia_2.54mm_Outer_CopperTop</footprint>
+      <fields>
+        <field name="MFR">-</field>
+        <field name="MPN">-</field>
+        <field name="SPR">-</field>
+        <field name="SPN">-</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="SymbolsSimilarEN60617+oldDIN617-RevE8" part="Dummy_FIDUCIAL_Passermarke_Type1_RevE_Date16Nov2011"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>5C47453D</tstamp>
+    </comp>
+    <comp ref="FID2">
+      <value>Fiducial</value>
+      <footprint>Fiducials:Fiducial_1mm_Dia_2.54mm_Outer_CopperTop</footprint>
+      <fields>
+        <field name="MFR">-</field>
+        <field name="MPN">-</field>
+        <field name="SPR">-</field>
+        <field name="SPN">-</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="SymbolsSimilarEN60617+oldDIN617-RevE8" part="Dummy_FIDUCIAL_Passermarke_Type1_RevE_Date16Nov2011"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>5C4745DA</tstamp>
+    </comp>
+    <comp ref="FID3">
+      <value>Fiducial</value>
+      <footprint>Fiducials:Fiducial_1mm_Dia_2.54mm_Outer_CopperTop</footprint>
+      <fields>
+        <field name="MFR">-</field>
+        <field name="MPN">-</field>
+        <field name="SPR">-</field>
+        <field name="SPN">-</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="SymbolsSimilarEN60617+oldDIN617-RevE8" part="Dummy_FIDUCIAL_Passermarke_Type1_RevE_Date16Nov2011"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>5C4746D1</tstamp>
+    </comp>
+    <comp ref="J1">
+      <value>HOST_DEBUG</value>
+      <footprint>Pin_Headers:Pin_Header_Straight_2x05_Pitch1.27mm_SMD</footprint>
+      <fields>
+        <field name="MFR">Samtec</field>
+        <field name="MPN">FTSH-105-01-L-DV</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">1667759</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="conn" part="Conn_02x05_Odd_Even"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>5C41218E</tstamp>
+    </comp>
+    <comp ref="J11">
+      <value>S13</value>
+      <footprint>jig:Harwin-Sleeve-S13-1.27mm</footprint>
+      <fields>
+        <field name="MFR">Harwin</field>
+        <field name="MPN">S13-503</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">9960147</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="conn" part="Conn_01x01"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>5C4874D3</tstamp>
+    </comp>
+    <comp ref="J12">
+      <value>S13</value>
+      <footprint>jig:Harwin-Sleeve-S13-1.27mm</footprint>
+      <fields>
+        <field name="MFR">Harwin</field>
+        <field name="MPN">S13-503</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">9960147</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="conn" part="Conn_01x01"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>5C48755A</tstamp>
+    </comp>
+    <comp ref="J13">
+      <value>S13</value>
+      <footprint>jig:Harwin-Sleeve-S13-1.27mm</footprint>
+      <fields>
+        <field name="MFR">Harwin</field>
+        <field name="MPN">S13-503</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">9960147</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="conn" part="Conn_01x01"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>5C487589</tstamp>
+    </comp>
+    <comp ref="J14">
+      <value>S13</value>
+      <footprint>jig:Harwin-Sleeve-S13-1.27mm</footprint>
+      <fields>
+        <field name="MFR">Harwin</field>
+        <field name="MPN">S13-503</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">9960147</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="conn" part="Conn_01x01"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>5C4875C8</tstamp>
+    </comp>
+    <comp ref="J15">
+      <value>S13</value>
+      <footprint>jig:Harwin-Sleeve-S13-1.27mm</footprint>
+      <fields>
+        <field name="MFR">Harwin</field>
+        <field name="MPN">S13-503</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">9960147</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="conn" part="Conn_01x01"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>5C48762B</tstamp>
+    </comp>
+    <comp ref="J16">
+      <value>S13</value>
+      <footprint>jig:Harwin-Sleeve-S13-1.27mm</footprint>
+      <fields>
+        <field name="MFR">Harwin</field>
+        <field name="MPN">S13-503</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">9960147</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="conn" part="Conn_01x01"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>5C4884C7</tstamp>
+    </comp>
+    <comp ref="J17">
+      <value>S13</value>
+      <footprint>jig:Harwin-Sleeve-S13-1.27mm</footprint>
+      <fields>
+        <field name="MFR">Harwin</field>
+        <field name="MPN">S13-503</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">9960147</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="conn" part="Conn_01x01"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>5C488582</tstamp>
+    </comp>
+    <comp ref="J18">
+      <value>S13</value>
+      <footprint>jig:Harwin-Sleeve-S13-1.27mm</footprint>
+      <fields>
+        <field name="MFR">Harwin</field>
+        <field name="MPN">S13-503</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">9960147</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="conn" part="Conn_01x01"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>5C4885C7</tstamp>
+    </comp>
+    <comp ref="J19">
+      <value>S13</value>
+      <footprint>jig:Harwin-Sleeve-S13-1.27mm</footprint>
+      <fields>
+        <field name="MFR">Harwin</field>
+        <field name="MPN">S13-503</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">9960147</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="conn" part="Conn_01x01"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>5C488662</tstamp>
+    </comp>
+    <comp ref="J20">
+      <value>S13</value>
+      <footprint>jig:Harwin-Sleeve-S13-1.27mm</footprint>
+      <fields>
+        <field name="MFR">Harwin</field>
+        <field name="MPN">S13-503</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">9960147</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="conn" part="Conn_01x01"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>5C4886AB</tstamp>
+    </comp>
+    <comp ref="J21">
+      <value>S13</value>
+      <footprint>jig:Harwin-Sleeve-S13-1.27mm</footprint>
+      <fields>
+        <field name="MFR">Harwin</field>
+        <field name="MPN">S13-503</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">9960147</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="conn" part="Conn_01x01"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>5C4891DB</tstamp>
+    </comp>
+    <comp ref="J22">
+      <value>S13</value>
+      <footprint>jig:Harwin-Sleeve-S13-1.27mm</footprint>
+      <fields>
+        <field name="MFR">Harwin</field>
+        <field name="MPN">S13-503</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">9960147</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="conn" part="Conn_01x01"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>5C489236</tstamp>
+    </comp>
+    <comp ref="J23">
+      <value>S13</value>
+      <footprint>jig:Harwin-Sleeve-S13-1.27mm</footprint>
+      <fields>
+        <field name="MFR">Harwin</field>
+        <field name="MPN">S13-503</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">9960147</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="conn" part="Conn_01x01"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>5C489289</tstamp>
+    </comp>
+    <comp ref="J6">
+      <value>S13</value>
+      <footprint>jig:Harwin-Sleeve-S13-1.27mm</footprint>
+      <fields>
+        <field name="MFR">Harwin</field>
+        <field name="MPN">S13-503</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">9960147</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="conn" part="Conn_01x01"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>5C489855</tstamp>
+    </comp>
+    <comp ref="J8">
+      <value>S13</value>
+      <footprint>jig:Harwin-Sleeve-S13-1.27mm</footprint>
+      <fields>
+        <field name="MFR">Harwin</field>
+        <field name="MPN">S13-503</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">9960147</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="conn" part="Conn_01x01"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>5C4898B4</tstamp>
+    </comp>
+    <comp ref="J10">
+      <value>S13</value>
+      <footprint>jig:Harwin-Sleeve-S13-1.27mm</footprint>
+      <fields>
+        <field name="MFR">Harwin</field>
+        <field name="MPN">S13-503</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">9960147</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="conn" part="Conn_01x01"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>5C489947</tstamp>
+    </comp>
+    <comp ref="J5">
+      <value>S13</value>
+      <footprint>jig:Harwin-Sleeve-S13-1.27mm</footprint>
+      <fields>
+        <field name="MFR">Harwin</field>
+        <field name="MPN">S13-503</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">9960147</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="conn" part="Conn_01x01"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>5C48999A</tstamp>
+    </comp>
+    <comp ref="J7">
+      <value>S13</value>
+      <footprint>jig:Harwin-Sleeve-S13-1.27mm</footprint>
+      <fields>
+        <field name="MFR">Harwin</field>
+        <field name="MPN">S13-503</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">9960147</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="conn" part="Conn_01x01"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>5C489A15</tstamp>
+    </comp>
+    <comp ref="J9">
+      <value>S13</value>
+      <footprint>jig:Harwin-Sleeve-S13-1.27mm</footprint>
+      <fields>
+        <field name="MFR">Harwin</field>
+        <field name="MPN">S13-503</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">9960147</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="conn" part="Conn_01x01"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>5C489A68</tstamp>
+    </comp>
+  </components>
+  <libparts>
+    <libpart lib="conn" part="Conn_01x01">
+      <description>Generic connector, single row, 01x01</description>
+      <docs>~</docs>
+      <footprints>
+        <fp>Connector*:*_??x*mm*</fp>
+        <fp>Connector*:*1x??x*mm*</fp>
+        <fp>Pin?Header?Straight?1X*</fp>
+        <fp>Pin?Header?Angled?1X*</fp>
+        <fp>Socket?Strip?Straight?1X*</fp>
+        <fp>Socket?Strip?Angled?1X*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">J</field>
+        <field name="Value">Conn_01x01</field>
+      </fields>
+      <pins>
+        <pin num="1" name="Pin_1" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="conn" part="Conn_01x03">
+      <description>Generic connector, single row, 01x03</description>
+      <docs>~</docs>
+      <footprints>
+        <fp>Connector*:*_??x*mm*</fp>
+        <fp>Connector*:*1x??x*mm*</fp>
+        <fp>Pin?Header?Straight?1X*</fp>
+        <fp>Pin?Header?Angled?1X*</fp>
+        <fp>Socket?Strip?Straight?1X*</fp>
+        <fp>Socket?Strip?Angled?1X*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">J</field>
+        <field name="Value">Conn_01x03</field>
+      </fields>
+      <pins>
+        <pin num="1" name="Pin_1" type="passive"/>
+        <pin num="2" name="Pin_2" type="passive"/>
+        <pin num="3" name="Pin_3" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="conn" part="Conn_01x05">
+      <description>Generic connector, single row, 01x05</description>
+      <docs>~</docs>
+      <footprints>
+        <fp>Connector*:*_??x*mm*</fp>
+        <fp>Connector*:*1x??x*mm*</fp>
+        <fp>Pin?Header?Straight?1X*</fp>
+        <fp>Pin?Header?Angled?1X*</fp>
+        <fp>Socket?Strip?Straight?1X*</fp>
+        <fp>Socket?Strip?Angled?1X*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">J</field>
+        <field name="Value">Conn_01x05</field>
+      </fields>
+      <pins>
+        <pin num="1" name="Pin_1" type="passive"/>
+        <pin num="2" name="Pin_2" type="passive"/>
+        <pin num="3" name="Pin_3" type="passive"/>
+        <pin num="4" name="Pin_4" type="passive"/>
+        <pin num="5" name="Pin_5" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="conn" part="Conn_02x05_Odd_Even">
+      <description>Generic connector, double row, 02x05, odd/even pin numbering scheme (row 1 odd numbers, row 2 even numbers)</description>
+      <docs>~</docs>
+      <footprints>
+        <fp>Connector*:*2x??x*mm*</fp>
+        <fp>Connector*:*2x???Pitch*</fp>
+        <fp>Pin_Header_Straight_2X*</fp>
+        <fp>Pin_Header_Angled_2X*</fp>
+        <fp>Socket_Strip_Straight_2X*</fp>
+        <fp>Socket_Strip_Angled_2X*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">J</field>
+        <field name="Value">Conn_02x05_Odd_Even</field>
+      </fields>
+      <pins>
+        <pin num="1" name="Pin_1" type="passive"/>
+        <pin num="2" name="Pin_2" type="passive"/>
+        <pin num="3" name="Pin_3" type="passive"/>
+        <pin num="4" name="Pin_4" type="passive"/>
+        <pin num="5" name="Pin_5" type="passive"/>
+        <pin num="6" name="Pin_6" type="passive"/>
+        <pin num="7" name="Pin_7" type="passive"/>
+        <pin num="8" name="Pin_8" type="passive"/>
+        <pin num="9" name="Pin_9" type="passive"/>
+        <pin num="10" name="Pin_10" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="SymbolsSimilarEN60617+oldDIN617-RevE8" part="Dummy_FIDUCIAL_Passermarke_Type1_RevE_Date16Nov2011">
+      <fields>
+        <field name="Reference">FID</field>
+        <field name="Value">Dummy_FIDUCIAL_Passermarke_Type1_RevE_Date16Nov2011</field>
+      </fields>
+      <pins>
+        <pin num="~" name="~" type="NotConnected"/>
+      </pins>
+    </libpart>
+  </libparts>
+  <libraries>
+    <library logical="SymbolsSimilarEN60617+oldDIN617-RevE8">
+      <uri>/usr/share/kicad/library/contrib_symbols_dl1eic/SymbolsSimilarEN60617+oldDIN617-RevE8.lib</uri>
+    </library>
+    <library logical="conn">
+      <uri>/usr/share/kicad/library/conn.lib</uri>
+    </library>
+  </libraries>
+  <nets>
+    <net code="1" name="Net-(J19-Pad1)">
+      <node ref="J19" pin="1"/>
+      <node ref="J4" pin="4"/>
+    </net>
+    <net code="2" name="Net-(J2-Pad3)">
+      <node ref="J23" pin="1"/>
+      <node ref="J2" pin="3"/>
+    </net>
+    <net code="3" name="Net-(J2-Pad2)">
+      <node ref="J22" pin="1"/>
+      <node ref="J2" pin="2"/>
+    </net>
+    <net code="4" name="Net-(J2-Pad1)">
+      <node ref="J2" pin="1"/>
+      <node ref="J21" pin="1"/>
+    </net>
+    <net code="5" name="Net-(J1-Pad4)">
+      <node ref="J1" pin="4"/>
+      <node ref="J8" pin="1"/>
+    </net>
+    <net code="6" name="Net-(J1-Pad2)">
+      <node ref="J1" pin="2"/>
+      <node ref="J6" pin="1"/>
+    </net>
+    <net code="7" name="Net-(J20-Pad1)">
+      <node ref="J20" pin="1"/>
+      <node ref="J4" pin="5"/>
+    </net>
+    <net code="8" name="Net-(J18-Pad1)">
+      <node ref="J18" pin="1"/>
+      <node ref="J4" pin="3"/>
+    </net>
+    <net code="9" name="Net-(J17-Pad1)">
+      <node ref="J17" pin="1"/>
+      <node ref="J4" pin="2"/>
+    </net>
+    <net code="10" name="Net-(J16-Pad1)">
+      <node ref="J4" pin="1"/>
+      <node ref="J16" pin="1"/>
+    </net>
+    <net code="11" name="Net-(J15-Pad1)">
+      <node ref="J15" pin="1"/>
+      <node ref="J3" pin="5"/>
+    </net>
+    <net code="12" name="Net-(J14-Pad1)">
+      <node ref="J14" pin="1"/>
+      <node ref="J3" pin="4"/>
+    </net>
+    <net code="13" name="Net-(J13-Pad1)">
+      <node ref="J3" pin="3"/>
+      <node ref="J13" pin="1"/>
+    </net>
+    <net code="14" name="Net-(J12-Pad1)">
+      <node ref="J3" pin="2"/>
+      <node ref="J12" pin="1"/>
+    </net>
+    <net code="15" name="Net-(J11-Pad1)">
+      <node ref="J11" pin="1"/>
+      <node ref="J3" pin="1"/>
+    </net>
+    <net code="16" name="Net-(J1-Pad6)">
+      <node ref="J1" pin="6"/>
+      <node ref="J10" pin="1"/>
+    </net>
+    <net code="17" name="Net-(J1-Pad7)">
+      <node ref="J1" pin="7"/>
+    </net>
+    <net code="18" name="Net-(J1-Pad8)">
+      <node ref="J1" pin="8"/>
+    </net>
+    <net code="19" name="Net-(J1-Pad3)">
+      <node ref="J9" pin="1"/>
+      <node ref="J1" pin="9"/>
+      <node ref="J1" pin="5"/>
+      <node ref="J1" pin="3"/>
+    </net>
+    <net code="20" name="Net-(J1-Pad10)">
+      <node ref="J7" pin="1"/>
+      <node ref="J1" pin="10"/>
+    </net>
+    <net code="21" name="Net-(J1-Pad1)">
+      <node ref="J5" pin="1"/>
+      <node ref="J1" pin="1"/>
+    </net>
+    <net code="22" name="Net-(FID3-Pad~)">
+      <node ref="FID3" pin="~"/>
+    </net>
+    <net code="23" name="Net-(FID2-Pad~)">
+      <node ref="FID2" pin="~"/>
+    </net>
+    <net code="24" name="Net-(FID1-Pad~)">
+      <node ref="FID1" pin="~"/>
+    </net>
+  </nets>
+</export>
