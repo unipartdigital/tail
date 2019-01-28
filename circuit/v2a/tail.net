@@ -1,7 +1,7 @@
 (export (version D)
   (design
     (source /home/gavan/Nextcloud/unipart/git/tail/circuit/v2a/tail.sch)
-    (date "Mon 21 Jan 2019 11:01:45 GMT")
+    (date "Mon 28 Jan 2019 18:14:05 GMT")
     (tool "Eeschema 4.0.7-e2-6376~61~ubuntu18.04.1")
     (sheet (number 1) (name /) (tstamps /)
       (title_block
@@ -307,10 +307,6 @@
       (value UART)
       (footprint tail:UART_Pads)
       (fields
-        (field (name MFR) Multicomp)
-        (field (name MPN) MC34747)
-        (field (name SPR) Farnell)
-        (field (name SPN) 1593427)
         (field (name SPURL) -))
       (libsource (lib tail-cache) (part CONN_01X03))
       (sheetpath (names /) (tstamps /))
@@ -319,10 +315,6 @@
       (value DEBUG)
       (footprint tail:Debug_Pads)
       (fields
-        (field (name MFR) Samtec)
-        (field (name MPN) FTSH-105-01-L-DV)
-        (field (name SPR) Farnell)
-        (field (name SPN) 1667759)
         (field (name SPURL) -))
       (libsource (lib conn) (part Conn_02x03_Odd_Even))
       (sheetpath (names /) (tstamps /))
@@ -867,14 +859,14 @@
   (libraries
     (library (logical SymbolsSimilarEN60617+oldDIN617-RevE8)
       (uri /usr/share/kicad/library/contrib_symbols_dl1eic/SymbolsSimilarEN60617+oldDIN617-RevE8.lib))
-    (library (logical device)
-      (uri /usr/share/kicad/library/device.lib))
-    (library (logical conn)
-      (uri /usr/share/kicad/library/conn.lib))
-    (library (logical tail)
-      (uri /home/gavan/Nextcloud/unipart/git/tail/circuit/v2a/tail.lib))
     (library (logical tail-cache)
       (uri /home/gavan/Nextcloud/unipart/git/tail/circuit/v2a/tail-cache.lib))
+    (library (logical conn)
+      (uri /usr/share/kicad/library/conn.lib))
+    (library (logical device)
+      (uri /usr/share/kicad/library/device.lib))
+    (library (logical tail)
+      (uri /home/gavan/Nextcloud/unipart/git/tail/circuit/v2a/tail.lib))
     (library (logical battery_management)
       (uri /usr/share/kicad/library/battery_management.lib)))
   (nets
