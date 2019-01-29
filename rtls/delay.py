@@ -33,7 +33,6 @@ class Config():
 
     algo         = 'DECA'
 
-    ewma         = 32
     range        = 1.000
     binsize      = 2 / DW1000_CLOCK_GHZ
 
@@ -78,8 +77,8 @@ def DECA_TWR(blk, tmr, remote, delay, rawts=False):
     Pwr = blk.getRxPower(i2, eui1)
     Fpp = blk.getFpPower(i2, eui1)
     
-    Tmp = blk.getTemp(i2,eui1)
-    Vol = blk.getVolt(i2,eui1)
+    Tmp1 = blk.getTemp(i2,eui1)
+    Tmp2 = blk.getTemp(i1,eui2)
 
     T41 = T4 - T1
     T32 = T3 - T2
@@ -91,7 +90,7 @@ def DECA_TWR(blk, tmr, remote, delay, rawts=False):
     Tof = (T41*T63 - T32*T54) / (T51+T62)
     Dof = Tof / SCL
     Rtt = T41 / SCL
-    Lof = Dof * C_AIR * 1E-9
+    Lof = Dof * C_ABS * 1E-9
         
     Est = (F2 + F6) / 2
     Err = (T62 - T51) / T62
@@ -100,7 +99,7 @@ def DECA_TWR(blk, tmr, remote, delay, rawts=False):
     blk.PurgeBlink(i2)
     blk.PurgeBlink(i3)
     
-    return (Lof,Dof,Rtt,Err,Est,Pwr,Fpp,Tmp,Vol)
+    return (Lof,Dof,Rtt,Err,Est,Pwr,Fpp,Tmp1,Tmp2)
 
 
 def DECA_FAST_TWR(blk, tmr, remote, delay, rawts=False):
@@ -143,8 +142,8 @@ def DECA_FAST_TWR(blk, tmr, remote, delay, rawts=False):
     Pwr = blk.getRxPower(i2, eui1)
     Fpp = blk.getFpPower(i2, eui1)
     
-    Tmp = blk.getTemp(i2,eui1)
-    Vol = blk.getVolt(i2,eui1)
+    Tmp1 = blk.getTemp(i2,eui1)
+    Tmp2 = blk.getTemp(i1,eui2)
 
     T41 = T4 - T1
     T32 = T3 - T2
@@ -156,7 +155,7 @@ def DECA_FAST_TWR(blk, tmr, remote, delay, rawts=False):
     Tof = (T41*T63 - T32*T54) / (T51+T62)
     Dof = Tof / SCL
     Rtt = T41 / SCL
-    Lof = Dof * C_AIR * 1E-9
+    Lof = Dof * C_ABS * 1E-9
         
     Est = (F2 + F6) / 2
     Err = (T62 - T51) / T62
@@ -165,7 +164,7 @@ def DECA_FAST_TWR(blk, tmr, remote, delay, rawts=False):
     blk.PurgeBlink(i2)
     blk.PurgeBlink(i3)
     
-    return (Lof,Dof,Rtt,Err,Est,Pwr,Fpp,Tmp,Vol)
+    return (Lof,Dof,Rtt,Err,Est,Pwr,Fpp,Tmp1,Tmp2)
 
             
 def main():
@@ -186,7 +185,7 @@ def main():
     parser.add_argument('-H', '--hist', action='store_true', default=False, help='Print histogram')
     parser.add_argument('-P', '--plot', action='store_true', default=False, help='Plot histogram')
     parser.add_argument('-R', '--raw', action='store_true', default=False, help='Use raw timestamps')
-    parser.add_argument('--ewma', type=int, default=CFG.ewma)
+    parser.add_argument('-C', '--comp', action='store_true', default=False, help='Use Rx-comp')
     parser.add_argument('--delay1', type=float, default=None)
     parser.add_argument('--delay2', type=float, default=None)
     parser.add_argument('--range', type=float, default=CFG.range)
@@ -210,7 +209,7 @@ def main():
         delay1 = args.delay1
     if args.delay2 is not None:
         delay2 = args.delay2
-        
+
     rpc = tail.RPC(('', args.port))
 
     remotes = [ ]
@@ -233,50 +232,51 @@ def main():
     prf = int(remotes[0].GetDWAttr('prf'))
     
     Tcnt = 0
-    Rsum = 0.0
-    Lfil = 0.0
-    Lvar = 0.0
 
     delays = []
     powers = []
     fpathp = []
     rtrips = []
-
-    eprint('Blinker starting')
+    xtppms = []
+    temps1 = []
+    temps2 = []
 
     try:
         for i in range(args.count):
             try:
-                (Lof,Dof,Rtt,Ppm,Ppe,Pwr,Fpp,Tmp,Vol) = algo(blk, tmr, remotes, (delay1,delay2,args.wait), rawts=args.raw)
+                (Lof,Dof,Rtt,Ppm,Ppe,Pwr,Fpp,Tmp1,Tmp2) = algo(blk, tmr, remotes, (delay1,delay2,args.wait), rawts=args.raw)
                 
                 if Lof < 0 or Lof > 100:
                     raise ValueError
 
+                Plog = DW1000.RxPower2dBm(Pwr,prf)
+
+                if args.comp:
+                    Lof += DW1000.RxCompNs(Plog,ch,prf)
+                    Dof += DW1000.RxComp(Plog,ch,prf)
+                
                 delays.append(Dof)
                 powers.append(Pwr)
                 fpathp.append(Fpp)
-                rtrips.append(Rtt/1E6)
+                xtppms.append(Ppm*1E6)
+                rtrips.append(Rtt*1E-6)
+                if -10 < Tmp1 < 90:
+                    temps1.append(Tmp1)
+                if -10 < Tmp2 < 90:
+                    temps2.append(Tmp2)
                 
                 Tcnt += 1
                 
                 if VERBOSE > 0:
                     Plog = DW1000.RxPower2dBm(Pwr,prf)
-                    Ldif = Lof - Lfil
-                    Lvar += (Ldif*Ldif - Lvar) / args.ewma
-                    if Tcnt < args.ewma:
-                        Lfil += Ldif / Tcnt
-                    else:
-                        Lfil += Ldif / args.ewma
-                    msg  = '{:.3f}m '.format(Lfil)
-                    msg += '{:.3f}m '.format(math.sqrt(Lvar))
-                    msg += '-- '
+                    msg  = ' ** '
                     msg += 'Lof:{:.3f}m '.format(Lof)
                     msg += 'ToF:{:.3f}ns '.format(Dof)
                     msg += 'Xerr:{:+.3f}ppm '.format(Ppm*1E6)
                     msg += 'Xest:{:+.3f}ppm '.format(Ppe*1E6)
                     msg += 'Pwr:{:.1f}dBm '.format(Plog)
-                    msg += 'Temp:{:.2f}C '.format(Tmp)
-                    msg += 'Volt:{:.3f}V '.format(Vol)
+                    msg += 'Temp1:{:.2f}°C '.format(Tmp1)
+                    msg += 'Temp2:{:.2f}°C '.format(Tmp2)
                     msg += 'Rtt:{:.3f}ms '.format(Rtt*1E-6)
                     print(msg)
             
@@ -302,36 +302,40 @@ def main():
         Davg = np.mean(delays)
         Dstd = np.std(delays)
         Dmed = np.median(delays)
+        
+        Lavg = Davg * C_ABS * 1E-9
+        Lstd = Dstd * C_ABS * 1E-9
+        Lmed = Dmed * C_ABS * 1E-9
+        
+        (Navg,Nstd) = fpeak(delays)
+        
+        Mavg = Navg * C_ABS * 1E-9
+        Mstd = Nstd * C_ABS * 1E-9
+        
+        Xavg = np.mean(xtppms)
+        Xstd = np.std(xtppms)
+        T1avg = np.mean(temps1)
+        T2avg = np.mean(temps2)
+        
         Pavg = np.mean(powers)
         Pstd = np.std(powers)
         Favg = np.mean(fpathp)
         Fstd = np.std(fpathp)
-        Lavg = Davg * C_AIR * 1E-9
-        Lstd = Dstd * C_AIR * 1E-9
-        Lmed = Dmed * C_AIR * 1E-9
+        
         Plog = DW1000.RxPower2dBm(Pavg,prf)
         Pstl = DW1000.RxPower2dBm(Pavg+Pstd,prf) - Plog
         Flog = DW1000.RxPower2dBm(Favg,prf)
         Fstl = DW1000.RxPower2dBm(Favg+Fstd,prf) - Flog
-        Ravg = np.mean(rtrips)
-        Rstd = np.std(rtrips)
 
-        (Navg,Nstd) = fpeak(delays)
-        
-        Mavg = Navg * C_AIR * 1E-9
-        Mstd = Nstd * C_AIR * 1E-9
-        
         print()
         print('FINAL STATISTICS:')
-        print('  Samples:  {} [{:.1f}%]'.format(Tcnt,(100*Tcnt/args.count)-100))
-        print('  Peak.Avg: {:.3f}m ={:.3f}ns'.format(Mavg,Navg))
-        print('  Peak.Std: {:.3f}m ={:.3f}ns'.format(Mstd,Nstd))
-        print('  Average:  {:.3f}m ={:.3f}ns'.format(Lavg,Davg))
-        print('  Median:   {:.3f}m ={:.3f}ns'.format(Lmed,Dmed))
-        print('  Std.Dev:  {:.3f}m ={:.3f}ns'.format(Lstd,Dstd))
-        print('  RTT.Avg:  {:.3f}ms [{:.3f}ms]'.format(Ravg,Rstd))
-        print('  PWR.Avg:  {:.1f}dBm [{:.2f}dBm]'.format(Plog,Pstl))
-        print('  FPP.Avg:  {:.1f}dBm [{:.2f}dBm]'.format(Flog,Fstl))
+        print('  Samples:    {} [{:.1f}%]'.format(Tcnt,(100*Tcnt/args.count)-100))
+        print('  Dist:       {:.3f}m [{:.3f}m]'.format(Lavg,Lstd))
+        print('  Peak:       {:.3f}m [{:.3f}m]'.format(Mavg,Mstd))
+        print('  Power:      {:+.1f}dBm [{:.2f}dB]'.format(Plog,Pstl))
+        print('  FPath:      {:+.1f}dBm [{:.2f}dB]'.format(Flog,Fstl))
+        print('  Xtal:       {:+.2f}ppm [{:.2f}ppm]'.format(Xavg,Xstd))
+        print('  Temps:      {:.1f}°C {:.1f}°C'.format(T1avg,T2avg))
 
         if args.hist or args.plot:
             
