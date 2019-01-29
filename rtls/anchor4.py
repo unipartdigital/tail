@@ -418,6 +418,7 @@ def SocketLoop():
                     RecvBlink(bsock)
             elif fd == tsock.fileno():
                 (psock,paddr) = tsock.accept()
+                psock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
                 pipe = TailPipe(psock)
                 AddClient(pipe)
                 pobj.register(pipe.sock, select.POLLIN)

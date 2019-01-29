@@ -193,6 +193,7 @@ class TCPPipe(TailPipe):
 
     def connect(remote=None, local=None):
         pipe = TCPPipe.socket(socket.AF_INET,socket.SOCK_STREAM)
+        pipe.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         if remote is not None:
             pipe.sock.connect(remote)
         return pipe
