@@ -12,8 +12,9 @@ import matplotlib.pyplot as plot
 
 from numpy import dot,diag
 
+from tail import prints
 
-DEBUG = 0
+
 VERBOSE = 0
 
 CLOCK_GHZ = 63.8976
@@ -21,7 +22,7 @@ CLOCK_HZ  = CLOCK_GHZ * 1E9
 
 Cvac = 299792458
 
-DEVMAP = {
+xxDEVMAP = {
     'magpi1'  :  0,
     'magpi2'  :  1,
     'magpi3'  :  2,
@@ -31,6 +32,26 @@ DEVMAP = {
     'magpi7'  :  6,
     'magpi8'  :  7,
 }
+
+DEVMAP = {
+    'magpi0'  :  0,
+    'magpi1'  :  1,
+    'magpi2'  :  2,
+    'magpi3'  :  3,
+    'magpi4'  :  4,
+    'magpi5'  :  5,
+    'magpi6'  :  6,
+    'magpi7'  :  7,
+    'magpi8'  :  8,
+}
+
+
+
+def hostname(id):
+    for host in DEVMAP:
+        if DEVMAP[host] == id:
+            return host
+    return None
 
 
 def estimate_antd(ndev,dist,dstd,derr,bidir=False,weighted=True):
@@ -74,19 +95,17 @@ def estimate_antd(ndev,dist,dstd,derr,bidir=False,weighted=True):
     AX = lin.lstsq(AA,CC,rcond=None)
     CR = (AX[0]/Cvac) * CLOCK_HZ
 
-    return CR
+    return (AX[0],CR)
 
 
 def main():
     
-    global VERBOSE, DEBUG
+    global VERBOSE
 
     parser = argparse.ArgumentParser(description="TWR ANTD tool")
 
-    parser.add_argument('-D', '--debug', action='count', default=0, help='Enable debug prints')
     parser.add_argument('-v', '--verbose', action='count', default=0, help='Increase verbosity')
     parser.add_argument('-L', '--distance', type=float, default=10.0)
-    parser.add_argument('-N', '--hosts', type=int, default=0)
     parser.add_argument('-f', '--file', type=str, default=None)
     parser.add_argument('-B', '--bidir', action='store_true', default=False)
     parser.add_argument('-W', '--weighted', action='store_true', default=False)
@@ -95,7 +114,7 @@ def main():
 
     VERBOSE = args.verbose
 
-    Ndev = args.hosts
+    Ndev = len(DEVMAP)
 
     dist = np.zeros((Ndev,Ndev))
     dstd = np.zeros((Ndev,Ndev))
@@ -123,17 +142,30 @@ def main():
 
     print(dist)
 
-    ANTD = estimate_antd(Ndev,dist,dstd,derr, bidir=args.bidir, weighted=args.weighted)
+    (CORR,ANTD) = estimate_antd(Ndev,dist,dstd,derr, bidir=args.bidir, weighted=args.weighted)
 
+    print('\nCorrection:')
+        
     for a in range(Ndev):
-        msg1 = '#{}:'.format(a)
-        msg2 = '0x{:04X}'.format( int(round(ANTD[a])) + 0x4000 )
-        msg3 = '{:+d}'.format( int(round(ANTD[a])) )
-        msg4 = '[{:+.3f}]'.format( ANTD[a] )
-        msgs = '{:4s} {:8s} {:6s} {:s}'.format(msg1,msg2,msg3,msg4)
+        msg1 = '  {}:'.format(hostname(a))
+        msg2 = '{:+d}'.format( int(round(ANTD[a])) )
+        msg3 = '[{:+.3f}]'.format( ANTD[a] )
+        msgs = '{:4s} {:4s} {:s}'.format(msg1,msg2,msg3)
         print(msgs)
 
-    
+
+    print('\nEstimated errors:')
+        
+    for a in range(Ndev):
+        for b in range(Ndev):
+            if a != b:
+                err = derr[a,b] - CORR[a] - CORR[b]
+                msg = '{:+.3f}m'.format(err)
+            else:
+                msg = '-'
+            prints('  {:8s}'.format(msg))
+        print()
+            
 
 if __name__ == "__main__":
     main()

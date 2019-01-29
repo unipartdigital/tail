@@ -142,14 +142,21 @@ def TWR_RUN(blk, tmr, rems, devs, delay, count):
 
                 DATA['Dist'].append(X[1])
                 DATA['PPM'].append(X[2])
+                
                 DATA['PWR1'].append(X[4])
                 DATA['PWR2'].append(X[10])
                 DATA['FPR1'].append(X[5])
                 DATA['FPR2'].append(X[11])
-                DATA['Temp1'].append(X[7])
-                DATA['Volt1'].append(X[8])
-                DATA['Temp2'].append(X[13])
-                DATA['Volt2'].append(X[14])
+
+                if -10 < X[7] < 90:
+                    DATA['Temp1'].append(X[7])
+                if -10 < X[13] < 90:
+                    DATA['Temp2'].append(X[13])
+
+                if 2.500 < X[8] < 3.500:
+                    DATA['Volt1'].append(X[8])
+                if 2.500 < X[14] < 3.500:
+                    DATA['Volt2'].append(X[14])
                     
             except (TimeoutError):
                 #eprint('T {} <> {}'.format(dut.host,rem.host))
