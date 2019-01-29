@@ -285,10 +285,6 @@ DW1000_DEVICE_CALIB = {
         'antd'     : 0x4018,
         'coord'    : (2.299, 6.140, 1.270),
     },
-    '70b3d5b1e000001a': {
-        'xtalt'	   : 15,
-        'antd'     : 0x4020,
-    },
     '70b3d5b1e000001b': {
         'xtalt'	   : 16,
         'antd'     : 0x4020,
@@ -309,44 +305,12 @@ DW1000_DEVICE_CALIB = {
         'xtalt'	   : 16,
         'antd'     : 0x4020,
     },
-    '70b3d5b1e0000020': {
-        'xtalt'	   : 16,
-        'antd'     : 0x401b,
-    },
-    '70b3d5b1e0000021': {
-        'xtalt'	   : 15,
-        'antd'     : 0x4015,
-    },
-    '70b3d5b1e0000022': {
-        'xtalt'	   : 16,
-        'antd'     : 0x4023,
-    },
-    '70b3d5b1e0000023': {
-        'xtalt'	   : 15,
-        'antd'     : 0x401e,
-    },
-    '70b3d5b1e0000024': {
-        'xtalt'	   : 15,
-        'antd'     : 0x4020,
-    },
     '70b3d5b1e0000025': {
         'xtalt'	   : 14,
         'antd'     : 0x4020,
     },
-    '70b3d5b1e0000026': {
-        'xtalt'	   : 16,
-        'antd'     : 0x4020,
-    },
     '70b3d5b1e0000027': {
         'xtalt'	   : 16,
-        'antd'     : 0x4020,
-    },
-    '70b3d5b1e0000028': {
-        'xtalt'	   : 16,
-        'antd'     : 0x4020,
-    },
-    '70b3d5b1e0000029': {
-        'xtalt'	   : 15,
         'antd'     : 0x4020,
     },
     '70b3d5b1e000002a': { # Unstable?
@@ -372,6 +336,42 @@ DW1000_DEVICE_CALIB = {
     '70b3d5b1e000002f': {
         'xtalt'	   : 16,
         'antd'     : 0x4020,
+    },
+    '70b3d5b1e0000022': { # magpi0
+        'xtalt'	   : 16,
+        'antd'     : 0x4055,
+    },
+    '70b3d5b1e0000020': { # magpi1
+        'xtalt'	   : 16,
+        'antd'     : 0x4050,
+    },
+    '70b3d5b1e0000021': { # magpi2
+        'xtalt'	   : 15,
+        'antd'     : 0x4047,
+    },
+    '70b3d5b1e0000024': { # magpi3
+        'xtalt'	   : 15,
+        'antd'     : 0x4049,
+    },
+    '70b3d5b1e0000026': { # magpi4
+        'xtalt'	   : 16,
+        'antd'     : 0x404A,
+    },
+    '70b3d5b1e0000029': { # magpi5
+        'xtalt'	   : 15,
+        'antd'     : 0x403D,
+    },
+    '70b3d5b1e000001a': { # magpi6
+        'xtalt'	   : 15,
+        'antd'     : 0x4044,
+    },
+    '70b3d5b1e0000023': { # magpi7
+        'xtalt'	   : 15,
+        'antd'     : 0x4040,
+    },
+    '70b3d5b1e0000028': { # magpi8
+        'xtalt'	   : 16,
+        'antd'     : 0x4040,
     },
 }
 
