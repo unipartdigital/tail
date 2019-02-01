@@ -257,6 +257,7 @@ def RecvBlink(bsock):
         'anchor'  : cfg.anchor_eui,
         'bid'     : bid,
         'tag'     : eui,
+        'tsw'     : str(tss.sw),
         'tss'     : str(tss.hires),
         'tsi'     : dict(tss.tsinfo),
     }
@@ -277,6 +278,7 @@ def RecvStamp(bsock):
         'anchor'  : cfg.anchor_eui,
         'bid'     : bid,
         'tag'     : eui,
+        'tsw'     : str(tss.sw),
         'tss'     : str(tss.hires),
         'tsi'     : dict(tss.tsinfo),
     }
@@ -392,7 +394,10 @@ def SocketLoop():
     bsock.setsockopt(socket.SOL_SOCKET, socket.SO_TIMESTAMPING,
                      socket.SOF_TIMESTAMPING_RX_HARDWARE |
                      socket.SOF_TIMESTAMPING_TX_HARDWARE |
-                     socket.SOF_TIMESTAMPING_RAW_HARDWARE)
+                     socket.SOF_TIMESTAMPING_RAW_HARDWARE |
+                     socket.SOF_TIMESTAMPING_TX_SOFTWARE |
+                     socket.SOF_TIMESTAMPING_RX_SOFTWARE |
+                     socket.SOF_TIMESTAMPING_SOFTWARE)
     
     bsock.bind(cfg.blink_bind)
     

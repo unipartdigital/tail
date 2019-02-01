@@ -549,6 +549,9 @@ class Blinker():
             return self.blinks[index]['anchors'][eui]['tss']
         raise ValueError
 
+    def getTSW(self,index,eui):
+        return self.blinks[index]['anchors'][eui]['tsw']
+
     def getLQI(self,index,eui):
         if self.blinks[index]['anchors'][eui]['dir'] == 'RX':
             return self.blinks[index]['anchors'][eui]['tsi']['lqi']
@@ -649,6 +652,7 @@ class Blinker():
             eui = args.get('anchor')
             tag = args.get('tag')
             tsi = args.get('tsi',None)
+            tsw = int(args.get('tsw'),16)
             tss = int(args.get('tss'),16)
             bid = int(args.get('bid'))
         except:
@@ -658,6 +662,7 @@ class Blinker():
             with self.blinks[bid]['wait']:
                 self.blinks[bid]['anchors'][eui] = {}
                 self.blinks[bid]['anchors'][eui]['tag'] = tag
+                self.blinks[bid]['anchors'][eui]['tsw'] = tsw
                 self.blinks[bid]['anchors'][eui]['tss'] = tss
                 self.blinks[bid]['anchors'][eui]['tsi'] = tsi
                 self.blinks[bid]['anchors'][eui]['dir'] = 'RX'
@@ -672,6 +677,7 @@ class Blinker():
             tag = args.get('tag')
             tsi = args.get('tsi',None)
             tss = int(args.get('tss'),16)
+            tsw = int(args.get('tsw'),16)
             bid = int(args.get('bid'))
         except:
             #eprint('BlinkXmit: data missing')
@@ -680,6 +686,7 @@ class Blinker():
             with self.blinks[bid]['wait']:
                 self.blinks[bid]['anchors'][eui] = {}
                 self.blinks[bid]['anchors'][eui]['tag'] = tag
+                self.blinks[bid]['anchors'][eui]['tsw'] = tsw
                 self.blinks[bid]['anchors'][eui]['tss'] = tss
                 self.blinks[bid]['anchors'][eui]['tsi'] = tsi
                 self.blinks[bid]['anchors'][eui]['dir'] = 'TX'
