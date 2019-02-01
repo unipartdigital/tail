@@ -1,0 +1,13 @@
+[Unit]
+Description=Lamp Anchor Daemon
+Documentation=man:tail
+Requires=network.target
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/sbin/lamp-anchor-start
+
+[Install]
+WantedBy=multi-user.target
+
