@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 #
-# Station daemon uTrack emulation
+# uTrack Station connector daemon
 #
 
 import sys
@@ -10,39 +10,21 @@ import select
 import ctypes
 import struct
 import array
-import random
 import argparse
 import ipaddress
 import netifaces
-import requests
 import json
 
-import RPi.GPIO as GPIO
-
-from pprint import pprint
 from ctypes import *
 
 
 class Config():
 
-    utrack_server            = None
-
-    utrack_device_id         = 'TailStation'
-    utrack_station_group     = 'TailGroup'
-    utrack_station_location  = 'TailLoc'
-    
-    utrack_event_url         = '/timesheet/beacon/event'
-    
-    utrack_in_distance       = 0.5  # [m]
-    utrack_out_distance      = 1.0  # [m]
-    utrack_tag_expire        = 240   # [s]
-    
     dw1000_channel  = 7
     dw1000_pcode    = 20
     dw1000_rate     = 850
     dw1000_txpsr    = 1024
     dw1000_power    = 0x91919191
-    dw1000_antd     = 0x4020
     dw1000_sysfs    = '/sys/devices/platform/soc/3f204000.spi/spi_master/spi0/spi0.0/dw1000/'
 
     if_name         = 'lowpan0'
@@ -57,20 +39,19 @@ class Config():
     twr_bind        = None
     twr_expr        = 1.0
 
-    gpio_pin        = 17
+    utrack_port     = 6299
+    utrack_bind     = None
 
 cfg = Config()
 
 twr_status = {}
-tag_status = {}
+utrack_sockets = []
 
+DEBUG = 0
 
 C_AIR = 299705000
 
 DW1000_CLOCK_GHZ = 63.8976
-
-IPV6_ERR_QUEUE_OFFSET = 0
-UDP6_ERR_QUEUE_OFFSET = 31
 
 
 for name,value in (
@@ -94,18 +75,14 @@ for name,value in (
     if not hasattr(socket, name):
         setattr(socket, name, value)
 
-GPIO.setmode(GPIO.BCM)
-GPIO.setwarnings(False)
-GPIO.setup(cfg.gpio_pin,GPIO.OUT)
-
 
 def eprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
-    pass
 
 def dprint(*args, **kwargs):
-    #print(*args, file=sys.stderr, **kwargs)
-    pass
+    if DEBUG > 0:
+        print(*args, file=sys.stderr, **kwargs)
+
 
 
 class Timespec(Structure):
@@ -163,6 +140,8 @@ class TimestampInfo(Structure):
         ("fp_pwr", c_uint32),
         ("ttcko", c_uint32),
         ("ttcki", c_uint32),
+        ("temp", c_uint16),
+        ("volt", c_uint16),
     ]
 
     def __iter__(self):
@@ -183,62 +162,20 @@ class Timestamp(Structure):
         return ((x[0], getattr(self,x[0])) for x in self._fields_)
 
 
-def uTrackReport(eui,cmd,rssi=42,txpwr=42):
-    print('*{:3s} <{}>'.format(cmd.upper(),eui))
-    if cfg.utrack_server is None:
-        return
-    try:
-        requests.post(
-            'http://' + cfg.utrack_server + cfg.utrack_event_url,
-            json = {
-                'event_type':       cmd,
-                'event_time':       time.time(),
-                'device_id':        cfg.utrack_device_id,
-                'station_group':    cfg.utrack_station_group,
-                'station_location': cfg.utrack_station_location,
-                'metadata': {
-                    'rssi':       rssi,
-                    'tx_power':   txpwr,
-                    'namespace':  'tail',
-                    'instance':   eui,
-                },
-            }
-        )
-    except Exception as err:
-        eprint('uTrack request failed: {}'.format(err))
+def uTrackReportTag(eui,dist):
+    print('* <{}> {:.3f}m'.format(eui,dist))
+    msg = {
+        'EUI'  : eui,
+        'Dist' : int(dist*1000),
+    }
+    data = json.dumps(msg).encode() + b'\x1f'
+    for s in list(utrack_sockets):
+        try:
+            s.send(data)
+        except:
+            utrack_sockets.remove(s)
+            dprint('Removed client {}'.format(s))
 
-
-def uTrackInEvent(eui):
-    uTrackReport(eui,'in')
-    GPIO.output(cfg.gpio_pin, GPIO.LOW)
-    tag_status[eui]['status'] = 'IN'
-
-def uTrackOutEvent(eui):
-    uTrackReport(eui,'out')
-    GPIO.output(cfg.gpio_pin, GPIO.HIGH)
-    tag_status[eui]['status'] = 'OUT'
-
-
-def UpdateTag(eui,lof):
-    print('     <{}> {:.3f}m'.format(eui,lof))
-    if eui not in tag_status:
-        tag_status[eui] = { 'status':'OUT', 'expire':0.0 }
-    if tag_status[eui]['status'] == 'IN':
-        if lof > cfg.utrack_out_distance:
-            uTrackOutEvent(eui)
-    else:
-        if lof < cfg.utrack_in_distance:
-            uTrackInEvent(eui)
-    tag_status[eui]['expire'] = time.time() + cfg.utrack_tag_expire
-
-
-def PurgeTags():
-    now = time.time()
-    for eui in list(tag_status.keys()):
-        if tag_status[eui]['expire'] < now:
-            if tag_status[eui]['status'] == 'IN':
-                uTrackOutEvent(eui)
-            del tag_status[eui]
 
 def PurgeTWRs():
     now = time.time()
@@ -257,18 +194,9 @@ def TWR(times):
     T63 = T6 - T3
     T51 = T5 - T1
     T62 = T6 - T2
-    #eprint('T41: {}'.format(T41))
-    #eprint('T32: {}'.format(T32))
-    #eprint('T54: {}'.format(T54))
-    #eprint('T63: {}'.format(T63))
-    #eprint('T51: {}'.format(T51))
-    #eprint('T62: {}'.format(T62))
     Tof = (T41*T63 - T32*T54) / (T51+T62)
     Dof = Tof / DW1000_CLOCK_GHZ
     Lof = Dof * C_AIR * 1E-9
-    #eprint('Tof: {:.3f}'.format(Tof))
-    #eprint('Dof: {:.3f}ns'.format(Dof))
-    #eprint('Lof: {:.3f}m'.format(Lof))
     if Lof<-1.0 or Lof>30.0:
         raise ValueError('Distance out-of-bounds')
     return Lof
@@ -284,7 +212,6 @@ def GetDWAttr(attr):
     val = fd.read().rstrip()
     fd.close()
     return val
-
 
 def GetTagEUI(addr):
     ip = ipaddress.ip_address(addr)
@@ -303,7 +230,6 @@ def GetRawEUI(data):
     eui[3],eui[4] = eui[4],eui[3]
     return bytes(eui)
 
-
 def GetAnclTs(ancl):
     tss = Timestamp()
     for cmsg_level, cmsg_type, cmsg_data in ancl:
@@ -311,16 +237,6 @@ def GetAnclTs(ancl):
             raw = cmsg_data.ljust(sizeof(Timestamp), b'\0')
             tss = Timestamp.from_buffer_copy(raw)
     return tss
-
-
-def GetXtalPPM(tsi):
-    TTCKI = tsi.ttcki
-    TTCKO = tsi.ttcko
-    if TTCKO & 0x040000:
-        TTCKO -= 0x080000
-        if TTCKI != 0:
-            return TTCKO / TTCKI
-    return 0.0
 
 
 def RecvMcast(msock,tsock):
@@ -352,9 +268,7 @@ def RecvTag(tsock):
     tag = rem[0].partition('%')[0]
     tss = GetAnclTs(ancl)
     dprint('RecvTag(<{}>,{},{},{})'.format(tag,flags,T1,T2))
-    dprint('RecvTag({}): {:.2f}ppm'.format(tag,GetXtalPPM(tss.tsinfo)*1E6))
     if tag in twr_status:
-        EUI = twr_status[tag]['eui'].hex()
         twr_status[tag]['times'][3] = T1
         twr_status[tag]['times'][4] = T2
         twr_status[tag]['times'][5] = tss.tsinfo.rawts
@@ -363,7 +277,8 @@ def RecvTag(tsock):
         except Exception as err:
             eprint('TWR failed: {}'.format(err))
         else:
-            UpdateTag(EUI,dis)
+            eui = twr_status[tag]['eui'].hex()
+            uTrackReportTag(eui,dis)
         del twr_status[tag]
 
 
@@ -379,6 +294,11 @@ def GetTxTime(tsock):
 
 
 def SocketLoop():
+
+    usock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+    usock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    usock.bind(cfg.utrack_bind)
+    usock.listen()
     
     while True:
 
@@ -413,6 +333,7 @@ def SocketLoop():
         tsock.bind(cfg.twr_bind)
 
         pobj = select.poll()
+        pobj.register(usock, select.POLLIN)
         pobj.register(msock, select.POLLIN)
         pobj.register(tsock, select.POLLIN)
 
@@ -420,27 +341,24 @@ def SocketLoop():
         while fail < 30:
             fail += 1
             PurgeTWRs()
-            PurgeTags()
             fds = pobj.poll(100)
             for (fd,flags) in fds:
-                fail = 0
+                if fd == usock.fileno():
+                    if flags & select.POLLIN:
+                        (csock,caddr) = usock.accept()
+                        utrack_sockets.append(csock)
+                        dprint('New client: {}'.format(caddr))
                 if fd == msock.fileno():
                     if flags & select.POLLIN:
                         RecvMcast(msock,tsock)
-                    else:
-                        eprint('Unexpected msock activity {}'.format(flags))
-                elif fd == tsock.fileno():
+                        fail = 0
+                if fd == tsock.fileno():
                     if flags & select.POLLIN:
                         RecvTag(tsock)
-                    elif flags & select.POLLERR:
+                        fail = 0
+                    if flags & select.POLLERR:
                         GetTxTime(tsock)
-                    else:
-                        eprint('Unexpected tsock activity: {}'.format(flags))
-                else:
-                    eprint('Unexpected socket [{}] activity'.format(fd))
         
-        dprint('Socket recovery')
-
         msock.close()
         tsock.close()
 
@@ -450,30 +368,30 @@ def main():
     
     global cfg
     
-    parser = argparse.ArgumentParser(description="uTrack Station daemon")
-    
+    parser = argparse.ArgumentParser(description="uTrack Connector daemon")
+
+    parser.add_argument('-D', '--debug', action='count', default=0, help='Enable debug prints')
     parser.add_argument('-i', '--interface', type=str, default=cfg.if_name)
-    parser.add_argument('-p', '--port', type=int, default=cfg.twr_port)
-    parser.add_argument('-P', '--mcast-port', type=int, default=cfg.mcast_port)
-    parser.add_argument('-r', '--radius', type=float, default=cfg.utrack_in_distance)
-    parser.add_argument('-s', '--server', type=str, default=None)
+    parser.add_argument('-p', '--port', type=int, default=cfg.utrack_port)
+    parser.add_argument('--mcast-port', type=int, default=cfg.mcast_port)
+    parser.add_argument('--twr-port', type=int, default=cfg.twr_port)
     
     args = parser.parse_args()
 
-    cfg.utrack_server = args.server
-
-    cfg.utrack_in_distance  = args.radius
-    cfg.utrack_out_distance = args.radius + 0.5
-
+    DEBUG = args.debug
+    
     cfg.if_name   = args.interface
     cfg.if_addr   = netifaces.ifaddresses(args.interface)
     cfg.if_index  = socket.if_nametoindex(args.interface)
     
-    cfg.twr_port    = args.port
+    cfg.twr_port    = args.twr_port
     cfg.twr_bind    = ('', cfg.twr_port, 0, cfg.if_index)
     
     cfg.mcast_port  = args.mcast_port
     cfg.mcast_bind  = ('', cfg.mcast_port, 0, cfg.if_index)
+
+    cfg.utrack_port = args.port
+    cfg.utrack_bind = ('', cfg.utrack_port, 0, 0)
     
     SetDWAttr('channel', cfg.dw1000_channel)
     SetDWAttr('pcode', cfg.dw1000_pcode)
@@ -481,8 +399,7 @@ def main():
     SetDWAttr('txpsr', cfg.dw1000_txpsr)
     SetDWAttr('smart_power', 0)
     SetDWAttr('tx_power', cfg.dw1000_power)
-    SetDWAttr('antd', cfg.dw1000_antd)
-        
+
     SocketLoop()
     
 
