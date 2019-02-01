@@ -10,56 +10,85 @@ import json
 UTRACK_SERVER = 'localhost'
 UTRACK_PORT = 6299
 
+
 class TailPipe:
 
-    def __init__(self, server=UTRACK_SERVER, port=UTRACK_PORT, ipv6=False):
-        self.server = server
-        self.port = port
-        self.ipv6 = ipv6
+    def __init__(self):
+        self.inet = None
+        self.addr = None
+        self.port = None
         self.sock = None
         self.buff = b''
         
-    def connect(self):
+    def connect(self, addr, port, ipv6=False):
         self.buff = b''
-        if self.ipv6:
-            self.sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
-            self.sock.connect(socket.getaddrinfo(self.server,self.port,socket.AF_INET6)[0][4])
+        self.addr = addr
+        self.port = port
+        if ipv6:
+            self.inet = socket.AF_INET6
         else:
-            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.sock.connect(socket.getaddrinfo(self.server,self.port,socket.AF_INET)[0][4])
+            self.inet = socket.AF_INET
+        self.sock = socket.socket(self.inet, socket.SOCK_STREAM)
+        self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        self.sock.connect(socket.getaddrinfo(self.addr,self.port,self.inet)[0][4])
 
     def close(self):
         if self.sock is not None:
             self.sock.close()
             self.sock = None
+            self.buff = b''
 
     def recv(self):
-        if self.sock is None:
-            raise ConnectionError
-        while True:
-            lim = self.buff.find(31)
-            if lim < 0:
-                data = self.sock.recv(1024)
-                if len(data) == 0:
-                    raise BrokenPipeError
-                self.buff += data
-            else:
-                msg = self.buff[0:lim]
-                self.buff = self.buff[lim+1:]
-                return msg
-        
+        data = self.sock.recv(4096)
+        if len(data) < 1:
+            raise BrokenPipeError
+        return data
+
+    def recvmsg(self):
+        while not self.hasmsg():
+            self.fillmsg()
+        return self.getmsg()
+
+    def fillmsg(self):
+        try:
+            self.buff += self.recv()
+        except ConnectionResetError:
+            raise BrokenPipeError
+
+    def hasmsg(self):
+        return (self.buff.find(31) > 0)
+
+    def getmsg(self):
+        eom = self.buff.find(31)
+        if eom > 0:
+            msg = self.buff[0:eom]
+            self.buff = self.buff[eom+1:]
+            return msg
+        elif eom == 0:
+            self.buff = self.buff[1:]
+        return None
+
+    def send(self,data):
+        self.sock.send(data)
+
+    def sendmsg(self,data):
+        self.send(data + b'\x1f')
+
+    
 
 def SocketLoop(host,port,ipv6):
-    pipe = TailPipe(host,port,ipv6)
+    pipe = TailPipe()
     try:
-        pipe.connect()
+        pipe.connect(host,port,ipv6)
         while True:
-            msg = pipe.recv().decode()
+            msg = pipe.recvmsg().decode()
             tag = json.loads(msg)
             print('Tag: <{}> distance: {:.3f}m'.format(tag['EUI'], tag['Dist']/1000))
-            
+
+    except KeyboardInterrupt:
+        print('Good bye.')
     except Exception as err:
-        print('Exiting: {}'.format(err))
+        print('ERROR: {}'.format(err))
 
 
 def main():
