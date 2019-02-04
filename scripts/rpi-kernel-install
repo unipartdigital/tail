@@ -1,0 +1,47 @@
+#!/bin/bash
+
+LOCALVERSION=+tail
+
+CHAINS="
+${CHAIN}
+gcc-arm-8.2-2019.01-x86_64-arm-linux-gnueabihf
+gcc-linaro-arm-linux-gnueabihf-raspbian-x64
+"
+
+for DIR in ${CHAINS}
+do
+    if [ -d /usr/local/tools/${DIR} ]
+    then
+        export CHAIN=/usr/local/tools/${DIR}
+        export PATH="${CHAIN}/bin:${PATH}"
+	echo "Using toolchain ${DIR}"
+	break
+    fi
+done
+
+case $(uname -m) in
+    armv7l)
+	MAKE="make LOCALVERSION=${LOCALVERSION}"
+	;;
+
+    x86_64)
+	MAKE="make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- LOCALVERSION=${LOCALVERSION}"
+	;;
+esac
+
+
+test -d "$1/boot" || exit 1
+
+ZIMAGE=arch/arm/boot/zImage
+KERNEL=kernel7.img
+
+export INSTALL_PREFIX=$1
+export INSTALL_PATH=${INSTALL_PREFIX}/boot
+export INSTALL_MOD_PATH=${INSTALL_PREFIX}
+export INSTALL_DTBS_PATH=${INSTALL_PREFIX}/boot
+
+install -v ${ZIMAGE} ${INSTALL_PATH}/${KERNEL}
+
+${MAKE} modules_install
+${MAKE} dtbs_install
+
