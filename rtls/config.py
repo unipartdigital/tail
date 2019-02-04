@@ -338,39 +338,39 @@ DW1000_DEVICE_CALIB = {
         'antd'     : 0x4020,
     },
     '70b3d5b1e0000022': { # magpi0
-        'xtalt'	   : 16,
+        'xtalt'	   : 17,
         'antd'     : 0x4055,
     },
     '70b3d5b1e0000020': { # magpi1
-        'xtalt'	   : 16,
+        'xtalt'	   : 17,
         'antd'     : 0x4053,
     },
     '70b3d5b1e0000021': { # magpi2
-        'xtalt'	   : 15,
+        'xtalt'	   : 17,
         'antd'     : 0x404D,
     },
     '70b3d5b1e0000024': { # magpi3
-        'xtalt'	   : 15,
+        'xtalt'	   : 16,
         'antd'     : 0x4054,
     },
     '70b3d5b1e0000026': { # magpi4
-        'xtalt'	   : 16,
+        'xtalt'	   : 17,
         'antd'     : 0x4055,
     },
     '70b3d5b1e0000029': { # magpi5
-        'xtalt'	   : 15,
+        'xtalt'	   : 17,
         'antd'     : 0x4049,
     },
     '70b3d5b1e000001a': { # magpi6
-        'xtalt'	   : 15,
+        'xtalt'	   : 16,
         'antd'     : 0x404E,
     },
     '70b3d5b1e0000023': { # magpi7
-        'xtalt'	   : 15,
+        'xtalt'	   : 17,
         'antd'     : 0x404A,
     },
     '70b3d5b1e0000028': { # magpi8
-        'xtalt'	   : 16,
+        'xtalt'	   : 18,
         'antd'     : 0x404A,
     },
 }
