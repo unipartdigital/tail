@@ -121,7 +121,7 @@ def XTAL_PPM_EST(blk, tmr, dut, refs, delay, count=1, rawts=False):
         blk.PurgeBlink(i2)
 
     if Fcnt < count/2:
-        raise RuntimeError('XTAL_PPM_EST: No XTALT measurements')
+        raise RuntimeError('XTAL_PPM_EST: Not enough XTALT measurements')
     
     Fppm = np.mean(PPMs)
     Fstd = np.std(PPMs)
@@ -148,18 +148,25 @@ def XTALT_CALIB(blk, tmr, dut, refs, delay, rawts=False):
         else:
             veprint(2)
             veprint(1, ' [{}] {} => {:+.3f}ppm '.format(loop,xtalt,Pavg))
-            
-        if Pavg > 8.0:
-            xtalt -= int(Pavg/4)
-        elif Pavg > 1.8:
-            xtalt -= 1
-        elif Pavg < -8.0:
-            xtalt -= int(Pavg/4)
-        elif Pavg < -1.8:
-            xtalt += 1
-        else:
-            break
+
+        if -100 < Pavg < 100 and Pstd < 10:
         
+            if Pavg > 8.0:
+                xtalt -= int(Pavg/4)
+            elif Pavg > 1.6:
+                xtalt -= 1
+            elif Pavg < -8.0:
+                xtalt -= int(Pavg/4)
+            elif Pavg < -1.6:
+                xtalt += 1
+            else:
+                break
+
+            if xtalt < 1:
+                xtalt = 1
+            if xtalt > 30:
+                xtalt = 30
+
     return (xtalt,Pavg)
 
 
@@ -255,6 +262,7 @@ def TXPWR_CALIB(blk, tmr, dut, refs, delay, txpwr=None, rxpwr=None, rawts=False)
 
                 Pwrs.append(Pavg)
                 Fprs.append(Favg)
+                
                 if -10 < Temp < 90:
                     Tmps.append(Temp)
                 if 2.500 < Volt < 3.500:
@@ -429,11 +437,8 @@ def TWR_CALIB(blk, tmr, dut, refs, delay, dist, rawts=False):
         if -0.75 < error < 0.75:
             break
         
-        if -5.0 < error < 5.0:
-            corr += error/2
-        else:
-            corr += error
-            
+        corr += error
+        
     return (current,corr)
 
 
