@@ -1,6 +1,6 @@
 #!/bin/bash
 
-LOCALVERSION=+tail
+LOCALVERSION=${LOCALVERSION:-+tail}
 
 CHAINS="
 ${CHAIN}

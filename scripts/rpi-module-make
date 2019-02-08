@@ -1,37 +1,12 @@
 #!/bin/bash
 
-CHAINS="
-${CHAIN}
-gcc-arm-8.2-2019.01-x86_64-arm-linux-gnueabihf
-gcc-linaro-arm-linux-gnueabihf-raspbian-x64
-"
-
-for DIR in ${CHAINS}
-do
-    if [ -d /usr/local/tools/${DIR} ]
-    then
-        export CHAIN=/usr/local/tools/${DIR}
-        export PATH="${CHAIN}/bin:${PATH}"
-	echo "Using toolchain ${DIR}"
-	break
-    fi
-done
+MAKE=rpi-kernel-make
 
 if test -z "${KBUILD}"
 then
 	echo '${KBUILD} not set'
 	exit 1
 fi
-
-case $(uname -m) in
-    armv7l)
-	MAKE='make'
-	;;
-    
-    x86_64)
-	MAKE='make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf-'
-	;;
-esac
 
 exec ${MAKE} -C ${KBUILD} M=$(pwd) "$@"
 
