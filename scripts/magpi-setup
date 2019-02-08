@@ -1,0 +1,67 @@
+#!/bin/bash
+
+CHANNEL=${CHANNEL:-3}
+PCODE=${PCODE:-20}
+PRF=${PRF:-64}
+RATE=${RATE:-850}
+TXPSR=${TXPSR:-1024}
+TXPWR=${TXPWR:-6+5}
+ANTD=${ANTD:-cal}
+XTALT=${XTALT:-cal}
+
+DOMAIN='.pinet.'
+
+DEF_HOSTS='
+    magpi0
+    magpi1
+    magpi2
+    magpi3
+    magpi4
+    magpi5
+    magpi6
+    magpi7
+    magpi8
+'
+
+HOSTS=${*:-$DEF_HOSTS}
+
+
+alive()
+{
+    ping -c 2 -i 0.2 -W 0.5 -q "$@" 2>/dev/null >/dev/null
+}
+
+check_host()
+{
+    if alive ${1}${DOMAIN}
+    then
+	echo "${1}${DOMAIN}" > ${2}
+    else
+    	echo "" > ${2}
+    fi
+}
+
+
+for HOST in ${HOSTS}
+do
+	check_host ${HOST} /tmp/magpi-$$-${HOST} &
+done
+
+wait
+
+LIST=$(cat /tmp/magpi-$$-*)
+
+./dwattr.py -vvs \
+	    ${LIST} 			\
+	    --channel ${CHANNEL} 	\
+	    --pcode ${PCODE}		\
+	    --prf ${PRF} 		\
+	    --rate ${RATE} 		\
+	    --txpsr ${TXPSR} 		\
+	    --smart_power 0		\
+	    --tx_power ${TXPWR} 	\
+	    --antd ${ANTD} 		\
+	    --xtalt ${XTALT}		\
+
+rm -f /tmp/magpi-$$-*
+

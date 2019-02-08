@@ -1,0 +1,31 @@
+#!/bin/bash
+
+HOST='magpi'
+LIST='0 1 2 3 4 5 6 7 8'
+EXEC='systemctl start anchor ; systemctl status anchor | fgrep Active: | cut -c 12-'
+DOMAIN='.pinet'
+
+
+alive()
+{
+    ping -c 3 -i 0.2 -W 1 -q "$@" 2>/dev/null >/dev/null
+}
+
+sexec()
+{
+    if alive ${1}${DOMAIN}
+    then
+    	echo "${1}: $(ssh root@${1}${DOMAIN} ${EXEC})"
+    else
+    	echo "${1}: DEAD"
+    fi
+}
+
+
+for X in ${LIST}
+do
+    sexec ${HOST}${X} &
+done
+
+wait
+

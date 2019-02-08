@@ -1,0 +1,38 @@
+#!/bin/bash
+
+N=$#
+M=$((N-1))
+
+DST=${@: -1:1}
+ARG=${@: 1:$M}
+
+HOST='magpi'
+LIST='0 1 2 3 4 5 6 7 8'
+DOMAIN='.pinet'
+
+
+alive()
+{
+    ping -c 3 -i 0.2 -W 1 -q "$@" 2>/dev/null >/dev/null
+}
+
+scopy()
+{
+    if alive ${1}${DOMAIN}
+    then
+	scp ${ARG} root@${1}${DOMAIN}:${DST}
+    else
+    	echo "${1}: DEAD"
+    fi
+}
+
+
+echo "Copying ${ARG} to ${DST}"
+
+for X in ${LIST}
+do
+	scopy ${HOST}${X} &
+done
+
+wait
+
