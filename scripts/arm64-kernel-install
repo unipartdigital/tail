@@ -1,0 +1,29 @@
+#!/bin/bash
+
+if [ -z "$1" ]
+then
+    echo "Target root argument is empty."
+    exit 1
+fi
+
+if [ ! -d "$1/boot" ]
+then
+    echo "Target directory $1/boot does not exist."
+    exit 1
+fi
+
+KERNEL=kernel8.img
+ZIMAGE=arch/arm64/boot/Image
+
+MAKE=arm64-kernel-make
+
+export INSTALL_PREFIX=$1
+export INSTALL_PATH=${INSTALL_PREFIX}/boot
+export INSTALL_MOD_PATH=${INSTALL_PREFIX}
+export INSTALL_DTBS_PATH=${INSTALL_PREFIX}/boot
+
+install -v ${ZIMAGE} ${INSTALL_PATH}/${KERNEL}
+
+${MAKE} modules_install
+${MAKE} dtbs_install
+

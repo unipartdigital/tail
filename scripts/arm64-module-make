@@ -1,0 +1,12 @@
+#!/bin/bash
+
+MAKE=arm64-kernel-make
+
+if test -z "${KBUILD}"
+then
+	echo '${KBUILD} not set'
+	exit 1
+fi
+
+exec ${MAKE} -C ${KBUILD} M=$(pwd) "$@"
+

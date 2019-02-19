@@ -1,0 +1,32 @@
+#!/bin/bash
+
+NICE="nice -n10"
+
+CHAINS="
+${CHAIN}
+/usr/local/tools/gcc-arm-8.2-2019.01-x86_64-aarch64-linux-gnu
+/usr/local/tools/gcc-arm-8.2-2018.11-x86_64-aarch64-linux-gnu
+/usr/local/tools/gcc-arm-8.2-2018.08-x86_64-aarch64-linux-gnu
+"
+
+for DIR in ${CHAINS}
+do
+    if [ -d ${DIR} ]
+    then
+	export PATH="${DIR}/bin:${PATH}"
+	echo "Using toolchain ${DIR##*/}"
+	break
+    fi
+done
+
+case $(uname -m) in
+    armv7l)
+	MAKE="make"
+	;;
+
+    x86_64)
+	MAKE="make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu-"
+	;;
+esac
+
+exec ${NICE} ${MAKE} "$@"

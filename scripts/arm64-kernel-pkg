@@ -7,7 +7,7 @@ DISTRIBUTION='raspbian'
 
 PKGVERSION=${PKGVERSION:-0.0}
 
-MAKE=rpi-kernel-make
+MAKE=arm64-kernel-make
 
 exec ${MAKE} \
      KDEB_PKGVERSION="${PKGVERSION}" \
