@@ -1,0 +1,50 @@
+Things to install:
+
+sudo apt install libgles2-mesa-dev
+
+sudo -H pip3 install cython
+sudo -H pip3 install kivy
+sudo -H pip3 install InstrumentKit
+sudo -H pip3 install gpiozero
+
+sudo apt isntall libsdl1.2-dev
+
+sudo apt-get install libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev \
+   pkg-config libgl1-mesa-dev libgles2-mesa-dev \
+   python-setuptools libgstreamer1.0-dev git-core \
+   gstreamer1.0-plugins-{bad,base,good,ugly} \
+   gstreamer1.0-{omx,alsa} python-dev libmtdev-dev \
+   xclip xsel
+
+
+
+sudo apt-get update&&sudo apt-get install libsdl-dev libsdl-image1.2-dev libsdl-mixer1.2-dev libsdl-ttf2.0-dev 
+sudo apt-get install libsmpeg-dev libportmidi-dev libavformat-dev libswscale-dev
+sudo apt-get install python3-dev python3-numpy
+
+sudo -H pip3 install pygame
+
+
+sudo apt install openocd
+
+udev things for serial ports
+
+mkdir ~/firmware
+
+Put some files in the directory
+
+
+Add to [input] section of .kivy/config.ini
+
+mouse = mouse
+mtdev_%(name)s = probesysfs,provider=mtdev
+hid_%(name)s = probesysfs,provider=hidinput
+
+
+Create tester.ini:
+
+[Tester]
+FrequencyCounter: /dev/tty...
+Multimeter:       /dev/tty...
+GPSDO:            /dev/tty...
+

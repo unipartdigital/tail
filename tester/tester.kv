@@ -1,0 +1,135 @@
+#: kivy 1.10.1
+#: import ScreenManager kivy.uix.screenmanager.ScreenManager
+#: import Screen kivy.uix.screenmanager.ScreenManager
+#: import MenuScreen screen
+#: import TestScreen screen
+#: import FlashScreen screen
+#: import DebugScreen screen
+
+ScreenManager:
+    id: screen_manager
+    #transition: FadeTransition()
+    MenuScreen:
+        id: menu_screen
+        name: 'MenuScreen'
+        manager: 'screen_manager'
+    TestScreen:
+        id: test_screen
+        name: 'TestScreen'
+        manager: 'screen_manager'
+    FlashScreen: 
+        id: flash_screen
+        name: 'FlashScreen'
+        manager: 'screen_manager'
+    DebugScreen: 
+        id: debug_screen
+        name: 'DebugScreen'
+        manager: 'screen_manager'
+
+<MenuScreen>:
+    BoxLayout:
+        orientation: 'vertical'
+        Label:
+            text: 'Production Tester'
+            font_size: 50
+        Button:
+            text: 'Run Tests'
+            font_size: 30
+            on_release: app.root.current = 'TestScreen'
+        Button:
+            text: 'Flash Firmware'
+            font_size: 30
+            on_release: app.root.current = 'FlashScreen'
+        Button:
+            text: 'Hardware Debug'
+            font_size: 30
+            on_release: app.root.current = 'DebugScreen'
+
+<TestScreen>:
+    FloatLayout:
+        Button:
+            text: 'Menu'
+            font_size: 30
+            on_release: app.root.current = 'MenuScreen'
+            size_hint: 0.1, 0.08
+            pos_hint: {'x': 0, 'top': 1}
+    BoxLayout:
+        orientation: 'vertical'
+        BoxLayout:
+            orientation: 'vertical'
+            Label:
+                id: status
+                text: 'Ready for testing'
+                font_size: 30
+                size_hint: 1, 0.2
+            Label:
+                id: output
+                text: 'Output'
+                markup: True
+                font_size: 30
+                text_size: self.size
+                valign: 'bottom'
+            BoxLayout:
+                orientation: 'horizontal'
+                size_hint: 1, 0.2
+                Button:
+                    text: 'Stop'
+                    font_size: 30
+                    background_normal: ''
+                    background_color: 1, 0, 0, 1
+                    on_release: app.stop_test()
+                Button:
+                    text: 'Go'
+                    font_size: 30
+                    background_normal: ''
+                    background_color: 0, 1, 0, 1
+                    on_release: app.start_test()
+
+<FlashScreen>:
+    FloatLayout:
+        Button:
+            text: 'Menu'
+            font_size: 30
+            on_release: app.root.current = 'MenuScreen'
+            size_hint: 0.1, 0.08
+            pos_hint: {'x': 0, 'top': 1}
+    BoxLayout:
+        orientation: 'vertical'
+        Label:
+            id: firmware
+            text: ''
+            font_size: 30
+            size_hint: 1, 0.2
+        Label:
+            id: status
+            text: 'Flash Firmware'
+            markup: True
+            font_size: 30
+            size_hint: 1, 0.2
+        GridLayout:
+            id: files
+            cols: 3
+
+<DebugScreen>:
+    FloatLayout:
+        Button:
+            text: 'Menu'
+            font_size: 30
+            on_release: app.root.current = 'MenuScreen'
+            size_hint: 0.1, 0.08
+            pos_hint: {'x': 0, 'top': 1}
+    BoxLayout:
+        orientation: 'vertical'
+        Label:
+            text: 'Debug test system\nCAUTION: Be careful. You can break things very easily.'
+            font_size: 30
+        BoxLayout:
+            orientation: 'horizontal'
+            GridLayout:
+                id: debug_buttons
+                cols: 3
+            Slider:
+                id: pwm_slider
+                orientation: 'vertical'
+                size_hint: 0.1, 1
+
