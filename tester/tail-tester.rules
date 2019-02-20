@@ -1,0 +1,13 @@
+# Devices required for tail production tester
+
+# Leo Bodnar Mini GPSDO
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1dd2", ATTRS{idProduct}=="2211", SYMLINK+="hidraw-gpsdo", MODE="660", GROUP="plugdev", TAG+="uaccess"
+
+# Olimex ARM-USB-OCD-H
+SUBSYSTEM=="tty", ACTION=="add", ATTRS{idProduct}=="002b", ATTRS{idVendor}=="15ba", SYMLINK+="ttySjtag", TAG+="uaccess"
+
+# TTi TF930
+ACTION=="add", ATTRS{idVendor}=="103e", ATTRS{idProduct}=="0442", RUN+="/sbin/modprobe ftdi_sio" RUN+="/bin/sh -c 'echo 103e 0442 > /sys/bus/usb-serial/drivers/ftdi_sio/new_id'", SYMLINK+="ttyStf930", TAG+="uaccess"
+
+# GW Instek GDM-8341
+ACTION=="add", ATTRS{idVendor}=="2184", ATTRS{idProduct}=="0030", RUN+="/sbin/modprobe cp210x" RUN+="/bin/sh -c 'echo 2184 0030 > /sys/bus/usb-serial/drivers/cp210x/new_id'", SYMLINK+="ttySgdm8341", TAG+="uaccess"

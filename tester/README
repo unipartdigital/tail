@@ -27,7 +27,10 @@ sudo -H pip3 install pygame
 
 sudo apt install openocd
 
+
 udev things for serial ports
+sudo cp tail-tester.rules /etc/udev/rules.d
+sudo udevadm control --reload
 
 mkdir ~/firmware
 
@@ -44,7 +47,7 @@ hid_%(name)s = probesysfs,provider=hidinput
 Create tester.ini:
 
 [Tester]
-FrequencyCounter: /dev/tty...
-Multimeter:       /dev/tty...
-GPSDO:            /dev/tty...
+FrequencyCounter: /dev/ttyStf930
+Multimeter:       /dev/ttySgdm8341
+GPSDO:            /dev/hidraw-gpsdo
 

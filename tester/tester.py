@@ -21,6 +21,7 @@ import time
 import configparser
 
 import tf930
+import instruments
 
 config = configparser.ConfigParser()
 config.read('tester.ini')
@@ -55,21 +56,21 @@ if real_hardware:
 def create_tf930():
     try:
         device = tf930.TF930.open_serial(device_frequencycounter, 115200, timeout=15)
-    except:
+    except Exception:
         device = None
     return device
 
 def create_multimeter():
     try:
-        device = None # Create the device here
-    except:
+        device = instruments.generic_scpi.SCPIMultimeter.open_serial(device_multimeter, 115200)
+    except Exception:
         device = None
     return device
 
 def create_gpsdo():
     try:
-        device = None # Create the device here
-    except:
+        device = os.open(device_gpsdo, os.O_RDONLY | os.O_NONBLOCK)
+    except Exception:
         device = None
     return device
 
@@ -286,7 +287,12 @@ class CheckHardware(threading.Thread):
     def update(self):
         global frequencycounter
         global frequencycounter_lock
-        output = ''
+        global multimeter
+        global multimeter_lock
+        global gpsdo
+        global gpsdo_lock
+        output = []
+
         frequencycounter_lock.acquire()
         if frequencycounter == None:
             frequencycounter = create_tf930()
@@ -299,18 +305,66 @@ class CheckHardware(threading.Thread):
                 name = None
                 frequencycounter = None
             if name:
-                status = frequencycounter.status()
-                frequencycounter_ok = True
+                try:
+                    status = frequencycounter.status()
+                    frequencycounter_ok = True
+                except:
+                    status = None
+                    frequencycounter = None
                 if status != None:
                     frequencycounter_reference = status['reference']
         frequencycounter_lock.release()
-        if not frequencycounter_ok:
-            if output != '': output += '\n'
-            output += 'No Frequency Counter'
+
+        multimeter_lock.acquire()
+        if multimeter == None:
+            multimeter = create_multimeter()
+        multimeter_ok = False
+        if multimeter:
+            try:
+                name = multimeter.name
+            except Exception:
+                try:
+                    multimeter.sendcmd('*CLS')
+                except Exception:
+                    pass
+                name = None
+                multimeter = None
+            if name:
+                multimeter_ok = True
+        multimeter_lock.release()
+
+        gpsdo_lock.acquire()
+        if gpsdo == None:
+            gpsdo = create_gpsdo()
+        gpsdo_ok = False
+        if gpsdo:
+            while True:
+                try:
+                    packet = os.read(gpsdo, 256)
+                    gpsdo_ok = True
+                    if len(packet) > 1:
+                        gpsdo_gps_locked = not (packet[1] & 1)
+                        gpsdo_pll_locked = not (packet[1] & 2)
+                except OSError as err:
+                    if err.errno == 11:
+                        break
+                    else:
+                        os.close(gpsdo)
+                        gpsdo = None
+                        break
+        gpsdo_lock.release()
+
+        if not frequencycounter_ok: output.append('No Frequency Counter')
         if frequencycounter_ok and not frequencycounter_reference:
-            if output != '': output += '\n'
-            output += 'No 10MHz Reference'
-        self.output = output
+            output.append('No 10MHz Reference')
+
+        if not multimeter_ok: output.append('No Multimeter')
+
+        if not gpsdo_ok: output.append('No GPSDO')
+        if gpsdo_ok and not gpsdo_gps_locked: output.append('No GPS lock')
+        if gpsdo_ok and not gpsdo_pll_locked: output.append('No PLL lock')
+
+        self.output = '\n'.join(output)
         self.initialised_flag = True
 
 class Test(threading.Thread):
