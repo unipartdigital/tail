@@ -20,6 +20,8 @@ import time
 
 import configparser
 
+import tf930
+
 config = configparser.ConfigParser()
 config.read('tester.ini')
 
@@ -44,18 +46,75 @@ check_config("GPSDO", device_gpsdo)
 firmware_to_flash = None
 root = None
 flash_process = None
-clock_event = None
+flashing_event = None
+test_update_event = None
 
 if real_hardware:
     from gpiozero import LED
+
+def create_tf930():
+    try:
+        device = tf930.TF930.open_serial(device_frequencycounter, 115200, timeout=15)
+    except:
+        device = None
+    return device
+
+def create_multimeter():
+    try:
+        device = None # Create the device here
+    except:
+        device = None
+    return device
+
+def create_gpsdo():
+    try:
+        device = None # Create the device here
+    except:
+        device = None
+    return device
+
+frequencycounter = None
+frequencycounter_lock = threading.Lock()
+
+multimeter = None
+multimeter_lock = threading.Lock()
+
+gpsdo = None
+gpsdo_lock = threading.Lock()
 
 class MenuScreen(Screen):
     pass
 
 class TestScreen(Screen):
     def on_pre_enter(self):
-        self.ids['status'].text = "Ready for testing"
+        self.ids['status'].text = "[color=ffff00]Checking hardware[/color]"
         self.ids['output'].text = ""
+        self.ready = False
+
+    def on_enter(self):
+        global hardware_check_event
+        self.hardware_check_event = Clock.schedule_interval(root.ids['test_screen'].update, 1)
+        self.hardware_check_thread = CheckHardware()
+        self.hardware_check_thread.start()
+
+    def on_leave(self):
+        self.hardware_check_thread.stop()
+        if self.hardware_check_event:
+            self.hardware_check_event.cancel()
+
+    def update(self, *args):
+        if self.hardware_check_thread.initialised():
+            status = self.hardware_check_thread.status()
+            if status != '':
+                self.ready = False
+                self.ids['status'].text = "[color=ff0000]" + status + "[/color]"
+            else:
+                self.ready = True
+                self.ids['status'].text = "Ready for testing"
+
+    def stop(self):
+        if self.hardware_check_thread:
+            self.hardware_check_thread.stop()
 
     pass
 
@@ -64,20 +123,13 @@ class FlashButton(Button):
         super(FlashButton, self).on_release(*args)
         global firmware_to_flash
         global flash_process
-        global clock_event
+        global flashing_event
         firmware_to_flash = self.text
         if flash_process == None:
             flash_process = Popen([flash_command, join(firmware_directory, firmware_to_flash)])
         root.ids['flash_screen'].ids['status'].text = 'Flashing  '
         root.ids['flash_screen'].ids['firmware'].text = firmware_to_flash
-        clock_event = Clock.schedule_interval(root.ids['flash_screen'].update, 0.2)
-#        root.current = 'FlashingScreen'
-
-class FlashingScreen(Screen):
-    def on_pre_enter(self):
-        self.ids['status'].text = 'Flashing ' + firmware_to_flash
-        self.ids['progress'].value = 50
-    pass
+        flashing_event = Clock.schedule_interval(root.ids['flash_screen'].update, 0.2)
 
 class FlashScreen(Screen):
     phase = 0
@@ -104,7 +156,7 @@ class FlashScreen(Screen):
                 self.ids['status'].text = "[color=ff0000]FAIL[/color]"
             flash_process = None
             self.phase = 0
-            clock_event.cancel()
+            flashing_event.cancel()
 
     pass
 
@@ -126,21 +178,25 @@ class TesterApp(App):
         root = self.root
 
     def start_test(self):
-        global clock_event
+        global test_update_event
         if (self.test == None) or (not self.test.isAlive()):
             self.test = Test(self.root.ids['test_screen'].ids['output'].text)
             self.test.start()
-            clock_event = Clock.schedule_interval(self.update, 0.2)
+            test_update_event = Clock.schedule_interval(self.update, 0.2)
 
     def update(self, *args):
         self.root.ids['test_screen'].ids['output'].text = self.test.output
         if not self.test.isAlive():
-            clock_event.cancel()
+            test_update_event.cancel()
 
     def stop_test(self):
         if self.test != None:
             if self.test.isAlive():
                 self.test.stop()
+
+    def on_stop(self):
+        self.stop_test()
+        self.root.ids['test_screen'].stop()
 
     pass
 
@@ -201,13 +257,61 @@ class Relays:
     def relay(self, name):
         return self.dict[name]
 
+class CheckHardware(threading.Thread):
+    def __init__(self):
+        self.output = ''
+        self.stop_flag = False
+        self.initialised_flag = False
+        threading.Thread.__init__(self)
+
+    def stop(self):
+        self.stop_flag = True
+
+    def initialised(self):
+        return self.initialised_flag
+
+    def status(self):
+        return self.output
+
+    def run(self):
+        count = 0
+        while self.stop_flag == False:
+            if count == 0:
+                self.update()
+            time.sleep(1)
+            count += 1
+            if count > 5:
+                count = 0
+
+    def update(self):
+        global frequencycounter
+        global frequencycounter_lock
+        output = ''
+        frequencycounter_lock.acquire()
+        if frequencycounter == None:
+            frequencycounter = create_tf930()
+        frequencycounter_ok = False
+        if frequencycounter:
+            try:
+                name = frequencycounter.name
+            except:
+                name = None
+                frequencycounter = None
+            if name:
+                frequencycounter_ok = True
+        frequencycounter_lock.release()
+        if not frequencycounter_ok:
+            if output != '': output += '\n'
+            output += 'No Frequency Counter'
+        self.output = output
+        self.initialised_flag = True
+
 class Test(threading.Thread):
     def __init__(self, output):
         self.output = output
         threading.Thread.__init__(self)
 
     def run(self):
-        print("Running in thread")
         self.output = "Yay"
         time.sleep(2)
         self.output += "\nWe're here!"
@@ -219,7 +323,6 @@ class Test(threading.Thread):
         self.output += "\nIn a thread"
         time.sleep(2)
         self.output += "\n... and we're done"
-        print("Finished thread")
 
 relays = Relays(
     [
