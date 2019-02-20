@@ -162,7 +162,19 @@ class TF930(Instrument):
         value = self.query('N?')
         return self.parse(value)
 
+    def status(self):
+        status = self.query('S?')
+        result = {
+            'reference' : False,
+            'error'     : False,
+            'signal'    : False,
+        }
+        result['errorcode'] = int(status[1])
+        if (int(status[0]) & 1): result['reference'] = True
+        if (int(status[0]) & 2): result['error'] = True
+        if (int(status[0]) & 4): result['signal'] = True
+        return result
+
     # Things that could still be implemented:
-    # status
     # Measuring in ways other than taking the next reading
 

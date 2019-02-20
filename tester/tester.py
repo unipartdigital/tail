@@ -291,6 +291,7 @@ class CheckHardware(threading.Thread):
         if frequencycounter == None:
             frequencycounter = create_tf930()
         frequencycounter_ok = False
+        frequencycounter_reference = False
         if frequencycounter:
             try:
                 name = frequencycounter.name
@@ -298,11 +299,17 @@ class CheckHardware(threading.Thread):
                 name = None
                 frequencycounter = None
             if name:
+                status = frequencycounter.status()
                 frequencycounter_ok = True
+                if status != None:
+                    frequencycounter_reference = status['reference']
         frequencycounter_lock.release()
         if not frequencycounter_ok:
             if output != '': output += '\n'
             output += 'No Frequency Counter'
+        if frequencycounter_ok and not frequencycounter_reference:
+            if output != '': output += '\n'
+            output += 'No 10MHz Reference'
         self.output = output
         self.initialised_flag = True
 
