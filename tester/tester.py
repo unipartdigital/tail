@@ -413,20 +413,48 @@ class CheckHardware(threading.Thread):
 class Test(threading.Thread):
     def __init__(self, output):
         self.output = output
+        self.stopping = False
         threading.Thread.__init__(self)
 
-    def run(self):
+    def stop(self):
+        self.stopping = True
+
+    def test1(self):
         self.output = "Yay"
         time.sleep(2)
+
+    def test2(self):
         self.output += "\nWe're here!"
         time.sleep(2)
+
+    def test3(self):
         self.output += "\nAlive"
         time.sleep(2)
+
+    def test4(self):
         self.output += "\nAnd kicking"
         time.sleep(2)
+
+    def test5(self):
         self.output += "\nIn a thread"
         time.sleep(2)
+
+    def test6(self):
         self.output += "\n... and we're done"
+
+    tests = [test1, test2, test3, test4, test5, test6]
+
+    def cleanup(self):
+        # Reset all hardware to a safe state
+        pass
+
+    def run(self):
+        for test in self.tests:
+            if self.stopping:
+                self.output += "\n[color=#ff0000]TEST ABORTED[/color]"
+                break
+            test(self)
+        self.cleanup()
 
 pwmoutput = PWMOutput('pwm', 17)
 
