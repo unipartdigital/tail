@@ -51,7 +51,7 @@ flashing_event = None
 test_update_event = None
 
 if real_hardware:
-    from gpiozero import LED
+    from gpiozero import LED, PWMLED
 
 def create_tf930():
     try:
