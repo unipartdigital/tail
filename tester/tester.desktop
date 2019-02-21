@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Tester
+Comment=Tail Production Tester
+Icon=/usr/share/pixmaps/openbox.xpm
+Exec=/home/pi/tail/tester/tester.sh
+Type=Application
+Encoding=UTF-8
+Terminal=false
+Categories=None;

@@ -53,3 +53,17 @@ FrequencyCounter: /dev/ttyStf930
 Multimeter:       /dev/ttySgdm8341
 GPSDO:            /dev/hidraw-gpsdo
 
+
+Disable lightdm otherwise touch screen presses also end up in X, which
+randomly launches unrelated applications while you're not looking
+
+Depending on how you're starting the tester, you may want to do this permanently.
+
+sudo systemctl stop lightdm
+sudo systemctl disable lightdm
+
+
+If you want a desktop icon that will launch the tester:
+
+cp tester.desktop ~/Desktop/
+
