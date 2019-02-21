@@ -133,5 +133,7 @@ ScreenManager:
                 id: pwm_slider
                 orientation: 'vertical'
                 size_hint: 0.1, 1
+                min: 0
+                max: 1
                 on_value: root.set_pwm(self.value)
 

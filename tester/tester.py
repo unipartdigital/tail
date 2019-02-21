@@ -428,7 +428,7 @@ class Test(threading.Thread):
         time.sleep(2)
         self.output += "\n... and we're done"
 
-pwmoutput = PWMOutput('pwm', 26)
+pwmoutput = PWMOutput('pwm', 17)
 
 relays = Relays(
     [
@@ -448,9 +448,9 @@ relays = Relays(
         ('measure_led1',    14),
         ('measure_led0',    15),
         ('neg_isense-',     16),
-        ('neg_batsw',       17),
-        ('neg_ground',      18),
-        ('jtag',            19),
+        ('neg_batsw',       18),
+        ('neg_ground',      19),
+        ('jtag',            20),
         ('uart',            25),
     ])
 
