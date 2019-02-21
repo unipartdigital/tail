@@ -87,6 +87,10 @@ class MenuScreen(Screen):
     pass
 
 class TestScreen(Screen):
+    def __init__(self, **args):
+        self.hardware_check_thread = None
+        super(Screen,self).__init__(**args)
+
     def on_pre_enter(self):
         self.ids['status'].text = "[color=ffff00]Checking hardware[/color]"
         self.ids['output'].text = ""
@@ -163,8 +167,25 @@ class FlashScreen(Screen):
 
 class DebugScreen(Screen):
     def add_buttons(self):
+        self.buttons = []
         for name in relays.names():
-            self.ids['debug_buttons'].add_widget(ToggleButton(text=name, font_size=30))
+            button = ToggleButton(text=name, font_size=30)
+            button.bind(state=self.button_update)
+            self.ids['debug_buttons'].add_widget(button)
+            self.buttons.append(button)
+
+    def button_update(self, instance, value):
+        relays.relay(instance.text).state = True if value=='down' else False
+
+    def set_pwm(self, value):
+        pwmoutput.value = value
+
+    def on_pre_enter(self):
+        for button in self.buttons:
+            state = relays.relay(button.text).state
+            button.state = 'down' if state else 'normal'
+        self.ids['pwm_slider'].value = pwmoutput.value
+
     pass
 
 class TesterApp(App):
@@ -209,34 +230,56 @@ class RootWidget(Screen):
     def _finish_init(self, dt):
         self.ids[debug_screen].add_buttons()
 
+class PWMOutput:
+    def __init__(self, name, gpio):
+        self.pwm_name = name
+        self.gpio = gpio
+        self.pwm_value = 0
+        if real_hardware:
+            self.pin = PWMLED(gpio, initial_value=self.pwm_value, frequency=1000)
+
+    def name(self):
+        return self.pwm_name
+
+    @property
+    def value(self):
+        return self.pwm_value
+
+    @value.setter
+    def value(self, value):
+        self.pwm_value = value
+        if real_hardware:
+            self.pin.value = value
+
 class Relay:
     def __init__(self, name, gpio):
         self.relay_name = name
         self.gpio = gpio
-        self.state = False
+        self.relay_state = False
         if real_hardware:
             self.pin = LED(gpio)
 
     def name(self):
         return self.relay_name
 
+    @property
     def state(self):
-        return self.state
+        return self.relay_state
+
+    @state.setter
+    def state(self, value):
+        self.relay_state = value
+        if real_hardware:
+            self.pin.value = value
 
     def on(self):
         self.state = True
-        if real_hardware:
-            self.pin.on()
 
     def off(self):
         self.state = False
-        if real_hardware:
-            self.pin.off()
 
     def toggle(self):
         self.state = not self.state
-        if real_hardware:
-            self.pin.toggle()
 
 class Relays:
     def __init__(self, list=None):
@@ -384,6 +427,8 @@ class Test(threading.Thread):
         self.output += "\nIn a thread"
         time.sleep(2)
         self.output += "\n... and we're done"
+
+pwmoutput = PWMOutput('pwm', 26)
 
 relays = Relays(
     [
