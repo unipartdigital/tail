@@ -872,8 +872,6 @@ void cli_poll(void)
 			break;
 		case '\r':
 		case '\n':
-			if (bufp == 0)
-				break;
 			write_string("\r\n");
 			cli_execute();
 			if (!cli_pending)
