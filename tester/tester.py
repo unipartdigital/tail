@@ -51,7 +51,9 @@ flashing_event = None
 test_update_event = None
 
 if real_hardware:
-    from gpiozero import LED, PWMLED
+    from gpiozero.pins.pigpio import PiGPIOFactory
+    from gpiozero import LED, PWMLED, Device, OutputDevice
+    Device.pin_factory = PiGPIOFactory()
 
 def create_tf930():
     try:
@@ -236,7 +238,7 @@ class PWMOutput:
         self.gpio = gpio
         self.pwm_value = 0
         if real_hardware:
-            self.pin = PWMLED(gpio, initial_value=self.pwm_value, frequency=1000)
+            self.pin = PWMLED(gpio, initial_value=self.pwm_value, frequency=10000)
 
     def name(self):
         return self.pwm_name
@@ -251,13 +253,31 @@ class PWMOutput:
         if real_hardware:
             self.pin.value = value
 
+class GPIORelay(OutputDevice):
+    def __init__(self, pin=None, initial_value=False, **args):
+        super(OutputDevice, self).__init__(pin=pin, **args)
+        self._write(initial_value)
+
+    def _write(self, value):
+        try:
+            if value:
+                self.pin.function = 'output'
+                self.pin.state = False
+            else:
+                self.pin.function = 'input'
+                self.pin.pull = 'floating'
+        except AttributeError:
+            self._check_open()
+            raise
+
+        
 class Relay:
     def __init__(self, name, gpio):
         self.relay_name = name
         self.gpio = gpio
         self.relay_state = False
         if real_hardware:
-            self.pin = LED(gpio)
+            self.pin = GPIORelay(gpio)
 
     def name(self):
         return self.relay_name
@@ -456,30 +476,30 @@ class Test(threading.Thread):
             test(self)
         self.cleanup()
 
-pwmoutput = PWMOutput('pwm', 17)
+pwmoutput = PWMOutput('pwm', 18)
 
 relays = Relays(
     [
-        ('power_5v',         1),
-        ('pullup_5v',        23),
-        ('power_3v7',        24),
-        ('dummy_load',       4),
-        ('dut_on',           5),
-        ('dut_sense',        6),
-        ('short_3v3',        7),
-        ('measure_isense+',  8),
-        ('measure_bat',      9),
-        ('measure_batsw',   10),
-        ('measure_3v3',     11),
-        ('measure_led3',    12),
-        ('measure_led2',    13),
-        ('measure_led1',    14),
-        ('measure_led0',    15),
-        ('neg_isense-',     16),
-        ('neg_batsw',       18),
-        ('neg_ground',      19),
-        ('jtag',            20),
-        ('uart',            25),
+        ('power_5v',         17),
+        ('pullup_5v',        27),
+        ('power_3v7',        22),
+        ('dummy_load',       23),
+        ('dut_on',           24),
+        ('dut_sense',        10),
+        ('short_3v3',         9),
+        ('measure_isense+',  25),
+        ('measure_bat',      11),
+        ('measure_batsw',     8),
+        ('measure_3v3',       7),
+        ('measure_led3',      5),
+        ('measure_led2',      6),
+        ('measure_led1',     12),
+        ('measure_led0',     13),
+        ('neg_isense-',      19),
+        ('neg_batsw',        16),
+        ('neg_ground',       26),
+        ('jtag',             20),
+        ('uart',             21),
     ])
 
 if __name__ == '__main__':

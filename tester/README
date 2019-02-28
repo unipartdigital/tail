@@ -24,7 +24,8 @@ sudo apt-get install python3-dev python3-numpy
 
 sudo -H pip3 install pygame
 
-sudo -H pip3 install RPi.GPIO
+sudo -H pip3 install pigpio
+
 
 
 sudo apt install openocd
@@ -67,3 +68,5 @@ If you want a desktop icon that will launch the tester:
 
 cp tester.desktop ~/Desktop/
 
+Remove console/serial0,115200 from /boot/cmdline.txt
+Use raspi-config to enable the serial port but disable a login prompt on the serial port
