@@ -2,6 +2,7 @@
 
 cd "$(dirname "$0")"
 
-sudo systemctl lightdm stop
+sudo systemctl stop lightdm
+sudo pigpiod
 ./tester.py
-sudo systemctl lightdm start
+sudo systemctl start lightdm
