@@ -188,11 +188,13 @@ tag_data_t tag_data = {
 
 #define TAIL_SYNC_BEACON  7
 
-#define TAIL_HEADER_ACCEL   0x80
+#define TAIL_HEADER_EXTRA   0x80
 #define TAIL_HEADER_LISTEN  0x40
 #define TAIL_HEADER_BATTERY 0x20
-#define TAIL_HEADER_CONFIG  0x10
+#define TAIL_HEADER_ACCEL   0x10
+#define TAIL_HEADER_CONFIG  (unimplemented)
 #define TAIL_HEADER_TIMING  0x08
+#define TAIL_HEADER_DEBUG   0x01
 
 /* MAC frame (IEEE 802.15.4-2011)
  *
@@ -259,6 +261,15 @@ typedef struct packet {
         (array)[2] = (i >> 16) & 0xff; \
         (array)[3] = (i >> 24) & 0xff; \
         (array)[4] = (i >> 32) & 0xff; \
+    } while (0)
+
+#define TIMESTAMP_READ_BE(array) ((uint64_t)((array)[4]) + ((uint64_t)((array)[3]) << 8) + ((uint64_t)((array)[2]) << 16) + ((uint64_t)((array)[1]) << 24) + ((uint64_t)((array)[0]) << 32))
+#define TIMESTAMP_WRITE_BE(array, i) do { \
+	    (array)[4] = i & 0xff; \
+        (array)[3] = (i >> 8) & 0xff; \
+        (array)[2] = (i >> 16) & 0xff; \
+        (array)[1] = (i >> 24) & 0xff; \
+        (array)[0] = (i >> 32) & 0xff; \
     } while (0)
 
 
@@ -810,10 +821,13 @@ void tagipv6_start(void)
     offset = ipv6_udp_header(txbuf, offset, tag_data.source_port, tag_data.dest_port);
 
     /* payload goes here */
-    txbuf[offset++] = TAIL_HEADER_BATTERY; /* Tail status flags */
+    txbuf[offset++] = TAIL_HEADER_BATTERY | TAIL_HEADER_DEBUG; /* Tail status flags */
 
     radio_wakeup_adc_readings(&voltage, &temperature);
 
+    txbuf[offset++] = 0; /* Battery state estimate */
+
+    txbuf[offset++] = 4; /* Length of debug field */
     txbuf[offset++] = voltage; /* Battery state */
     txbuf[offset++] = temperature; /* Temperature */
     txbuf[offset++] = device.volts_cal;
@@ -1498,9 +1512,9 @@ bool tail_timing(packet_t *p, int hlen)
 
 	txbuf[offset++] = TAIL_HEADER_TIMING;
 
-	TIMESTAMP_WRITE(txbuf+offset, td1);
+	TIMESTAMP_WRITE_BE(txbuf+offset, td1);
 	offset += 5;
-	TIMESTAMP_WRITE(txbuf+offset, td2);
+	TIMESTAMP_WRITE_BE(txbuf+offset, td2);
 	offset += 5;
 
 	address_t source_mac_addr = my_mac_address();
@@ -1716,11 +1730,13 @@ bool tagipv6_rx(packet_t *p)
 	/* Decode tail packet and despatch */
 	int tail_header = p->payload[p->hlen];
 
+#if 0
 	if (tail_header & TAIL_HEADER_CONFIG) {
 		/* XXX we need to implement this */
 		// tail_config(p, hlen);
 		return false;
 	}
+#endif
 
 	if (tail_header & TAIL_HEADER_TIMING) {
 		return tail_timing(p, hlen);
