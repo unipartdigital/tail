@@ -9,6 +9,8 @@
 
 #include "em_gpio.h"
 
+#include "byteorder.h"
+
 #define BUFLEN 1024
 #define HEADER_MAX 37
 
@@ -820,8 +822,12 @@ void tagipv6_start(void)
     udp_offset = offset;
     offset = ipv6_udp_header(txbuf, offset, tag_data.source_port, tag_data.dest_port);
 
+    int header = TAIL_HEADER_BATTERY | TAIL_HEADER_DEBUG;
+    if (device.receive_after_transmit)
+    	header |= TAIL_HEADER_LISTEN;
+
     /* payload goes here */
-    txbuf[offset++] = TAIL_HEADER_BATTERY | TAIL_HEADER_DEBUG; /* Tail status flags */
+    txbuf[offset++] = header;
 
     radio_wakeup_adc_readings(&voltage, &temperature);
 
@@ -1450,44 +1456,20 @@ bool tail_sync_beacon(packet_t *p)
 
 void ipv6_addr_from_mac(ipv6_addr_t ipv6, address_t *mac)
 {
-	ipv6[0] = 0xfe;
-	ipv6[1] = 0x80;
-	ipv6[2] = 0x00;
-	ipv6[3] = 0x00;
-	ipv6[4] = 0x00;
-	ipv6[5] = 0x00;
-	ipv6[6] = 0x00;
-	ipv6[7] = 0x00;
+	((uint32_t*) ipv6)[0] = 0x000080fe;
+	((uint32_t*) ipv6)[1] = 0x00000000;
 	switch (mac->type) {
 	case ADDR_SHORT:
-		ipv6[8] = 0x00;
-		ipv6[9] = 0x00;
-		ipv6[10] = 0x00;
-		ipv6[11] = 0xff;
-		ipv6[12] = 0xfe;
-		ipv6[13] = 0x00;
-		ipv6[14] = mac->a.s >> 8;
-		ipv6[15] = mac->a.s & 0xff;
+		((uint32_t*) ipv6)[2] = 0xff000000;
+		((uint32_t*) ipv6)[3] = 0x000000fe | (bswap16(mac->a.s) << 16);
 		break;
 	case ADDR_LONG:
-		ipv6[8]  =((mac->a.l >> 56) & 0xff) ^ 0x02; /* U/L bit */
-		ipv6[9]  = (mac->a.l >> 48) & 0xff;
-		ipv6[10] = (mac->a.l >> 40) & 0xff;
-		ipv6[11] = (mac->a.l >> 32) & 0xff;
-		ipv6[12] = (mac->a.l >> 24) & 0xff;
-		ipv6[13] = (mac->a.l >> 16) & 0xff;
-		ipv6[14] = (mac->a.l >>  8) & 0xff;
-		ipv6[15] = (mac->a.l >>  0) & 0xff;
+		((uint32_t*) ipv6)[2] = bswap32((mac->a.l >> 32) ^ 0x02000000); /* U/L bit */
+		((uint32_t*) ipv6)[3] = bswap32((mac->a.l >> 32) & 0xffffffff);
 		break;
 	default:
-		ipv6[8] = 0x00;
-		ipv6[9] = 0x00;
-		ipv6[10] = 0x00;
-		ipv6[11] = 0x00;
-		ipv6[12] = 0x00;
-		ipv6[13] = 0x00;
-		ipv6[14] = 0x00;
-		ipv6[15] = 0x00;
+		((uint32_t*) ipv6)[2] = 0x00000000;
+		((uint32_t*) ipv6)[3] = 0x00000000;
 		break;
 	}
 }
@@ -1530,16 +1512,17 @@ bool tail_timing(packet_t *p, int hlen)
 
 bool tagipv6_rx(packet_t *p)
 {
-	memset(p->ipv6_source, 0, 16);
-	memset(p->ipv6_dest, 0, 16);
-	p->ipv6_source[0] = 0xfe;
-	p->ipv6_source[1] = 0x80;
-	p->ipv6_source[11] = 0xff;
-	p->ipv6_source[12] = 0xfe;
-	p->ipv6_dest[0] = 0xfe;
-	p->ipv6_dest[1] = 0x80;
-	p->ipv6_dest[11] = 0xff;
-	p->ipv6_dest[12] = 0xfe;
+	uint32_t *source = (uint32_t *)p->ipv6_source;
+	uint32_t *dest = (uint32_t *)p->ipv6_dest;
+
+	source[0] = 0x000080fe;
+	source[1] = 0;
+	source[2] = 0xff000000;
+	source[3] = 0x000000fe;
+	dest[0]   = 0x000080fe;
+	dest[1]   = 0;
+	dest[2]   = 0xff000000;
+	dest[3]   = 0x000000fe;
 
 	int hlen = 2;
 
