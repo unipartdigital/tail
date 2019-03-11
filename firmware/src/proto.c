@@ -190,6 +190,8 @@ tag_data_t tag_data = {
 
 #define TAIL_SYNC_BEACON  7
 
+#define TAIL_MAGIC          0x37
+
 #define TAIL_HEADER_EXTRA   0x80
 #define TAIL_HEADER_LISTEN  0x40
 #define TAIL_HEADER_BATTERY 0x20
@@ -807,7 +809,10 @@ address_t my_mac_address(void)
 
 void tagipv6_start(void)
 {
-    int offset, udp_offset;
+    int offset;
+#ifdef IPV6
+	int udp_offset;
+#endif
     uint8_t voltage, temperature;
 
     tag_data.active = true;
@@ -818,9 +823,13 @@ void tagipv6_start(void)
     proto_header(txbuf);
     offset = proto_dest(txbuf, &tag_data.target_mac_addr);
     offset = proto_source(txbuf, offset);
+#ifdef IPV6
     offset = ipv6_header(txbuf, offset, tag_data.target_ipv6_addr, &tag_data.target_mac_addr);
     udp_offset = offset;
     offset = ipv6_udp_header(txbuf, offset, tag_data.source_port, tag_data.dest_port);
+#else
+    txbuf[offset++] = TAIL_MAGIC;
+#endif
 
     int header = TAIL_HEADER_BATTERY | TAIL_HEADER_DEBUG;
     if (device.receive_after_transmit)
@@ -839,9 +848,11 @@ void tagipv6_start(void)
     txbuf[offset++] = device.volts_cal;
     txbuf[offset++] = device.temp_cal;
 
+#ifdef IPV6
     address_t source_mac_addr = my_mac_address();
 
     ipv6_udp_checksum(txbuf, &source_mac_addr, tag_data.target_ipv6_addr, tag_data.source_port, tag_data.dest_port, udp_offset, offset);
+#endif
 
     radio_writepayload(txbuf, offset, 0);
     radio_txprepare(offset+2, 0, false);
@@ -1477,7 +1488,10 @@ void ipv6_addr_from_mac(ipv6_addr_t ipv6, address_t *mac)
 bool tail_timing(packet_t *p, int hlen)
 {
 	uint64_t ttx, td1, td2;
-	int offset, udp_offset;
+	int offset;
+#ifdef IPV6
+	int udp_offset;
+#endif
 
 	ttx = p->timestamp + device.turnaround_delay;
 	ttx = ttx & ~0x1ff;
@@ -1488,9 +1502,13 @@ bool tail_timing(packet_t *p, int hlen)
 	proto_header(txbuf);
 	offset = proto_reply(txbuf, p);
 
+#ifdef IPV6
 	offset = ipv6_header(txbuf, offset, p->ipv6_source, &p->source);
     udp_offset = offset;
     offset = ipv6_udp_header(txbuf, offset, p->dest_port, p->source_port);
+#else
+    txbuf[offset++] = TAIL_MAGIC;
+#endif
 
 	txbuf[offset++] = TAIL_HEADER_TIMING;
 
@@ -1499,8 +1517,10 @@ bool tail_timing(packet_t *p, int hlen)
 	TIMESTAMP_WRITE_BE(txbuf+offset, td2);
 	offset += 5;
 
+#ifdef IPV6
 	address_t source_mac_addr = my_mac_address();
     ipv6_udp_checksum(txbuf, &source_mac_addr, p->ipv6_source, p->dest_port, p->source_port, udp_offset, offset);
+#endif
 
     radio_writepayload(txbuf, offset, 0);
     radio_txprepare(offset+2, 0, true);
@@ -1512,6 +1532,7 @@ bool tail_timing(packet_t *p, int hlen)
 
 bool tagipv6_rx(packet_t *p)
 {
+#ifdef IPV6
 	uint32_t *source = (uint32_t *)p->ipv6_source;
 	uint32_t *dest = (uint32_t *)p->ipv6_dest;
 
@@ -1709,6 +1730,11 @@ bool tagipv6_rx(packet_t *p)
 	(void)checksum;
 	if (!ipv6_verify_checksum(p, checksum))
 		return false;
+#else
+    if (p->payload[0] != TAIL_MAGIC)
+    	return false;
+    p->hlen = 1;
+#endif
 
 	/* Decode tail packet and despatch */
 	int tail_header = p->payload[p->hlen];
@@ -1722,7 +1748,7 @@ bool tagipv6_rx(packet_t *p)
 #endif
 
 	if (tail_header & TAIL_HEADER_TIMING) {
-		return tail_timing(p, hlen);
+		return tail_timing(p, p->hlen);
 	}
 
 	return false;
@@ -1853,10 +1879,17 @@ bool proto_despatch(uint8_t *buf, int len)
 		case TAIL_SYNC_BEACON:
 			return tail_sync_beacon(&p);
 		default:
+#if IPV6
 			if ((buf[pp] & 0xe0) == 0x60) {
 				/* IPHC header */
 				return tagipv6_rx(&p);
 			}
+#else
+			if (buf[pp] == TAIL_MAGIC) {
+				/* IPHC header */
+				return tagipv6_rx(&p);
+			}
+#endif
 		}
 		break;
 	case 2:
