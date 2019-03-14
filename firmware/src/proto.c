@@ -6,6 +6,7 @@
 #include "proto.h"
 #include "config.h"
 #include "accel.h"
+#include "battery.h"
 
 #include "em_gpio.h"
 
@@ -90,10 +91,11 @@ typedef struct {
 	bool receive_after_transmit;
 	volatile bool radio_active;
 	bool radio_sleeping;
-	uint8_t volts;
-	uint8_t temp;
-	uint8_t volts_cal;
-	uint8_t temp_cal;
+	uint8_t radio_volts;
+	uint8_t radio_temp;
+	uint8_t radio_volts_cal;
+	uint8_t radio_temp_cal;
+	uint32_t adc_volts;
 	uint64_t turnaround_delay;
 	uint32_t rxtimeout;
 } device_t;
@@ -111,10 +113,11 @@ device_t device = {
 		.receive_after_transmit = false,
 		.radio_active = false,
 		.radio_sleeping = false,
-		.volts = 0,
-		.temp = 0,
-		.volts_cal = 0,
-		.temp_cal = 0,
+		.radio_volts = 0,
+		.radio_temp = 0,
+		.radio_volts_cal = 0,
+		.radio_temp_cal = 0,
+		.adc_volts = 0,
 		.turnaround_delay = TURNAROUND_DELAY,
 		.rxtimeout = 10000
 };
@@ -297,6 +300,22 @@ radio_callbacks proto_callbacks = {
 		.rxerror = proto_rxerror
 };
 
+#define BATTERY_FILTER 4
+
+void proto_update_battery(void)
+{
+    uint16_t volts = battery_read();
+    if (device.adc_volts == 0)
+    	device.adc_volts = volts << BATTERY_FILTER;
+    else {
+    	device.adc_volts = device.adc_volts - (device.adc_volts >> BATTERY_FILTER) + volts;
+    }
+}
+
+uint16_t proto_battery_volts(void)
+{
+	return device.adc_volts >> BATTERY_FILTER;
+}
 
 void proto_init(void)
 {
@@ -316,7 +335,9 @@ void proto_init(void)
     device.radio_active = false;
     device.radio_sleeping = false;
 
-    radio_read_adc_cal(&device.volts_cal, &device.temp_cal);
+    radio_read_adc_cal(&device.radio_volts_cal, &device.radio_temp_cal);
+    battery_init();
+    proto_update_battery();
 
     time_early_wakeup(proto_prepare, PROTO_PREPARETIME);
 }
@@ -840,13 +861,17 @@ void tagipv6_start(void)
 
     radio_wakeup_adc_readings(&voltage, &temperature);
 
-    txbuf[offset++] = 0; /* Battery state estimate */
+    uint16_t volts = proto_battery_volts();
 
-    txbuf[offset++] = 4; /* Length of debug field */
+    txbuf[offset++] = battery_state(volts);
+
+    txbuf[offset++] = 6; /* Length of debug field */
     txbuf[offset++] = voltage; /* Battery state */
     txbuf[offset++] = temperature; /* Temperature */
-    txbuf[offset++] = device.volts_cal;
-    txbuf[offset++] = device.temp_cal;
+    txbuf[offset++] = device.radio_volts_cal;
+    txbuf[offset++] = device.radio_temp_cal;
+    txbuf[offset++] = volts & 0xff;
+    txbuf[offset++] = volts >> 8;
 
 #ifdef IPV6
     address_t source_mac_addr = my_mac_address();
@@ -1196,8 +1221,9 @@ void proto_prepare(void)
     device.radio_sleeping = false;
     /* Keep the radio awake until it is used */
     device.radio_active = true;
+    proto_update_battery();
     radio_wakeup();
-    radio_wakeup_adc_readings(&device.volts, &device.temp);
+    radio_wakeup_adc_readings(&device.radio_volts, &device.radio_temp);
 }
 
 /* Like proto_prepare, but we want to perform an immediate operation and don't
@@ -1208,20 +1234,21 @@ void proto_prepare_immediate(void)
     if (!device.radio_sleeping)
     	return;
     device.radio_sleeping = false;
+    proto_update_battery();
     radio_wakeup();
-    radio_wakeup_adc_readings(&device.volts, &device.temp);
+    radio_wakeup_adc_readings(&device.radio_volts, &device.radio_temp);
 }
 
 int proto_volts(void)
 {
-	int v = device.volts;
-	return 1000 * (v - device.volts_cal) / 173 + 3300;
+	int v = device.radio_volts;
+	return 1000 * (v - device.radio_volts_cal) / 173 + 3300;
 }
 
 int proto_temp(void)
 {
-	int t = device.temp;
-	return 1140 * (t - device.temp_cal) + 23000;
+	int t = device.radio_temp;
+	return 1140 * (t - device.radio_temp_cal) + 23000;
 }
 
 void set_antenna_delay_tx(uint16_t delay)
