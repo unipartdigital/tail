@@ -9,7 +9,7 @@
 #define CONFIG_KEYS \
 	X(eui,               0x0001) \
 	X(xtal_trim,         0x0002) \
-	X(role,              0x0003) \
+	X_OBSOLETE(role,              0x0003) \
 	X(antenna_delay_tx,  0x0004) \
 	X(antenna_delay_rx,  0x0005) \
 	X(chan,              0x0006) \

@@ -16,8 +16,6 @@
 #include "config.h"
 #include "proto.h"
 
-#define ROLE_TAGIPV6 6
-
 #define CLOCK_DEBUG 0
 
 /* XXX no longer used */
@@ -189,12 +187,6 @@ int main(void)
 
 
     proto_init();
-
-    switch (config_get8(config_key_role)) {
-    case ROLE_TAGIPV6:
-    	tagipv6();
-    	break;
-    }
 
     while (1) {
     	time_event_poll();

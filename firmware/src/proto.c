@@ -258,8 +258,10 @@ uint16_t proto_battery_volts(void)
 
 void proto_init(void)
 {
+	bool configured = false;
     device.eui = 0;
-    (void) config_get(config_key_eui, (uint8_t *)&device.eui, sizeof(device.eui));
+    if (config_get(config_key_eui, (uint8_t *)&device.eui, sizeof(device.eui)))
+    	configured = true;
 
     device.associated = (config_get8(config_key_associated) != 0);
     device.short_addr = config_get16(config_key_short_addr);
@@ -275,6 +277,9 @@ void proto_init(void)
     proto_update_battery();
 
     time_early_wakeup(proto_prepare, PROTO_PREPARETIME);
+
+    if (configured)
+        tagipv6();
 }
 
 void start_rx(void)
