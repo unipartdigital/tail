@@ -124,9 +124,6 @@ device_t device = {
 
 typedef struct {
 	address_t target_mac_addr;
-	ipv6_addr_t target_ipv6_addr;
-	uint16_t source_port;
-	uint16_t dest_port;
 	int period_active;
 	int period_idle;
 	int transition_time;
@@ -146,9 +143,6 @@ address_t default_target_addr = DEFAULT_TARGET_ADDR;
 
 tag_data_t tag_data = {
 		.target_mac_addr = DEFAULT_TARGET_ADDR,
-        .target_ipv6_addr = DEFAULT_IPV6_ADDR,
-		.source_port = DEFAULT_SOURCE_PORT,
-        .dest_port = DEFAULT_DEST_PORT,
         .period_active = TIME_FROM_SECONDS(1),
 		.period_idle = TIME_FROM_SECONDS(100),
 		.transition_time = TIME_FROM_SECONDS(10),
@@ -254,10 +248,6 @@ typedef struct packet {
 	uint8_t seq;
 	address_t source;
 	address_t dest;
-	ipv6_addr_t ipv6_source;
-	ipv6_addr_t ipv6_dest;
-	uint16_t source_port;
-	uint16_t dest_port;
 	int hlen;
 } packet_t;
 
@@ -289,7 +279,6 @@ void proto_rxtimeout(void);
 void proto_rxerror(void);
 bool proto_despatch(uint8_t *buf, int len);
 void proto_prepare(void);
-void ipv6_addr_from_mac(ipv6_addr_t ipv6, address_t *mac);
 address_t my_mac_address(void);
 
 
@@ -671,14 +660,6 @@ void tagipv6_with_period(int period, int period_idle, int transition_time)
 	tag_data.target_mac_addr = default_target_addr;
     /* Do we want to be able to direct this packet differently at the MAC layer? */
 
-	memcpy(tag_data.target_ipv6_addr, default_ipv6_addr, sizeof(ipv6_addr_t));
-	(void) config_get(config_key_tag_target_addr, tag_data.target_ipv6_addr, 16);
-
-	tag_data.source_port = DEFAULT_SOURCE_PORT;
-	tag_data.dest_port = DEFAULT_DEST_PORT;
-
-	(void) config_get(config_key_tag_source_port, (uint8_t *)&tag_data.source_port, sizeof(tag_data.source_port));
-	(void) config_get(config_key_tag_dest_port, (uint8_t *)&tag_data.dest_port, sizeof(tag_data.dest_port));
 	(void) config_get(config_key_tag_two_way, (uint8_t *)&tag_data.two_way, sizeof(tag_data.two_way));
 
 	tag_data.period_active = period;

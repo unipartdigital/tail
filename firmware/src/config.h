@@ -25,9 +25,9 @@
 	X(associated,        0x0010) \
 	X(pan,               0x0011) \
 	X(short_addr,        0x0012) \
-	X(tag_target_addr,   0x0013) \
-	X(tag_source_port,   0x0014) \
-	X(tag_dest_port,     0x0015) \
+	X_OBSOLETE(tag_target_addr,   0x0013) \
+	X_OBSOLETE(tag_source_port,   0x0014) \
+	X_OBSOLETE(tag_dest_port,     0x0015) \
 	X(tag_period,        0x0016) \
 	X(tx_power,          0x0017) \
 	X(smart_tx_power,    0x0018) \
@@ -45,11 +45,20 @@
 
 #define CONFIG_KEY_MAXLEN 255
 
+#define X_OBSOLETE(name, num)
 #define X(name, num) config_key_##name = num,
 enum config_keys {
 		CONFIG_KEYS
 };
 #undef X
+#undef X_OBSOLETE
+
+/* We still need the names of the config keys to appear in the cli, but
+ * we do want a compile error if we try to use them anywhere in the code.
+ */
+#define X_OBSOLETE(name, num) X(name, num)
+
+
 
 typedef enum config_keys config_key;
 
