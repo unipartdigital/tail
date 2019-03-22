@@ -586,218 +586,6 @@ void tag_with_period(int period)
 	tag_start();
 }
 
-int ipv6_header(uint8_t *buf, int offset, ipv6_addr_t a, address_t *mac_dest)
-{
-	int dam = 0;
-	bool multicast;
-
-	if (a[0] == 0xff) {
-		multicast = true;
-	    if (
-			(a[2] == 0) && (a[3] == 0) && (a[4] == 0) && (a[5] == 0) &&
-			(a[6] == 0) && (a[7] == 0) && (a[8] == 0) && (a[9] == 0) &&
-			(a[10] == 0)) {
-	    	dam++;
-		    if ((a[11] == 0) && (a[12] == 0)) {
-		    	dam++;
-				if ((a[1] == 2) && (a[13] == 0) && (a[14] == 0)) {
-					dam++;
-				}
-		    }
-	    }
-	} else {
-		multicast = false;
-		if ((a[0] == 0xfe) && (a[1] == 0x80) &&
-		    (a[2] == 0x00) && (a[3] == 0x00) &&
-		    (a[4] == 0x00) && (a[5] == 0x00) &&
-			(a[6] == 0x00) && (a[7] == 0x00)) {
-			ipv6_addr_t mac_ipv6_addr;
-			ipv6_addr_from_mac(mac_ipv6_addr, mac_dest);
-
-			dam = 1;
-
-			if (memcmp(a, mac_ipv6_addr, 16) == 0) {
-				dam = 3;
-			} else if ((a[8] == 0x00) && (a[9] == 0x00) &&
-					   (a[10] == 0x00) && (a[11] == 0xff) &&
-					   (a[12] == 0xfe) && (a[13] == 0x00)) {
-				dam = 2;
-			}
-		}
-	}
-
-	/* compressed IPv6 header */
-    buf[offset++] = 0x7f; /* iphc header TF=3, NH=1, HLIM=3 */
-    buf[offset++] = 0x30 + dam + (multicast?0x08:0x00); /* CID=0, SAC=0, SAM=3, M=multicast, DAC=0, DAM=dam */
-
-    switch (dam) {
-    case 0:
-    	for (int i = 0; i < 16; i++)
-    	    buf[offset++] = a[i];
-    	break;
-    case 1:
-    	if (multicast) {
-        	buf[offset++] = a[1];
-        	buf[offset++] = a[11];
-        	buf[offset++] = a[12];
-        	buf[offset++] = a[13];
-        	buf[offset++] = a[14];
-        	buf[offset++] = a[15];
-    	} else {
-    		buf[offset++] = a[8];
-    		buf[offset++] = a[9];
-    		buf[offset++] = a[10];
-    		buf[offset++] = a[11];
-    		buf[offset++] = a[12];
-    		buf[offset++] = a[13];
-    		buf[offset++] = a[14];
-    		buf[offset++] = a[15];
-    	}
-    	break;
-    case 2:
-    	if (multicast) {
-        	buf[offset++] = a[1];
-        	buf[offset++] = a[13];
-        	buf[offset++] = a[14];
-        	buf[offset++] = a[15];
-    	} else {
-    		buf[offset++] = a[14];
-    		buf[offset++] = a[15];
-    	}
-    	break;
-    case 3:
-    	if (multicast) {
-        	buf[offset++] = a[15];
-    	}
-    	break;
-    }
-
-    return offset;
-}
-
-int ipv6_udp_header(uint8_t *buf, int offset, uint16_t source_port, uint16_t dest_port)
-{
-	int p;
-
-	if (((source_port & 0xfff0) == 0xf0b0) && ((dest_port & 0xfff0) == 0xf0b0))
-		p = 3;
-	else if ((source_port & 0xff00) == 0xf000)
-		p = 2;
-	else if ((dest_port & 0xff00) == 0xf000)
-		p = 1;
-	else
-		p = 0;
-
-    /* compressed UDP header */
-    buf[offset++] = 0xf0 + p; /* HC_UDP, C=0, P=p */
-
-    if (p == 3) {
-    	buf[offset++] = ((source_port & 0x0f) << 4) | (dest_port & 0x0f);
-    } else {
-    	if (p != 2)
-    	    buf[offset++] = source_port >> 8;
-    	buf[offset++] = source_port & 0xff;
-    	if (p != 1)
-    	    buf[offset++] = dest_port >> 8;
-    	buf[offset++] = dest_port & 0xff;
-    }
-
-    buf[offset++] = 0x00; /* Placeholder for UDP checksum 1 */
-    buf[offset++] = 0x00; /* Placeholder for UDP checksum 2 */
-
-    return offset;
-}
-
-void ipv6_udp_checksum(uint8_t *buf, address_t *mac_addr, ipv6_addr_t ipv6_addr, uint16_t source_port, uint16_t dest_port, int udp_offset, int offset)
-{
-	uint32_t checksum = 0;
-	int payload_offset = udp_offset + 3;
-	switch (buf[udp_offset] & 3) {
-	case 0:
-		payload_offset += 4;
-		break;
-	case 1:
-	case 2:
-		payload_offset += 3;
-		break;
-	case 3:
-		payload_offset += 1;
-		break;
-	}
-	int length = offset - payload_offset;
-
-	/* 128 bits source address */
-	ipv6_addr_t source;
-	ipv6_addr_from_mac(source, mac_addr);
-	for (int i = 0; i < 16; i += 2)
-	    checksum += ((uint16_t)(source[i]) << 8) + source[i+1];
-
-	/* 128 bits dest address */
-	for (int i = 0; i < 16; i += 2)
-	    checksum += ((uint16_t)(ipv6_addr[i]) << 8) + ipv6_addr[i+1];
-	/* upper-layer packet length plus uncompressed UDP header length */
-	checksum += length + 8;
-
-	/* next header */
-	checksum += 17; /* UDP next header */
-
-	/* UDP header */
-    checksum += source_port;
-	checksum += dest_port;
-	checksum += length + 8;
-
-	for (int i = 0; i < (length & ~1); i += 2) {
-		checksum += ((buf[payload_offset + i] << 8) | buf[payload_offset + i + 1]);
-	}
-	if (length & 1)
-		checksum += (buf[payload_offset + length-1] << 8);
-
-	checksum = (checksum & 0xffff) + (checksum >> 16);
-	checksum = (checksum & 0xffff) + (checksum >> 16);
-
-	checksum = ~checksum;
-
-	buf[payload_offset-2] = (checksum >> 8) & 0xff;
-	buf[payload_offset-1] = (checksum >> 0) & 0xff;
-}
-
-
-bool ipv6_verify_checksum(packet_t *p, uint16_t checksum)
-{
-	uint32_t sum = checksum;
-	uint8_t *buf = p->payload + p->hlen;
-	int length = p->len - p->hlen;
-
-	for (int i = 0; i < 16; i += 2)
-	    sum += ((uint16_t)(p->ipv6_source[i]) << 8) + p->ipv6_source[i+1];
-
-	for (int i = 0; i < 16; i += 2)
-	    sum += ((uint16_t)(p->ipv6_dest[i]) << 8) + p->ipv6_dest[i+1];
-	/* upper-layer packet length plus uncompressed UDP header length */
-	sum += length + 8;
-
-	/* next header */
-	sum += 17; /* UDP next header */
-
-	/* UDP header */
-    sum += p->source_port;
-	sum += p->dest_port;
-	sum += length + 8;
-
-	for (int i = 0; i < (length & ~1); i += 2) {
-		sum += ((buf[i] << 8) | buf[i + 1]);
-	}
-	if (length & 1)
-		sum += (buf[length-1] << 8);
-
-	sum = (sum & 0xffff) + (sum >> 16);
-	sum = (sum & 0xffff) + (sum >> 16);
-
-	sum = (~sum) & 0xffff;
-
-	return sum == 0;
-}
-
 void tagipv6_set_event(uint32_t now)
 {
 	int period;
@@ -831,9 +619,6 @@ address_t my_mac_address(void)
 void tagipv6_start(void)
 {
     int offset;
-#ifdef IPV6
-	int udp_offset;
-#endif
     uint8_t voltage, temperature;
 
     tag_data.active = true;
@@ -844,13 +629,7 @@ void tagipv6_start(void)
     proto_header(txbuf);
     offset = proto_dest(txbuf, &tag_data.target_mac_addr);
     offset = proto_source(txbuf, offset);
-#ifdef IPV6
-    offset = ipv6_header(txbuf, offset, tag_data.target_ipv6_addr, &tag_data.target_mac_addr);
-    udp_offset = offset;
-    offset = ipv6_udp_header(txbuf, offset, tag_data.source_port, tag_data.dest_port);
-#else
     txbuf[offset++] = TAIL_MAGIC;
-#endif
 
     int header = TAIL_HEADER_BATTERY | TAIL_HEADER_DEBUG;
     if (device.receive_after_transmit)
@@ -872,12 +651,6 @@ void tagipv6_start(void)
     txbuf[offset++] = device.radio_temp_cal;
     txbuf[offset++] = volts & 0xff;
     txbuf[offset++] = volts >> 8;
-
-#ifdef IPV6
-    address_t source_mac_addr = my_mac_address();
-
-    ipv6_udp_checksum(txbuf, &source_mac_addr, tag_data.target_ipv6_addr, tag_data.source_port, tag_data.dest_port, udp_offset, offset);
-#endif
 
     radio_writepayload(txbuf, offset, 0);
     radio_txprepare(offset+2, 0, false);
@@ -1492,33 +1265,10 @@ bool tail_sync_beacon(packet_t *p)
     return false;
 }
 
-void ipv6_addr_from_mac(ipv6_addr_t ipv6, address_t *mac)
-{
-	((uint32_t*) ipv6)[0] = 0x000080fe;
-	((uint32_t*) ipv6)[1] = 0x00000000;
-	switch (mac->type) {
-	case ADDR_SHORT:
-		((uint32_t*) ipv6)[2] = 0xff000000;
-		((uint32_t*) ipv6)[3] = 0x000000fe | (bswap16(mac->a.s) << 16);
-		break;
-	case ADDR_LONG:
-		((uint32_t*) ipv6)[2] = bswap32((mac->a.l >> 32) ^ 0x02000000); /* U/L bit */
-		((uint32_t*) ipv6)[3] = bswap32((mac->a.l >> 32) & 0xffffffff);
-		break;
-	default:
-		((uint32_t*) ipv6)[2] = 0x00000000;
-		((uint32_t*) ipv6)[3] = 0x00000000;
-		break;
-	}
-}
-
 bool tail_timing(packet_t *p, int hlen)
 {
 	uint64_t ttx, td1, td2;
 	int offset;
-#ifdef IPV6
-	int udp_offset;
-#endif
 
 	ttx = p->timestamp + device.turnaround_delay;
 	ttx = ttx & ~0x1ff;
@@ -1529,13 +1279,7 @@ bool tail_timing(packet_t *p, int hlen)
 	proto_header(txbuf);
 	offset = proto_reply(txbuf, p);
 
-#ifdef IPV6
-	offset = ipv6_header(txbuf, offset, p->ipv6_source, &p->source);
-    udp_offset = offset;
-    offset = ipv6_udp_header(txbuf, offset, p->dest_port, p->source_port);
-#else
     txbuf[offset++] = TAIL_MAGIC;
-#endif
 
 	txbuf[offset++] = TAIL_HEADER_TIMING;
 
@@ -1543,11 +1287,6 @@ bool tail_timing(packet_t *p, int hlen)
 	offset += 5;
 	TIMESTAMP_WRITE_BE(txbuf+offset, td2);
 	offset += 5;
-
-#ifdef IPV6
-	address_t source_mac_addr = my_mac_address();
-    ipv6_udp_checksum(txbuf, &source_mac_addr, p->ipv6_source, p->dest_port, p->source_port, udp_offset, offset);
-#endif
 
     radio_writepayload(txbuf, offset, 0);
     radio_txprepare(offset+2, 0, true);
@@ -1559,209 +1298,9 @@ bool tail_timing(packet_t *p, int hlen)
 
 bool tagipv6_rx(packet_t *p)
 {
-#ifdef IPV6
-	uint32_t *source = (uint32_t *)p->ipv6_source;
-	uint32_t *dest = (uint32_t *)p->ipv6_dest;
-
-	source[0] = 0x000080fe;
-	source[1] = 0;
-	source[2] = 0xff000000;
-	source[3] = 0x000000fe;
-	dest[0]   = 0x000080fe;
-	dest[1]   = 0;
-	dest[2]   = 0xff000000;
-	dest[3]   = 0x000000fe;
-
-	int hlen = 2;
-
-	if (p->len < 3)
-		return false;
-
-	int tf = (p->payload[0] >> 3) & 0x03;
-	bool nh = p->payload[0] & 0x04;
-	int hlim = p->payload[0] & 0x03;
-	bool cid = (p->payload[1] >> 6) & 0x03;
-	bool sac = p->payload[1] & 0x40;
-	int sam = (p->payload[1] >> 4) & 0x03;
-	bool m = p->payload[1] & 0x08;
-	bool dac = p->payload[1] & 0x04;
-	int dam = p->payload[1] & 0x03;
-
-	int sci = 0;
-	int dci = 0;
-
-	/* This follows the DAM field */
-	if (cid) {
-		int context = p->payload[hlen];
-		sci = (context >> 4) & 0x0f;
-		dci = (context >> 0) & 0x0f;
-		hlen++;
-	}
-
-	(void)sci;
-	(void)dci;
-
-	/* We don't care about the traffic class and flow label headers */
-	hlen += ((const int[]){4,3,1,0})[tf];
-
-	/* Next header */
-	if (!nh)
-	{
-		/* We only support UDP */
-		if (p->payload[hlen] != 17)
-			return false;
-		hlen++;
-	}
-
-	/* Hop limit */
-	if (hlim == 0)
-		hlen++;
-
-	/* We don't support context-based address compression */
-	if (sac || dac)
-		return false;
-
-	switch (sam) {
-	case 0:
-		memcpy(p->ipv6_source, p->payload+hlen, 16);
-		hlen += 16;
-		break;
-	case 1:
-		memcpy(p->ipv6_source+8, p->payload+hlen, 8);
-		hlen += 8;
-		break;
-	case 2:
-		memcpy(p->ipv6_source+14, p->payload+hlen, 2);
-		hlen += 2;
-		break;
-	case 3:
-		ipv6_addr_from_mac(p->ipv6_source, &p->source);
-		break;
-	}
-
-	switch (dam) {
-	case 0:
-		memcpy(p->ipv6_dest, p->payload+hlen, 16);
-		hlen += 16;
-		break;
-	case 1:
-		if (m) {
-			p->ipv6_dest[1] = p->payload[hlen];
-			memcpy(p->ipv6_dest+11, p->payload+hlen+1, 5);
-			hlen += 6;
-		} else {
-			memcpy(p->ipv6_dest+8, p->payload+hlen, 8);
-			hlen += 8;
-		}
-		break;
-	case 2:
-		if (m) {
-			p->ipv6_dest[1] = p->payload[hlen];
-			p->ipv6_dest[11] = 0;
-			p->ipv6_dest[12] = 0;
-			memcpy(p->ipv6_dest+13, p->payload+hlen+1, 3);
-			hlen += 4;
-		} else {
-			memcpy(p->ipv6_dest+14, p->payload+hlen, 2);
-			hlen += 2;
-		}
-		break;
-	case 3:
-		if (m) {
-			p->ipv6_dest[11] = 0;
-			p->ipv6_dest[12] = 0;
-			p->ipv6_dest[1] = 2;
-			p->ipv6_dest[15] = p->payload[hlen];
-			hlen += 1;
-		} else {
-			ipv6_addr_from_mac(p->ipv6_dest, &p->dest);
-			break;
-		}
-	}
-
-	/* We know that the memory exists after the end of the header so
-	 * we can defer checking it until here. Nevertheless, we do need
-	 * to check it because we should reject a packet with a truncated
-	 * or invalid header.
-	 */
-	if (p->len < hlen)
-		return false;
-
-	/* Reject anything not addressed to us */
-	ipv6_addr_t my_ipv6;
-	address_t my_mac;
-	my_mac = my_mac_address();
-	ipv6_addr_from_mac(my_ipv6, &my_mac);
-	if (memcmp(my_ipv6, p->ipv6_dest, 16) != 0)
-		return false;
-
-	/* Decode UDP header */
-
-	/* We require a UDP LOWPAN_NHC packet */
-	if ((p->payload[hlen] & 0xf8) != 0xf0)
-		return false;
-
-	bool nhc_c = p->payload[hlen] & 0x04;
-	int nhc_p = p->payload[hlen] & 0x03;
-
-	hlen++;
-
-	/* If the checksum is elided, we should reject the packet, as there is
-	 * no higher level protocol which will checksum the data for us.
-	 */
-	if (nhc_c)
-		return false;
-
-	switch (nhc_p) {
-	case 0:
-		p->source_port = (p->payload[hlen]   << 8) | p->payload[hlen+1];
-		p->dest_port   = (p->payload[hlen+2] << 8) | p->payload[hlen+3];
-		hlen += 4;
-		break;
-	case 1:
-		p->source_port = (p->payload[hlen]   << 8) | p->payload[hlen+1];
-		p->dest_port   = 0xf0                      | p->payload[hlen+2];
-		hlen += 3;
-		break;
-	case 2:
-		p->source_port = 0xf0                      | p->payload[hlen];
-		p->dest_port   = (p->payload[hlen+1] << 8) | p->payload[hlen+2];
-		hlen += 3;
-		break;
-	case 3:
-		p->source_port = (p->payload[hlen] >> 4)   | 0xf0b0;
-		p->dest_port   = (p->payload[hlen] & 0x0f) | 0xf0b0;
-		hlen += 1;
-		break;
-	}
-
-	uint16_t checksum = (p->payload[hlen] << 8) | p->payload[hlen+1];
-	hlen += 2;
-
-	p->hlen = hlen;
-	int length = p->len - hlen;
-
-	/* Reject anything not sent to the correct port */
-	if (p->dest_port != tag_data.source_port)
-		return false;
-
-	/* We need at least one byte in the payload for the tail header, may
-	 * as well combine this check here to reject anything with an incomplete
-	 * UDP header as well
-	 */
-	if (length < 1)
-		return false;
-
-	/* Verify UDP checksum */
-
-	(void)checksum;
-	if (!ipv6_verify_checksum(p, checksum))
-		return false;
-#else
     if (p->payload[0] != TAIL_MAGIC)
     	return false;
     p->hlen = 1;
-#endif
 
 	/* Decode tail packet and despatch */
 	int tail_header = p->payload[p->hlen];
@@ -1906,17 +1445,10 @@ bool proto_despatch(uint8_t *buf, int len)
 		case TAIL_SYNC_BEACON:
 			return tail_sync_beacon(&p);
 		default:
-#if IPV6
-			if ((buf[pp] & 0xe0) == 0x60) {
-				/* IPHC header */
-				return tagipv6_rx(&p);
-			}
-#else
 			if (buf[pp] == TAIL_MAGIC) {
 				/* IPHC header */
 				return tagipv6_rx(&p);
 			}
-#endif
 		}
 		break;
 	case 2:
