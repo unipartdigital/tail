@@ -265,6 +265,7 @@ void accel_test(int x, int y, int z)
 }
 
 static volatile bool accel_interrupt_fired_state = false;
+static volatile bool accel_needs_restart = false;
 static volatile uint32_t accel_interrupt_last_fired_at = 0;
 
 void accel_interrupt_handler(void)
@@ -273,14 +274,19 @@ void accel_interrupt_handler(void)
 	uint8_t status = accel_read(STATUS_2);
 	accel_write(STATUS_2, status); /* Clear interrupts */
 
-	/* XXX for now, just re-enable sniff mode */
-	accel_enter_mode(STANDBY);
-	accel_enter_mode(SNIFF);
-
+    accel_needs_restart = true;
 	accel_interrupt_fired_state = true;
 	accel_interrupt_last_fired_at = time_now();
 }
 
+void accel_poll(void)
+{
+	if (accel_needs_restart) {
+		accel_needs_restart = false;
+		accel_enter_mode(STANDBY);
+	    accel_enter_mode(SNIFF);
+	}
+}
 bool accel_interrupt_fired(void)
 {
 	bool state = accel_interrupt_fired_state;

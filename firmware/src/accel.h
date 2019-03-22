@@ -24,6 +24,7 @@ void accel_readings(uint16_t *x, uint16_t *y, uint16_t *z);
 void accel_test(int x, int y, int z);
 bool accel_interrupt_fired(void);
 uint32_t accel_last_activity(void);
+void accel_poll(void);
 
 /* Modes */
 

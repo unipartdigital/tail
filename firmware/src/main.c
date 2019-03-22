@@ -169,6 +169,7 @@ int main(void)
     	time_event_poll();
         cli_poll();
         proto_poll();
+        accel_poll();
         if (!cli_prepare_sleep())
         	continue;
         if (!uart_prepare_sleep())
