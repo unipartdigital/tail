@@ -121,29 +121,6 @@ int main(void)
 
   accel_enter_mode(ACCEL_SNIFF);
 
-#if 0
-  uint8_t seq[] = {8, 4, 1, 2, 0, 2, 1, 4, 8, 0};
-
-  /* Infinite loop */
-  while (0) {
-	  uint8_t data[4];
-	  data[0] = 0;
-	  data[1] = 0;
-	  data[2] = 0;
-	  data[3] = 0;
-	  data[0] = accel_read(0x08); /* Status 1 */
-	  data[0] = accel_read(0x0F); /* Init 1 */
-	  /* Set pins to outputs */
-	  radio_write32(RREG(GPIO_DIR), FIELDS(GPIO_DIR, GDM0, 1, GDM1, 1, GDM2, 1, GDM3, 1, GDP0, 0, GDP1, 0, GDP2, 0, GDP3, 0));
-	  for (int i = 0; i < ARRAY_SIZE(seq); i++) {
-	      /* Set pins high */
-	      data[0] = 0xf0 + seq[i];
-	      radio_write32(RREG(GPIO_DOUT), 0xf0 + seq[i]);
-	      delay(100);
-	  }
-  }
-#endif
-
     radio_leds(true, 1);
 
     uint8_t byte;
