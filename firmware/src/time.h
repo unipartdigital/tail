@@ -34,8 +34,6 @@
  * be called when the timer expires.
  */
 #define TIME_EVENTS \
-	X(tag_start) \
-	X(range_start) \
 	X(tagipv6_start)
 
 #define X(x) time_event_id_##x,

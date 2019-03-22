@@ -16,9 +16,6 @@
 #include "config.h"
 #include "proto.h"
 
-#define ROLE_TAG 1
-#define ROLE_ANCHOR 2
-#define ROLE_RANCHOR 3
 #define ROLE_TAGIPV6 6
 
 #define CLOCK_DEBUG 0
@@ -194,15 +191,6 @@ int main(void)
     proto_init();
 
     switch (config_get8(config_key_role)) {
-    case ROLE_ANCHOR:
-        anchor();
-        break;
-    case ROLE_TAG:
-    	tag();
-    	break;
-    case ROLE_RANCHOR:
-    	ranchor();
-    	break;
     case ROLE_TAGIPV6:
     	tagipv6();
     	break;

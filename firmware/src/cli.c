@@ -142,19 +142,6 @@ bool token_uint64(uint64_t *value, int base)
 	return true;
 }
 
-void fn_test(void)
-{
-	int i;
-	if (!token_int(&i, 0)) {
-		write_string("Error: expected number\r\n");
-		return;
-	}
-
-	write_string("Integer: ");
-	write_int(i);
-	write_string("\r\n");
-}
-
 void fn_read(void)
 {
 	int addr;
@@ -344,76 +331,6 @@ void fn_stop(void)
 	stop();
 }
 
-void fn_tag(void)
-{
-	tag();
-}
-
-void fn_anchor(void)
-{
-	anchor();
-}
-
-bool range_args(address_t *a, bool average)
-{
-    a->type = ADDR_NONE;
-	if (token_uint16(&a->pan, 16)) {
-		char *p;
-		if (token_str(&p)) {
-	    	if (*p == 's') {
-	    		a->type = ADDR_SHORT;
-	    		if (!token_uint16(&a->a.s, 16)) {
-	    			write_string("16-bit address expected after s\r\n");
-	    		    return false;
-	    	    }
-	    	} else if (*p == 'l') {
-	        	a->type = ADDR_LONG;
-	    		if (!token_uint64(&a->a.l, 16)) {
-	    			write_string("64-bit address expected after l\r\n");
-	    		    return false;
-	    	    }
-	        } else {
-	        	write_string("<s/l> must be s or l\r\n");
-	        	return false;
-	        }
-	    }
-		if (a->type == ADDR_NONE) {
-			if (average)
-			    write_string("Usage: raverage <period> <count> [<pan> <s/l> <address>]\r\n");
-			else
-			    write_string("Usage: range [<pan> <s/l> <address>]\r\n");
-			return false;
-		}
-	}
-    return true;
-}
-
-void fn_range(void)
-{
-	address_t a;
-
-	if (range_args(&a, false))
-	    range(&a);
-}
-
-void fn_raverage(void)
-{
-	int period = 10;
-	int count = 1000;
-	address_t a;
-
-	(void) token_int(&period, 0);
-	(void) token_int(&count, 0);
-
-	if (range_args(&a, true))
-        range_average(&a, TIME_FROM_MS(period), count);
-}
-
-void fn_ranchor(void)
-{
-	ranchor();
-}
-
 void fn_tagipv6(void)
 {
 	int period = 1000;
@@ -575,17 +492,6 @@ void fn_reset(void)
 {
 	write_string("\r\n");
 	NVIC_SystemReset();
-}
-
-void fn_average(void)
-{
-	int period = 10;
-	int count = 1000;
-
-	(void) token_int(&period, 0);
-	(void) token_int(&count, 0);
-
-    tag_average(TIME_FROM_MS(period), count);
 }
 
 void fn_echo(void)
@@ -772,23 +678,16 @@ void fn_help(void);
 static command command_table[] = {
 		{"help", &fn_help},
 		{"help_config", &fn_help_config},
-		{"test", &fn_test},
 		{"read", &fn_read},
 		{"write", &fn_write},
 		{"erase", &fn_erase},
-		{"tag",  &fn_tag},
-		{"anchor", &fn_anchor},
 		{"stop", &fn_stop},
 		{"config", &fn_config},
 		{"delete", &fn_delete},
 		{"reset", &fn_reset},
-		{"average", &fn_average},
 		{"echo", &fn_echo},
 		{"tx", &fn_tx},
 		{"rx", &fn_rx},
-		{"range", &fn_range},
-		{"ranchor", &fn_ranchor},
-		{"raverage", &fn_raverage},
 		{"status", &fn_status},
 		{"tagipv6", &fn_tagipv6},
 		{"sleep", &fn_sleep},
