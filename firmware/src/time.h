@@ -34,7 +34,7 @@
  * be called when the timer expires.
  */
 #define TIME_EVENTS \
-	X(tagipv6_start)
+	X(tag_start)
 
 #define X(x) time_event_id_##x,
 typedef enum {

@@ -279,7 +279,7 @@ void proto_init(void)
     time_early_wakeup(proto_prepare, PROTO_PREPARETIME);
 
     if (configured)
-        tagipv6();
+        tag();
 }
 
 void start_rx(void)
@@ -355,7 +355,7 @@ void proto_rx_timeout(uint32_t time)
 	device.rxtimeout = time;
 }
 
-void tagipv6_set_event(uint32_t now)
+void tag_set_event(uint32_t now)
 {
 	int period;
 
@@ -368,7 +368,7 @@ void tagipv6_set_event(uint32_t now)
 	}
 
     uint32_t time = time_add(tag_data.last_event, period);
-    time_event_at(tagipv6_start, time);
+    time_event_at(tag_start, time);
 }
 
 address_t my_mac_address(void)
@@ -385,7 +385,7 @@ address_t my_mac_address(void)
     return mac_addr;
 }
 
-void tagipv6_start(void)
+void tag_start(void)
 {
     int offset;
     uint8_t voltage, temperature;
@@ -393,7 +393,7 @@ void tagipv6_start(void)
     tag_data.active = true;
 
     tag_data.last_event = time_now();
-    tagipv6_set_event(tag_data.last_event);
+    tag_set_event(tag_data.last_event);
 
     proto_header(txbuf);
     offset = proto_dest(txbuf, &tag_data.target_mac_addr);
@@ -431,7 +431,7 @@ void tagipv6_start(void)
 	radio_txstart(false);
 }
 
-void tagipv6_with_period(int period, int period_idle, int transition_time)
+void tag_with_period(int period, int period_idle, int transition_time)
 {
 	proto_prepare();
 
@@ -449,10 +449,10 @@ void tagipv6_with_period(int period, int period_idle, int transition_time)
 	device.receive_after_transmit = tag_data.two_way;
 	device.continuous_receive = false;
 
-	tagipv6_start();
+	tag_start();
 }
 
-void tagipv6(void)
+void tag(void)
 {
 	uint32_t period_active = 0;
 	uint32_t period_idle = 0;
@@ -463,14 +463,14 @@ void tagipv6(void)
 		period_idle = 100000;
 	if (config_get(config_key_tag_transition_time, (uint8_t *)&transition_time, sizeof(int)) <= 0)
 		transition_time = 10;
-	tagipv6_with_period(TIME_FROM_MS((uint64_t)period_active), TIME_FROM_MS((uint64_t)period_idle), TIME_FROM_SECONDS((uint64_t)transition_time));
+	tag_with_period(TIME_FROM_MS((uint64_t)period_active), TIME_FROM_MS((uint64_t)period_idle), TIME_FROM_SECONDS((uint64_t)transition_time));
 }
 
 void stop(void)
 {
     radio_callbacks callbacks = { NULL, NULL, NULL, NULL };
     radio_setcallbacks(&callbacks);
-	time_event_clear(tagipv6_start);
+	time_event_clear(tag_start);
     radio_txrxoff();
     device.radio_active = false;
     tag_data.active = false;
@@ -483,7 +483,7 @@ void proto_poll()
     	write_string("Movement\r\n");
 #endif
     	if (tag_data.active)
-    	    tagipv6_set_event(time_now());
+    	    tag_set_event(time_now());
     }
     if (!device.radio_active && !device.radio_sleeping) {
     	if (time_to_next_event() >= PROTO_PREPARETIME) {
@@ -658,7 +658,7 @@ bool tail_timing(packet_t *p, int hlen)
     return true;
 }
 
-bool tagipv6_rx(packet_t *p)
+bool tag_rx(packet_t *p)
 {
     if (p->payload[0] != TAIL_MAGIC)
     	return false;
@@ -791,7 +791,7 @@ bool proto_despatch(uint8_t *buf, int len)
 		/* Data */
 		switch (buf[pp]) {
 		case TAIL_MAGIC:
-			return tagipv6_rx(&p);
+			return tag_rx(&p);
 		}
 		break;
 	case 2:

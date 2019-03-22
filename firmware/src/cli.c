@@ -331,7 +331,7 @@ void fn_stop(void)
 	stop();
 }
 
-void fn_tagipv6(void)
+void fn_tag(void)
 {
 	int period = 1000;
 	int period_idle = 100000;
@@ -340,7 +340,7 @@ void fn_tagipv6(void)
 	(void) token_int(&period_idle, 0);
 	(void) token_int(&transition_time, 0);
 
-	tagipv6_with_period(TIME_FROM_MS(period), TIME_FROM_MS(period_idle),
+	tag_with_period(TIME_FROM_MS(period), TIME_FROM_MS(period_idle),
 			TIME_FROM_SECONDS(transition_time));
 }
 
@@ -689,7 +689,7 @@ static command command_table[] = {
 		{"tx", &fn_tx},
 		{"rx", &fn_rx},
 		{"status", &fn_status},
-		{"tagipv6", &fn_tagipv6},
+		{"tag", &fn_tag},
 		{"sleep", &fn_sleep},
 		{"wake", &fn_wake},
 		{"rread", &fn_rread},
