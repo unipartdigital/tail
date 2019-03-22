@@ -42,42 +42,6 @@ struct {
 uint8_t rxbuf[BUFLEN];
 uint8_t txbuf[BUFLEN];
 
-int tag_period;
-bool tag_average_running;
-bool tag_average_done;
-int tag_count;
-int tag_count_initial;
-uint64_t td_sum;
-
-int64_t transmit_time;
-int64_t half_ping;
-int64_t half_ping_distance;
-volatile bool distance_valid;
-volatile bool tag_packet_timeout;
-volatile bool tag_packet_failed;
-
-typedef struct {
-	uint64_t tx_stamp;
-	uint32_t rt1, rt2, tt1, tt2;
-	uint32_t time;
-	volatile uint32_t distance;
-	volatile bool valid;
-	int period;
-	bool active;
-	volatile bool timeout;
-	volatile bool failed;
-    address_t target_addr;
-#if 1
-	bool done;
-	int count;
-	int count_initial;
-	int64_t sum;
-	bool running;
-#endif
-} ranging_data_t;
-
-ranging_data_t ranging;
-
 typedef struct {
 	uint64_t eui;
 	uint16_t short_addr;
@@ -134,12 +98,8 @@ typedef struct {
 	uint32_t two_way_window;
 } tag_data_t;
 
-#define DEFAULT_IPV6_ADDR {0xff, 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}
 #define DEFAULT_TARGET_ADDR {.type = ADDR_SHORT, .pan = PAN_BROADCAST, .a.s = 0xffff}
-ipv6_addr_t default_ipv6_addr = DEFAULT_IPV6_ADDR;
 address_t default_target_addr = DEFAULT_TARGET_ADDR;
-#define DEFAULT_SOURCE_PORT 0xf0b0
-#define DEFAULT_DEST_PORT 0xf0b0
 
 tag_data_t tag_data = {
 		.target_mac_addr = DEFAULT_TARGET_ADDR,
@@ -298,10 +258,6 @@ uint16_t proto_battery_volts(void)
 
 void proto_init(void)
 {
-    distance_valid = false;
-    tag_packet_timeout = false;
-    tag_packet_failed = false;
-
     device.eui = 0;
     (void) config_get(config_key_eui, (uint8_t *)&device.eui, sizeof(device.eui));
 
