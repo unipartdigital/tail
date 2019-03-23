@@ -490,6 +490,18 @@ inline void radio_write32(uint8_t file, uint16_t reg, uint32_t data)
 	radio_write(file, reg, (uint8_t *)&data, 4);
 }
 
+void radio_syncbuffers(void)
+{
+    uint8_t status = radio_read32(RREGO(SYS_STATUS, 3));
+
+    bool hsrbp = ((status & FIELDSO(SYS_STATUS, 3, HSRBP, 1)) != 0);
+    bool icrbp = ((status & FIELDSO(SYS_STATUS, 3, HSRBP, 1)) != 0);
+
+    if (hsrbp != icrbp)
+    	radio_write8(RREGO(SYS_CTRL, 3), FIELDSO(SYS_CTRL, 3, HRBPT, 1));
+
+}
+
 void radio_doublebuffer(bool enable)
 {
 	FIELDS_EDIT(radio_syscfg, SYS_CFG, DIS_DRXB, !enable);
@@ -653,6 +665,7 @@ void radio_readrxtimestamp(uint8_t *time)
 bool radio_rxstart(bool delayed)
 {
 	uint32_t value = FIELDS(SYS_CTRL, RXENAB, 1, RXDLYE, delayed?1:0);
+	radio_syncbuffers();
 	radio_write32(RREG(SYS_CTRL), value);
 	if (delayed) {
 	    if (radio_read8(RREGO(SYS_STATUS, 3)) & FIELDSO(SYS_STATUS, 3, HPDWARN, 1)) {
@@ -683,6 +696,7 @@ void radio_txrxoff(void)
 	radio_write32(RREG(SYS_MASK), 0);
 	radio_write32(RREG(SYS_CTRL), FIELDS(SYS_CTRL, TRXOFF, 1));
 	radio_write32(RREG(SYS_STATUS), STATUS_ALL_CLEAR);
+	radio_syncbuffers();
     radio_enable_interrupts();
 	radio_inton(e);
 }
