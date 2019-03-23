@@ -193,11 +193,10 @@ static uint32_t radio_chipid;
 static uint32_t radio_lotid;
 static bool radio_ledstate;
 static int radio_ledtime;
-
-static bool radio_long_frames;
 static uint8_t radio_fs_plltune;
 static bool radio_prf_high;
 static uint16_t radio_saved_antenna_delay_tx;
+static bool radio_doublebuffer_enabled;
 
 void delay(int ms)
 {
@@ -233,6 +232,7 @@ volatile int rx_packet_count = 0;
 volatile int rx_error_count = 0;
 volatile int rx_timeout_count = 0;
 volatile int radio_rxreset_count = 0;
+volatile int radio_overflow_count = 0;
 
 void radio_rxdone(uint32_t status);
 void radio_rxtimeout(uint32_t status);
@@ -259,6 +259,8 @@ void GPIO_ODD_IRQHandler(void)
     		status_count[i]++;
     }
 }
+
+void radio_enable_interrupts(void);
 
 void radio_init(bool loadlde)
 {
@@ -334,7 +336,14 @@ void radio_init(bool loadlde)
 
     radio_syscfg = radio_read32(RREG(SYS_CFG));
 
+    radio_doublebuffer_enabled = !(radio_syscfg & FIELDS(SYS_CFG, DIS_DRXB, 1));
+
     /* We want interrupts for these events */
+    radio_enable_interrupts();
+}
+
+void radio_enable_interrupts(void)
+{
     radio_write32(RREG(SYS_MASK), STATUS_RX_ENABLE | STATUS_TX_ENABLE);
 }
 
@@ -481,6 +490,19 @@ inline void radio_write32(uint8_t file, uint16_t reg, uint32_t data)
 	radio_write(file, reg, (uint8_t *)&data, 4);
 }
 
+void radio_doublebuffer(bool enable)
+{
+	FIELDS_EDIT(radio_syscfg, SYS_CFG, DIS_DRXB, !enable);
+	radio_doublebuffer_enabled = enable;
+	radio_write32(RREG(SYS_CFG), radio_syscfg);
+}
+
+void radio_autoreceive(bool enable)
+{
+	FIELDS_EDIT(radio_syscfg, SYS_CFG, RXAUTR, enable);
+	radio_write32(RREG(SYS_CFG), radio_syscfg);
+}
+
 void radio_configure(radio_config_t *config)
 {
     bool bw_wide = ((config->chan == 4) || (config->chan == 7)) ? true : false;
@@ -607,6 +629,11 @@ void radio_txprepare(uint16_t len, uint16_t offset, bool ranging)
     		));
 }
 
+void radio_gettime(uint8_t *time)
+{
+	radio_read(RREG(SYS_TIME), time, 5);
+
+}
 void radio_setstarttime(uint32_t time)
 {
 	/* The bottom 9 bits of this register are ignored */
@@ -653,9 +680,10 @@ bool radio_txstart(bool delayed)
 void radio_txrxoff(void)
 {
 	bool e = radio_intoff();
-//	radio_write32(RREG(SYS_MASK), 0);
+	radio_write32(RREG(SYS_MASK), 0);
 	radio_write32(RREG(SYS_CTRL), FIELDS(SYS_CTRL, TRXOFF, 1));
 	radio_write32(RREG(SYS_STATUS), STATUS_ALL_CLEAR);
+    radio_enable_interrupts();
 	radio_inton(e);
 }
 
@@ -673,8 +701,10 @@ void radio_rxdone(uint32_t status)
 {
 	radio_write32(RREG(SYS_STATUS), STATUS_RX_DONE_CLEAR);
 
+#if 0
     // Clear SYS_CTRL_RXENAB
 	radio_write32(RREG(SYS_CTRL), 0);
+#endif
 
 	rx_packet_count++;
 
@@ -714,6 +744,21 @@ void radio_rxerror(uint32_t status)
 		radio_callback_rxerror();
 }
 
+bool radio_overflow(void)
+{
+    uint8_t status = radio_read32(RREGO(SYS_STATUS, 2));
+
+    if (!(status & FIELDSO(SYS_STATUS, 2, RXOVRR, 1)))
+    	return false;
+
+    radio_txrxoff();
+    radio_rxreset();
+    radio_overflow_count++;
+//    delay(1); // XXX Do we need this?
+
+    return true;
+}
+
 int radio_getpayload(void *data, int maxlen)
 {
 	int len = radio_read16(RREG(RX_FINFO)) & 0x3ff;
@@ -722,6 +767,9 @@ int radio_getpayload(void *data, int maxlen)
 	    len = maxlen;
 
     radio_read(RREG(RX_BUFFER), data, len);
+
+    if (radio_doublebuffer_enabled)
+    	radio_write8(RREGO(SYS_CTRL, 3), FIELDSO(SYS_CTRL, 3, HRBPT, 1));
 
 	return len;
 }

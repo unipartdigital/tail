@@ -86,6 +86,13 @@ device_t device = {
 		.rxtimeout = 10000
 };
 
+#define MAX_ANCHORS 8
+
+typedef struct {
+	address_t address;
+	uint64_t rx_stamp;
+} anchor_ranging_t;
+
 typedef struct {
 	address_t target_mac_addr;
 	int period_active;
@@ -93,9 +100,12 @@ typedef struct {
 	int transition_time;
 	uint32_t last_event;
 	bool active;
-	bool two_way;
 	uint64_t tx_stamp;
-	uint32_t two_way_window;
+	anchor_ranging_t anchors[MAX_ANCHORS];
+	int anchors_heard;
+	int max_anchors;
+	int min_responses;
+	int responses_sent;
 } tag_data_t;
 
 #define DEFAULT_TARGET_ADDR {.type = ADDR_SHORT, .pan = PAN_BROADCAST, .a.s = 0xffff}
@@ -107,9 +117,11 @@ tag_data_t tag_data = {
 		.period_idle = TIME_FROM_SECONDS(100),
 		.transition_time = TIME_FROM_SECONDS(10),
 		.active = false,
-		.two_way = false,
 		.tx_stamp = 0,
-		.two_way_window = 0,
+		.anchors_heard = 0,
+		.max_anchors = 0,
+		.min_responses = 0,
+		.responses_sent = 0
 };
 
 #define READ16(buf, i) (buf[i] + (buf[i+1] << 8))
@@ -230,6 +242,7 @@ void proto_rxerror(void);
 bool proto_despatch(uint8_t *buf, int len);
 void proto_prepare(void);
 address_t my_mac_address(void);
+void tail_finish_ranging(void);
 
 
 radio_callbacks proto_callbacks = {
@@ -285,27 +298,28 @@ void proto_init(void)
 void start_rx(void)
 {
 	device.radio_active = true;
+	radio_autoreceive(device.continuous_receive);
 	radio_rxstart(false);
 }
-
-uint64_t turnaround_delay;
-uint64_t receive_time;
 
 void proto_txdone(void)
 {
 	debug.in_txdone = true;
 	GPIO_PinOutToggle(gpioPortA, 1);
 
+	uint8_t txtime[5];
+	radio_readtxtimestamp(txtime);
+	uint64_t timestamp = TIMESTAMP_READ(txtime);
+	tag_data.last_event = timestamp;
+
 	if (device.txtime_ptr) {
-		uint8_t txtime[5];
-		radio_readtxtimestamp(txtime);
-		*device.txtime_ptr = TIMESTAMP_READ(txtime);
+		*device.txtime_ptr = timestamp;
 		device.txtime_ptr = NULL;
 	}
-	if (device.receive_after_transmit)
+
+	if (device.receive_after_transmit && (tag_data.responses_sent == 0))
 	    start_rx();
-	else
-		device.radio_active = false;
+	tail_finish_ranging(); /* clears radio_active if done */
 
 	GPIO_PinOutToggle(gpioPortA, 1);
 	debug.in_txdone = false;
@@ -314,14 +328,18 @@ void proto_txdone(void)
 void proto_rxdone(void)
 {
 	int len;
+	uint8_t time[5];
 
     debug.in_rxdone = true;
 	GPIO_PinOutToggle(gpioPortA, 1); // up
 
 	len = radio_getpayload(rxbuf, BUFLEN);
 
-    if (!proto_despatch(rxbuf, len) && device.continuous_receive)
-       	start_rx();
+	radio_readrxtimestamp(time);
+	tag_data.last_event = TIMESTAMP_READ(time);
+
+	if (!radio_overflow())
+        (void) proto_despatch(rxbuf, len);
 
 	GPIO_PinOutToggle(gpioPortA, 1); // down
     debug.in_rxdone = false;
@@ -329,11 +347,13 @@ void proto_rxdone(void)
 
 void proto_rxtimeout(void)
 {
+	uint8_t time[5];
+
 	debug.in_rxtimeout = true;
-	if (device.continuous_receive)
-    	start_rx();
-	else
-		device.radio_active = false;
+	device.radio_active = false;
+	radio_gettime(time);
+	tag_data.last_event = TIMESTAMP_READ(time);
+	tail_finish_ranging();
 	debug.in_rxtimeout = false;
 }
 
@@ -426,6 +446,8 @@ void tag_start(void)
     radio_setrxtimeout(device.rxtimeout);
 
     device.txtime_ptr = &tag_data.tx_stamp;
+    tag_data.anchors_heard = 0;
+    tag_data.responses_sent = 0;
 	device.radio_active = true;
 
 	radio_txstart(false);
@@ -440,13 +462,17 @@ void tag_with_period(int period, int period_idle, int transition_time)
 	tag_data.target_mac_addr = default_target_addr;
     /* Do we want to be able to direct this packet differently at the MAC layer? */
 
-	(void) config_get(config_key_tag_two_way, (uint8_t *)&tag_data.two_way, sizeof(tag_data.two_way));
+	tag_data.max_anchors = config_get8(config_key_tag_max_anchors);
+	if (tag_data.max_anchors > MAX_ANCHORS)
+		tag_data.max_anchors = MAX_ANCHORS;
+
+	tag_data.min_responses = config_get8(config_key_tag_min_responses);
 
 	tag_data.period_active = period;
 	tag_data.period_idle = period_idle;
 	tag_data.transition_time = transition_time;
 
-	device.receive_after_transmit = tag_data.two_way;
+	device.receive_after_transmit = (tag_data.max_anchors > 0);
 	device.continuous_receive = false;
 
 	tag_start();
@@ -627,35 +653,92 @@ int proto_reply(uint8_t *buf, packet_t *p)
 	return offset;
 }
 
-bool tail_timing(packet_t *p, int hlen)
+void tail_finish_ranging(void)
 {
-	uint64_t ttx, td1, td2;
+	bool packet_pending = false;
 	int offset;
 
-	ttx = p->timestamp + device.turnaround_delay;
+	if (tag_data.responses_sent < tag_data.min_responses)
+		packet_pending = true;
+
+	if ((tag_data.anchors_heard > 0) && (tag_data.responses_sent == 0))
+		packet_pending = true;
+
+	if (!packet_pending) {
+		device.radio_active = false;
+		return;
+	}
+
+	uint64_t ttx = tag_data.last_event + device.turnaround_delay;
 	ttx = ttx & ~0x1ff;
 
-	td1 = p->timestamp - tag_data.tx_stamp;
-	td2 = ttx - tag_data.tx_stamp + device.antenna_delay_tx;
+	uint64_t td_tx = ttx - tag_data.tx_stamp + device.antenna_delay_tx;
 
 	proto_header(txbuf);
-	offset = proto_reply(txbuf, p);
-
+	offset = proto_dest(txbuf, &tag_data.target_mac_addr);
+    offset = proto_source(txbuf, offset);
     txbuf[offset++] = TAIL_MAGIC;
+    txbuf[offset++] = TAIL_HEADER_TIMING;
 
-	txbuf[offset++] = TAIL_HEADER_TIMING;
+    TIMESTAMP_WRITE(txbuf+offset, td_tx);
+    offset += 5;
 
-	TIMESTAMP_WRITE_BE(txbuf+offset, td1);
-	offset += 5;
-	TIMESTAMP_WRITE_BE(txbuf+offset, td2);
-	offset += 5;
+    txbuf[offset++] = tag_data.anchors_heard;
+
+    if (tag_data.anchors_heard > 0) {
+    	int lbyte = 0;
+    	for (int i = 0; i < tag_data.anchors_heard; i++)
+    		if (tag_data.anchors[i].address.type == ADDR_LONG)
+    			lbyte |= (1<<i);
+    	txbuf[offset++] = lbyte;
+    }
+
+    for (int i = 0; i < tag_data.anchors_heard; i++) {
+    	uint64_t td = tag_data.anchors[i].rx_stamp - tag_data.tx_stamp;
+
+    	switch (tag_data.anchors[i].address.type) {
+    	case ADDR_SHORT:
+    		WRITE16(txbuf, offset, tag_data.anchors[i].address.a.s);
+    		offset += 2;
+    		break;
+    	case ADDR_LONG:
+    	    WRITE64(txbuf, offset, tag_data.anchors[i].address.a.l);
+    	    offset += 8;
+    	    break;
+    	default:
+    		/* We have no way to specify no address. Just make one up. */
+    		txbuf[offset++] = ADDR_SHORT_BROADCAST & 0xff;
+    		txbuf[offset++] = ADDR_SHORT_BROADCAST >> 8;
+    		break;
+    	}
+
+    	TIMESTAMP_WRITE(txbuf+offset, td);
+    	offset += 5;
+    }
 
     radio_writepayload(txbuf, offset, 0);
     radio_txprepare(offset+2, 0, true);
     radio_setstarttime(ttx >> 8);
     radio_txstart(true);
 
-    return true;
+	tag_data.responses_sent++;
+}
+
+bool tail_timing(packet_t *p, int hlen)
+{
+	if (tag_data.anchors_heard < tag_data.max_anchors) {
+		tag_data.anchors[tag_data.anchors_heard].address = p->source;
+		tag_data.anchors[tag_data.anchors_heard].rx_stamp = p->timestamp;
+		tag_data.anchors_heard++;
+	}
+
+	if (tag_data.anchors_heard >= tag_data.max_anchors) {
+		radio_txrxoff();
+		tail_finish_ranging();
+		return true;
+	}
+
+    return false;
 }
 
 bool tag_rx(packet_t *p)
@@ -686,7 +769,6 @@ bool tag_rx(packet_t *p)
 bool proto_despatch(uint8_t *buf, int len)
 {
 	int pp;
-	uint8_t rxtime[5];
 
     struct packet p;
 
@@ -699,8 +781,7 @@ bool proto_despatch(uint8_t *buf, int len)
 		/* Invalid packet */
 		return false;
 
-	radio_readrxtimestamp(rxtime);
-	p.timestamp = TIMESTAMP_READ(rxtime);
+	p.timestamp = tag_data.last_event;
 
 	p.frame_type       = (buf[0] >> 0) & 7;
 	p.security_enabled = (buf[0] >> 3) & 1;
@@ -713,6 +794,12 @@ bool proto_despatch(uint8_t *buf, int len)
 
 	p.seq = buf[2];
 	pp = 3;
+
+	/* For some reason, gcc seems to have stopped being able to tell that
+	 * we only access p.dest.pan in the same conditions as when it's been
+	 * initialised. This is an unpleasant workaround.
+	 */
+	p.dest.pan = PAN_BROADCAST;
 
 	if (p.dest.type != ADDR_NONE) {
 		p.dest.pan = READ16(buf, pp);

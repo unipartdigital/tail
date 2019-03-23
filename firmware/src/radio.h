@@ -99,6 +99,7 @@ void radio_settxpower(uint32_t power);
 void radio_smarttxpowercontrol(bool enabled);
 void radio_setrxtimeout(uint16_t time);
 void radio_setstarttime(uint32_t time);
+void radio_gettime(uint8_t *time);
 void radio_readtxtimestamp(uint8_t *time);
 void radio_readrxtimestamp(uint8_t *time);
 void radio_antenna_delay_rx(uint16_t delay);
@@ -116,5 +117,8 @@ void radio_leds_restore(void);
 void radio_wakeup_adc_readings(uint8_t *voltage, uint8_t *temperature);
 void radio_read_adc_cal(uint8_t *voltage, uint8_t *temperature);
 void delay(int ms); /* XXX */
+void radio_autoreceive(bool enable);
+bool radio_overflow(void);
+void radio_doublebuffer(bool enable);
 
 #endif /* _RADIO_H */

@@ -141,6 +141,7 @@ int main(void)
 
 
     radio_configure(&radio_config);
+	radio_doublebuffer(true);
 
     radio_spi_speed(true);
 
