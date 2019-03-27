@@ -20,29 +20,37 @@ from config import *
 
 
 class Config():
+    
+    blink_count    = 100
+    blink_delay    = 0.010
+    blink_wait     = 0.250
 
-    blink_count  = 100
-    blink_delay  = 0.010
-    blink_wait   = 0.250
+    rawts          = True
 
-    rawts        = True
+    distance       = 10.0
 
-    ch           = None
-    prf          = None
-    freq         = None
-
-    distance     = 10.0
-
-    rx_power     = -75.0
-    tx_power     = (None,None)
+    rx_power       = -75.0
+    tx_power       = (None,None)
     
     
 CFG = Config()
 
 Pi = math.pi
-Cs = 299792458
+LIGHT_SPEED = 299792458
 
 UWB_Ch = ( None, 3494.4E6, 3993.6E6, 4492.8E6, 3993.6E6, 6489.6E6, None, 6489.6E6 )
+
+DW1000_CALIB_ATTRS = (
+    'channel',
+    'prf',
+    'pcode',
+    'txpsr',
+    'rate',
+    'smart_power',
+    'tx_power',
+    'xtalt',
+    'antd',
+)
 
 
 ##
@@ -238,7 +246,7 @@ def TXPWR_EST(blk, tmr, dut, refs, delay, count=1, rawts=False):
     return (Pavg,Favg,Tavg,Vavg)
 
 
-def TXPWR_CALIB(blk, tmr, dut, refs, delay, txpwr=None, rxpwr=None, rawts=False):
+def TXPWR_CALIB(blk, tmr, dut, refs, delay, txpwr=None, rxpwr=None, prf=64, rawts=False):
     
     tx_pwr = list(txpwr)
     rx_pwr = rxpwr
@@ -277,7 +285,7 @@ def TXPWR_CALIB(blk, tmr, dut, refs, delay, txpwr=None, rxpwr=None, rawts=False)
 
             else:
                 if tail.VERBOSE > 2:
-                    eprints('\rRx: {:.1f}dBm'.format(DW1000.RxPower2dBm(Pavg,CFG.prf)))
+                    eprints('\rRx: {:.1f}dBm'.format(DW1000.RxPower2dBm(Pavg,prf)))
                 else:
                     if Tcnt%10==0:
                         veprints(2,'.')
@@ -288,8 +296,8 @@ def TXPWR_CALIB(blk, tmr, dut, refs, delay, txpwr=None, rxpwr=None, rawts=False)
         Pavg = np.mean(Pwrs)
         Pstd = np.std(Pwrs)
 
-        Plog = DW1000.RxPower2dBm(Pavg,CFG.prf)
-        Pstl = DW1000.RxPower2dBm(Pavg+Pstd,CFG.prf) - Plog
+        Plog = DW1000.RxPower2dBm(Pavg,prf)
+        Pstl = DW1000.RxPower2dBm(Pavg+Pstd,prf) - Plog
 
         Tavg = np.mean(Tmps)
         Tstd = np.std(Tmps)
@@ -364,7 +372,7 @@ def TWR_EST(blk, tmr, dut, rem, delay, rawts=False):
     
     Tof = (T41*T63 - T32*T54) / (T51+T62)
     Dof = Tof / SCL
-    Lof = Dof * Cs * 1E-9
+    Lof = Dof * LIGHT_SPEED * 1E-9
     
     if Lof < 0 or Lof > 100:
         raise ValueError
@@ -432,7 +440,7 @@ def TWR_CALIB(blk, tmr, dut, refs, delay, dist, rawts=False):
         ## Adjust ANTD
         ## 
 
-        error = (Lavg - dist) / (Cs / DW1000_CLOCK_HZ)
+        error = (Lavg - dist) / (LIGHT_SPEED / DW1000_CLOCK_HZ)
 
         if -0.75 < error < 0.75:
             break
@@ -450,9 +458,10 @@ def main():
     blk = None
     rpc = None
     
-    parser = argparse.ArgumentParser(description="DW1000 calibratuur")
+    parser = argparse.ArgumentParser(description="DW1000 calibraturd")
 
-    DW1000.AddParserArguments(parser)
+    for attr in DW1000_CALIB_ATTRS:
+        parser.add_argument('--' + attr, type=str, default=None)
 
     parser.add_argument('-v', '--verbose', action='count', default=0)
     parser.add_argument('-D', '--debug', action='count', default=0)
@@ -460,7 +469,6 @@ def main():
     parser.add_argument('-d', '--delay', type=float, default=CFG.blink_delay)
     parser.add_argument('-w', '--wait', type=float, default=CFG.blink_wait)
     parser.add_argument('-p', '--port', type=int, default=RPC_PORT)
-    parser.add_argument('-R', '--raw', action='store_true', default=False)
     parser.add_argument('-P', '--power', type=float, default=CFG.rx_power)
     parser.add_argument('-C', '--coarse', type=int, default=None)
     parser.add_argument('-F', '--fine', type=int, default=None)
@@ -476,10 +484,17 @@ def main():
     tail.VERBOSE = args.verbose
     tail.DEBUG = args.debug
 
+    CFG.distance = args.distance
+
     CFG.blink_count = args.count
     CFG.blink_delay = args.delay
     CFG.blink_wait  = args.wait
 
+    for attr in DW1000_CALIB_ATTRS:
+        val = getattr(args,attr,None)
+        if val is not None:
+            setattr(CFG, 'dw1000_'+attr, val)
+    
     rpc = tail.RPC()
     
     devs = [ ]
@@ -499,18 +514,26 @@ def main():
                     refs.append(anch)
             except:
                 raise RuntimeError('Remote host {} not available'.format(host))
-            
-        DW1000.HandleArguments(args,devs)
+        
+        for rem in devs:
+            for attr in DW1000_CALIB_ATTRS:
+                val = getattr(CFG,'dw1000_'+attr,None)
+                if val == 'cal':
+                    val = rem.GetDWAttrDefault(attr)
+                if val is not None:
+                    rem.SetDWAttr(attr,val)
 
-        if tail.VERBOSE > 2:
+        for rem in refs:
+            for attr in ('xtalt','antd'):
+                rem.SetDWAttr(attr, rem.GetDWAttrDefault(attr))
+
+        if tail.VERBOSE > 1:
             DW1000.PrintAllRemoteAttrs(devs,True)
 
         tmr = tail.Timer()
         blk = tail.Blinker(rpc)
 
-        CFG.ch = int(duts[0].GetDWAttr('channel'))
-        CFG.prf = int(duts[0].GetDWAttr('prf'))
-        CFG.freq = UWB_Ch[CFG.ch]
+        prf = int(duts[0].GetDWAttr('prf'))
         
         rxpwr = args.power
         txpwr = list(Reg2TxPwrPair(duts[0].GetDWAttr('tx_power')))
@@ -524,17 +547,17 @@ def main():
 
         if args.calib_xtalt:
             for dut in duts:
-                (xtalt,ppm) = XTALT_CALIB(blk,tmr,dut,refs,delay,rawts=args.raw)
+                (xtalt,ppm) = XTALT_CALIB(blk,tmr,dut,refs,delay,rawts=CFG.rawts)
                 print('XTALT {:s} {:d}'.format(dut.host,xtalt))
                 
         if args.calib_txpower:
             for dut in duts:
-                (txp,rxp) = TXPWR_CALIB(blk,tmr,dut,refs,delay,txpwr=txpwr,rxpwr=rxpwr,rawts=args.raw)
+                (txp,rxp) = TXPWR_CALIB(blk,tmr,dut,refs,delay,prf=prf,txpwr=txpwr,rxpwr=rxpwr,rawts=CFG.rawts)
                 print('TXPWR {:s} {}'.format(dut.host,TxPwrPair2Reg(txp)))
     
         if args.calib_antd:
             for dut in duts:
-                (antd,corr) = TWR_CALIB(blk,tmr,dut,refs,delay,args.distance,rawts=args.raw)
+                (antd,corr) = TWR_CALIB(blk,tmr,dut,refs,delay,CFG.distance,rawts=CFG.rawts)
                 print('ANTD {:s} {:#04x}'.format(dut.host,antd))
     
     except KeyboardInterrupt:
@@ -549,6 +572,5 @@ def main():
 
 
 
-if __name__ == "__main__":
-    main()
+if __name__ == "__main__": main() 
 

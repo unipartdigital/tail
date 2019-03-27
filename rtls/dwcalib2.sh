@@ -3,68 +3,78 @@
 # DW1000 Hat interactive calibration script
 #
 
-HOST=$1
-EUI64=$2
+export HOST=$1
+export EUI64=$2
 
-REF_LIST='
-	magpi1.pinet
-	magpi2.pinet
-	magpi3.pinet
-	magpi4.pinet
-	magpi5.pinet
-	magpi6.pinet
-	magpi7.pinet
-	magpi8.pinet
+REFS='
+  magpi1
+  magpi2
+  magpi3
+  magpi4
+  magpi5
+  magpi6
+  magpi7
+  magpi8
 '
 
-DIST=${DIST:-4.25}
-RXPWR=${RXPWR:--75}
+DIST=${DIST:-2.75}
 COUNT=${COUNT:-100}
 DELAY=${DELAY:-0.020}
 WAIT=${WAIT:-0.5}
 
-CHANNEL=${CHANNEL:-3}
-PCODE=${PCODE:-20}
-PRF=${PRF:-64}
-RATE=${RATE:-850}
-TXPSR=${TXPSR:-1024}
-TXPWR=${TXPWR:-6+5}
-XTALT=${XTALT:-16}
-ANTD=${ANTD:-0x4050}
-
-ANTD16=${ANTD}
-ANTD64=${ANTD}
-ANTDIF=18
-
 USER='pi'
 TAIL='~/tail/eeprom'
 
-RES="/tmp/dwcalib-$$.res"
+DEFAULT='CH7-64'
+
+SPIMAX=20000000
+
+DWTMP="/tmp/dwtmp-$$"
+DWLST="/tmp/dwlst-$$"
+DWCHS="/tmp/dwchs-$$"
+
+##
+## Channel combinations to calibrate
+##
+## ID,CH,PCODE,PRF,PSR,PWR,COARSE,FINE
+##
+cat<<MEOW>${DWCHS}
+CH7-64,7,20,64,1024,-75,6,6
+CH7-16,7,8,16,1024,-75,6,6
+CH5-64,5,20,64,1024,-75,3,6
+CH5-16,5,8,16,1024,-75,3,6
+CH3-64,3,20,64,1024,-75,3,6
+CH3-16,3,8,16,1024,-75,3,6
+MEOW
+
+:> ${DWTMP}
+:> ${DWLST}
 
 
-export HOST EUI64
-
+##
+## Functions
+##
 
 mesg()
 {
-	echo "***"
-	echo "*** $*"
-	echo "***"
+    echo "***"
+    echo "*** $*"
+    echo "***"
 }
 
 fail()
 {
-	mesg "$* >>FAILED<< miserably."
-	exit 1
+    mesg "$* >>FAILED<< miserably."
+    exit 1
 }
 
 usage()
 {
-cat <<EOM
+cat<<MEOW
 
 Usage: $0 <HOST> <EUI64>
 
-EOM
+MEOW
 }
 
 alive()
@@ -77,45 +87,127 @@ picheck()
     alive ${HOST} && ssh ${USER}@${HOST} true 2>/dev/null 2>/dev/null
 }
 
-refconfig()
+prepare_dtree()
 {
-    ./dwattr.py -vvs \
-	    --channel ${CHANNEL}        \
-            --pcode ${PCODE}            \
-            --prf ${PRF}                \
-            --rate ${RATE}              \
-            --txpsr ${TXPSR}            \
-            --smart_power 0             \
-            --tx_power ${TXPWR}         \
-            --antd cal                  \
-            --xtalt cal                 \
-	    ${REF_LIST}
-}
+    cat<<MEOW >${EUI64}.txt
+vendor		"Unipart Digital"
+product		"Pi Tail"
+product_id	0x1000
+product_ver	0x00a0
+product_uuid	00000000-0000-0000-0000-000000000000
+gpio_drive	0
+gpio_slew	0
+gpio_hysteresis	0
+back_power	0
+setgpio		8	ALT0	DEFAULT
+setgpio		9	ALT0	DEFAULT
+setgpio		10	ALT0	DEFAULT
+setgpio		11	ALT0	DEFAULT
+setgpio		25	INPUT	DOWN
+setgpio		24	INPUT	NONE
+setgpio		23	INPUT	NONE
+MEOW
 
-dutconfig()
-{
-    ./dwattr.py -vvs \
-            --channel ${CHANNEL}        \
-            --pcode ${PCODE}            \
-            --prf ${PRF}                \
-            --rate ${RATE}              \
-            --txpsr ${TXPSR}            \
-            --smart_power 0             \
-            --tx_power ${TXPWR}         \
-            --antd ${ANTD}              \
-            --xtalt ${XTALT}            \
-	    ${HOST}
-}
+    cat<<MEOW >${EUI64}.dts
+/dts-v1/;
+/plugin/;
 
-start-anchor()
-{
-    ssh ${USER}@${HOST} "sudo systemctl start anchor"
-    sleep 3
+/ {
+	compatible = "brcm,bcm2708";
+
+	fragment@0 {
+		target = <&spi0>;
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@1 {
+		target = <&spidev0>;
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+
+	fragment@2 {
+		target = <&gpio>;
+		__overlay__ {
+			dw1000_pins: dw1000_pins {
+				brcm,pins = <23 24 25>;
+				brcm,function = <0>;
+			};
+		};
+	};
+
+	fragment@3 {
+		target = <&spi0>;
+		__overlay__ {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			dw1000: dw1000@0 {
+				compatible = "decawave,dw1000";
+				reg = <0>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&dw1000_pins>;
+				power-gpio = <&gpio 23 0>;
+				reset-gpio = <&gpio 24 6>;
+				interrupt-parent = <&gpio>;
+				interrupts = <25 4>;
+				spi-max-frequency = <${SPIMAX}>;
+				decawave,eui64 = /bits/ 64 <0x${EUI64}>;
+				decawave,antd = <0x4020 0x4020>;
+				decawave,xtalt = <${XTALT}>;
+				decawave,default = "${DEFAULT}";
+				decawave,calib {
+MEOW
+
+    N=0
+    cat "${DWLST}" | while IFS=, read ID CH PRF ANTD POWER
+    do
+	if [ -n "${ID}" ]
+	then
+	    cat<<MEOW>>${EUI64}.dts
+					calib@$N {
+						id = "${ID}";
+						ch = <${CH}>;
+						prf = <${PRF}>;
+						antd = <${ANTD}>;
+						power = <${POWER}>;
+					};
+MEOW
+	    let N+=1
+	fi
+    done
+    
+    cat<<MEOW>>${EUI64}.dts
+				};
+			};
+		};
+	};
+
+	__overrides__ {
+		dw1000_eui = <&dw1000>,"decawave,eui64#0";
+		dw1000_profile = <&dw1000>,"decawave,default";
+	};
+};
+MEOW
+
+    dtc -Wno-unit_address_vs_reg -@ -I dts -O dtb -o ${EUI64}.dtbo ${EUI64}.dts
+    dtc -Wno-unit_address_vs_reg -@ -I dtb -O dts -o ${EUI64}.dmp ${EUI64}.dtbo
+    
+    eepmake ${EUI64}.txt ${EUI64}.eep ${EUI64}.dtbo
 }
 
 flash()
 {
-    ssh ${USER}@${HOST} "make -C ${TAIL} EUI64=${EUI64} XTALT=${XTALT} ANTD16=${ANTD16} ANTD64=${ANTD64} program" >/dev/null
+    prepare_dtree
+
+    cat ${EUI64}.eep |
+	gzip -c |
+	ssh root@${HOST} "
+	    zcat - >/tmp/${EUI64}.eep &&
+	    flashat /tmp/${EUI64}.eep" ||
+	        fail "Remote hat EEPROM programming"
 }
 
 remboot()
@@ -135,37 +227,28 @@ remboot()
     return 0
 }
 
-euicheck()
+eui64check()
 {
-    [[ "$1" =~ '70b3d5b1e' ]]
+    [[ -n "$1" ]] && [[ "$1" =~ '70b3d5b1e' ]]
 }
 
 
 if ! picheck
 then
-    echo "Host ${HOST} is unreachable"
-    usage
+    mesg "Host ${HOST} is unreachable"
     exit 1
 fi
-
-
-if [[ -n "${EUI64}" ]]
+    
+if eui64check "${EUI64}"
 then
     mesg "Starting initial flashing for ${HOST} <${EUI64}>"
-
-    if ! euicheck ${EUI64}
-    then
-	echo "EUI64 argument \"${EUI64}\" is invalid"
-	usage
-	exit 1
-    fi
-
+    
     echo "Programming the DW1000 Hat EEPROM..."
     if ! flash
     then
 	fail "Initial programming"
     fi
-
+    
     echo "Initial programming successful. Rebooting remotely..."
     if ! remboot
     then
@@ -173,43 +256,43 @@ then
     fi
 fi
 
+EUI64=$( ./dwattr.py ${HOST} --print-eui )
 
-if picheck
+if eui64check "${EUI64}"
 then
-    EUI64=$( ./dwattr.py ${HOST} --print-eui )
-    
     mesg "Starting calibration process for ${HOST} <${EUI64}>"
 
-    refconfig
-    dutconfig
+    ./calibrate.py *${HOST} ${REFS} -vv --channel=3 --prf=64 --pcode=12 --txpsr=1024 -X -w ${WAIT} -d ${DELAY} -n ${COUNT} ${EXTRA} > ${DWTMP}
 
-    ./calibrate.py *${HOST} ${REF_LIST} -T -X -A -R -P ${RXPWR} -L ${DIST} -w ${WAIT} -d ${DELAY} -n ${COUNT} -vv > ${RES}
-
-    TXPWR=$( cat $RES | egrep '^TXPWR' | cut -d' ' -f 3 )
-    XTALT=$( cat $RES | egrep '^XTALT' | cut -d' ' -f 3 )
-    ANTDC=$( cat $RES | egrep '^ANTD'  | cut -d' ' -f 3 )
-
+    XTALT=$( cat $DWTMP | egrep '^XTALT' | cut -d' ' -f 3 )
     if [[ "${XTALT}" -lt 1 ]] || [[ "${XTALT}" -gt 31 ]]
     then
 	fail "XTALT calibration"
     fi
+	    
+    cat ${DWCHS} | while IFS=, read ID CH PCODE PRF PSR RXPWR COARSE FINE
+    do
+	if [ -n "${ID}" ]
+	then
+	    mesg "Calibrating <$ID> CH:${CH} PCODE:${PCODE} PRF:${PRF} PSR:${PSR} Power:${RXPWR}"
+	    
+	    ./calibrate.py ${HOST}* ${REFS} -vv --channel=${CH} --prf=${PRF} --pcode=${PCODE} --txpsr=${PSR} -T -A -P ${RXPWR} -L ${DIST} -C ${COARSE} -F ${FINE} -w ${WAIT} -d ${DELAY} -n ${COUNT} ${EXTRA} | tee ${DWTMP}
+	    
+	    TXPWR=$( cat $DWTMP | egrep '^TXPWR' | cut -d' ' -f 3 )
+	    ANTDC=$( cat $DWTMP | egrep '^ANTD'  | cut -d' ' -f 3 )
+	    
+	    if [[ "${ANTDC}" -lt 0x3800 ]] || [[ "${ANTDC}" -gt 0x4400 ]]
+	    then
+		fail "ANTD calibration"
+	    fi
 
-    if [[ "${ANTDC}" -lt 0x4000 ]] || [[ "${ANTDC}" -gt 0x4200 ]]
-    then
-	fail "ANTD calibration"
-    fi
-
-    echo "Calibration done: ${TXPWR} ${XTALT} ${ANTDC}"
-    
-    ANTD64=${ANTDC}
-    ANTD16=$((${ANTDC}-${ANTDIF}))
+	    echo "$ID,$CH,$PRF,$ANTDC,$TXPWR" >> ${DWLST}
+	    echo "Calibration done: ${ID} Ch:${CH} PRF:${PRF} XTALT:${XTALT} PWR:${TXPWR} ANTD:${ANTDC}"
+	fi
+    done
     
     echo "Programming the DW1000 Hat EEPROM..."
-    if ! flash
-    then
-	fail "Flash programming"
-    fi
-
+    flash || fail "Flash programming"
     mesg "Programming ${HOST} done."
 
 fi
