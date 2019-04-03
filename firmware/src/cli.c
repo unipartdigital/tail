@@ -211,6 +211,7 @@ void fn_rdump(void)
 #define X(name)			{ #name, RREG(name), RLEN(name) },
 			X(DEV_ID)
 			X(SYS_STATUS)
+			X(SYS_STATE)
 			X(SYS_CFG)
 			X(SYS_MASK)
 			X(SYS_CTRL)
