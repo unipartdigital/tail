@@ -715,11 +715,6 @@ void radio_rxdone(uint32_t status)
 {
 	radio_write32(RREG(SYS_STATUS), STATUS_RX_DONE_CLEAR);
 
-#if 0
-    // Clear SYS_CTRL_RXENAB
-	radio_write32(RREG(SYS_CTRL), 0);
-#endif
-
 	rx_packet_count++;
 
 	if (radio_callback_rxdone)
@@ -729,9 +724,6 @@ void radio_rxdone(uint32_t status)
 void radio_rxtimeout(uint32_t status)
 {
 	radio_write32(RREG(SYS_STATUS), STATUS_RX_TIMEOUT_CLEAR);
-
-	// Clear SYS_CTRL_RXENAB
-	radio_write32(RREG(SYS_CTRL), 0);
 
 	rx_timeout_count++;
 

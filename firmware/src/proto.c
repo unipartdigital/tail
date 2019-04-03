@@ -51,7 +51,6 @@ typedef struct {
 	uint16_t antenna_delay_tx;
 	uint16_t antenna_delay_rx;
 	uint64_t *txtime_ptr;
-	bool continuous_receive;
 	bool receive_after_transmit;
 	volatile bool radio_active;
 	bool radio_sleeping;
@@ -73,7 +72,6 @@ device_t device = {
 		.antenna_delay_tx = 0,
 		.antenna_delay_rx = 0,
 		.txtime_ptr = NULL,
-		.continuous_receive = false,
 		.receive_after_transmit = false,
 		.radio_active = false,
 		.radio_sleeping = false,
@@ -101,6 +99,7 @@ typedef struct {
 	uint32_t last_event;
 	bool active;
 	uint64_t tx_stamp;
+	uint64_t last_stamp;
 	anchor_ranging_t anchors[MAX_ANCHORS];
 	int anchors_heard;
 	int max_anchors;
@@ -298,7 +297,8 @@ void proto_init(void)
 void start_rx(void)
 {
 	device.radio_active = true;
-	radio_autoreceive(device.continuous_receive);
+	radio_autoreceive(true);
+    radio_setrxtimeout(device.rxtimeout);
 	radio_rxstart(false);
 }
 
@@ -310,7 +310,7 @@ void proto_txdone(void)
 	uint8_t txtime[5];
 	radio_readtxtimestamp(txtime);
 	uint64_t timestamp = TIMESTAMP_READ(txtime);
-	tag_data.last_event = timestamp;
+	tag_data.last_stamp = timestamp;
 
 	if (device.txtime_ptr) {
 		*device.txtime_ptr = timestamp;
@@ -319,7 +319,8 @@ void proto_txdone(void)
 
 	if (device.receive_after_transmit && (tag_data.responses_sent == 0))
 	    start_rx();
-	tail_finish_ranging(); /* clears radio_active if done */
+	else
+	    tail_finish_ranging(); /* clears radio_active if done */
 
 	GPIO_PinOutToggle(gpioPortA, 1);
 	debug.in_txdone = false;
@@ -336,9 +337,11 @@ void proto_rxdone(void)
 	len = radio_getpayload(rxbuf, BUFLEN);
 
 	radio_readrxtimestamp(time);
-	tag_data.last_event = TIMESTAMP_READ(time);
+	tag_data.last_stamp = TIMESTAMP_READ(time);
 
-	if (!radio_overflow())
+	if (radio_overflow())
+		device.radio_active = false;
+	else
         (void) proto_despatch(rxbuf, len);
 
 	GPIO_PinOutToggle(gpioPortA, 1); // down
@@ -350,10 +353,9 @@ void proto_rxtimeout(void)
 	uint8_t time[5];
 
 	debug.in_rxtimeout = true;
-	device.radio_active = false;
 	radio_gettime(time);
-	tag_data.last_event = TIMESTAMP_READ(time);
-	tail_finish_ranging();
+	tag_data.last_stamp = TIMESTAMP_READ(time);
+	tail_finish_ranging(); /* clears radio_active if done */
 	debug.in_rxtimeout = false;
 }
 
@@ -443,7 +445,6 @@ void tag_start(void)
 
     radio_writepayload(txbuf, offset, 0);
     radio_txprepare(offset+2, 0, false);
-    radio_setrxtimeout(device.rxtimeout);
 
     device.txtime_ptr = &tag_data.tx_stamp;
     tag_data.anchors_heard = 0;
@@ -473,7 +474,6 @@ void tag_with_period(int period, int period_idle, int transition_time)
 	tag_data.transition_time = transition_time;
 
 	device.receive_after_transmit = (tag_data.max_anchors > 0);
-	device.continuous_receive = false;
 
 	tag_start();
 }
@@ -669,7 +669,7 @@ void tail_finish_ranging(void)
 		return;
 	}
 
-	uint64_t ttx = tag_data.last_event + device.turnaround_delay;
+	uint64_t ttx = tag_data.last_stamp + device.turnaround_delay;
 	ttx = ttx & ~0x1ff;
 
 	uint64_t td_tx = ttx - tag_data.tx_stamp + device.antenna_delay_tx;
@@ -781,7 +781,7 @@ bool proto_despatch(uint8_t *buf, int len)
 		/* Invalid packet */
 		return false;
 
-	p.timestamp = tag_data.last_event;
+	p.timestamp = tag_data.last_stamp;
 
 	p.frame_type       = (buf[0] >> 0) & 7;
 	p.security_enabled = (buf[0] >> 3) & 1;
