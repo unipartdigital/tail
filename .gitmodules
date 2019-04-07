@@ -1,3 +1,6 @@
 [submodule "circuit/v2/efm/csv2kicad"]
 	path = circuit/v2/efm/csv2kicad
 	url = https://github.com/hairykiwi/csv2kicad.git
+[submodule "efm32-base"]
+	path = efm32-base
+	url = https://github.com/ryankurte/efm32-base
