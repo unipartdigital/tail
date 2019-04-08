@@ -105,6 +105,7 @@ typedef struct {
 	int max_anchors;
 	int min_responses;
 	int responses_sent;
+	bool idle;
 } tag_data_t;
 
 #define DEFAULT_TARGET_ADDR {.type = ADDR_SHORT, .pan = PAN_BROADCAST, .a.s = 0xffff}
@@ -120,7 +121,8 @@ tag_data_t tag_data = {
 		.anchors_heard = 0,
 		.max_anchors = 0,
 		.min_responses = 0,
-		.responses_sent = 0
+		.responses_sent = 0,
+		.idle = false
 };
 
 #define READ16(buf, i) (buf[i] + (buf[i+1] << 8))
@@ -148,15 +150,38 @@ tag_data_t tag_data = {
         buf[i+7] = ((v >> 56) & 0xff); \
 } while (0)
 
-#define TAIL_MAGIC          0x37
+#define TAIL_MAGIC                          0x37
+#define TAIL_MAGIC_ENCRYPTED                0x38
 
-#define TAIL_HEADER_EXTRA   0x80
-#define TAIL_HEADER_LISTEN  0x40
-#define TAIL_HEADER_BATTERY 0x20
-#define TAIL_HEADER_ACCEL   0x10
-#define TAIL_HEADER_CONFIG  (unimplemented)
-#define TAIL_HEADER_TIMING  0x08
-#define TAIL_HEADER_DEBUG   0x01
+#define TAIL_FRAME_BLINK                    0x00
+#define TAIL_FRAME_BLINK_IV                 0x08
+#define TAIL_FRAME_BLINK_IE                 0x04
+#define TAIL_FRAME_BLINK_EIE                0x02
+
+#define TAIL_FRAME_ANCHOR_BEACON            0x10
+
+#define TAIL_FRAME_RANGING_REQUEST          0x20
+#define TAIL_FRAME_RANGING_RESPONSE         0x30
+#define TAIL_FRAME_RANGING_RESPONSE_OWR     0x08
+
+#define TAIL_FRAME_CONFIG_REQUEST           0x40
+#define TAIL_FRAME_CONFIG_RESPONSE          0x50
+
+#define TAIL_FRAME_CONFIG_RESET             0x00
+#define TAIL_FRAME_CONFIG_ENUMERATE         0x01
+#define TAIL_FRAME_CONFIG_READ              0x02
+#define TAIL_FRAME_CONFIG_WRITE             0x03
+#define TAIL_FRAME_CONFIG_SALT              0x04
+#define TAIL_FRAME_CONFIG_TEST              0x0f
+
+#define TAIL_FLAGS_LISTEN                   0x80
+#define TAIL_FLAGS_ACCEL                    0x40
+#define TAIL_FLAGS_DCIN                     0x20
+#define TAIL_FLAGS_SALT                     0x10
+
+#define TAIL_IE_BATTERY                     0x00
+#define TAIL_IE_DEBUG                       0xff
+
 
 /* MAC frame (IEEE 802.15.4-2011)
  *
@@ -385,8 +410,10 @@ void tag_set_event(uint32_t now)
 	int time_diff = time_sub(now, accel_last_activity());
 	if ((time_diff >= 0) && (time_diff < tag_data.transition_time)) {
 		period = tag_data.period_active;
+		tag_data.idle = false;
 	} else {
 		period = tag_data.period_idle;
+		tag_data.idle = true;
 	}
 
     uint32_t time = time_add(tag_data.last_event, period);
@@ -409,7 +436,7 @@ address_t my_mac_address(void)
 
 void tag_start(void)
 {
-    int offset;
+    int offset, iecount, iecountoffset;
     uint8_t voltage, temperature;
 
     tag_data.active = true;
@@ -422,19 +449,32 @@ void tag_start(void)
     offset = proto_source(txbuf, offset);
     txbuf[offset++] = TAIL_MAGIC;
 
-    int header = TAIL_HEADER_BATTERY | TAIL_HEADER_DEBUG;
+    int frame_type = TAIL_FRAME_BLINK | TAIL_FRAME_BLINK_IE;
+    int flags = 0;
+
     if (device.receive_after_transmit)
-    	header |= TAIL_HEADER_LISTEN;
+    	flags |= TAIL_FLAGS_LISTEN;
+
+    if (!tag_data.idle)
+    	flags |= TAIL_FLAGS_ACCEL;
 
     /* payload goes here */
-    txbuf[offset++] = header;
+    txbuf[offset++] = frame_type;
+    txbuf[offset++] = flags;
 
     radio_wakeup_adc_readings(&voltage, &temperature);
 
     uint16_t volts = proto_battery_volts();
 
-    txbuf[offset++] = battery_state(volts);
+    iecountoffset = offset;
+    txbuf[offset++] = 0;
+    iecount = 0;
 
+    txbuf[offset++] = TAIL_IE_BATTERY;
+    txbuf[offset++] = battery_state(volts);
+    iecount++;
+
+    txbuf[offset++] = TAIL_IE_DEBUG;
     txbuf[offset++] = 6; /* Length of debug field */
     txbuf[offset++] = voltage; /* Battery state */
     txbuf[offset++] = temperature; /* Temperature */
@@ -442,6 +482,9 @@ void tag_start(void)
     txbuf[offset++] = device.radio_temp_cal;
     txbuf[offset++] = volts & 0xff;
     txbuf[offset++] = volts >> 8;
+    iecount++;
+
+    txbuf[iecountoffset] = iecount;
 
     radio_writepayload(txbuf, offset, 0);
     radio_txprepare(offset+2, 0, false);
@@ -451,6 +494,7 @@ void tag_start(void)
     tag_data.responses_sent = 0;
 	device.radio_active = true;
 
+	write_string("<");
 	radio_txstart(false);
 }
 
@@ -677,43 +721,48 @@ void tail_finish_ranging(void)
 	proto_header(txbuf);
 	offset = proto_dest(txbuf, &tag_data.target_mac_addr);
     offset = proto_source(txbuf, offset);
+    int frame_type = TAIL_FRAME_RANGING_RESPONSE;
+    if (tag_data.max_anchors == 0)
+    	frame_type |= TAIL_FRAME_RANGING_RESPONSE_OWR;
     txbuf[offset++] = TAIL_MAGIC;
-    txbuf[offset++] = TAIL_HEADER_TIMING;
+    txbuf[offset++] = frame_type;
 
     TIMESTAMP_WRITE(txbuf+offset, td_tx);
     offset += 5;
 
-    txbuf[offset++] = tag_data.anchors_heard;
+    if (tag_data.max_anchors != 0) {
+        txbuf[offset++] = tag_data.anchors_heard;
 
-    if (tag_data.anchors_heard > 0) {
-    	int lbyte = 0;
-    	for (int i = 0; i < tag_data.anchors_heard; i++)
-    		if (tag_data.anchors[i].address.type == ADDR_LONG)
-    			lbyte |= (1<<i);
-    	txbuf[offset++] = lbyte;
-    }
+        if (tag_data.anchors_heard > 0) {
+        	int lbyte = 0;
+        	for (int i = 0; i < tag_data.anchors_heard; i++)
+        		if (tag_data.anchors[i].address.type == ADDR_LONG)
+        			lbyte |= (1<<i);
+        	txbuf[offset++] = lbyte;
+        }
 
-    for (int i = 0; i < tag_data.anchors_heard; i++) {
-    	uint64_t td = tag_data.anchors[i].rx_stamp - tag_data.tx_stamp;
+        for (int i = 0; i < tag_data.anchors_heard; i++) {
+        	uint64_t td = tag_data.anchors[i].rx_stamp - tag_data.tx_stamp;
 
-    	switch (tag_data.anchors[i].address.type) {
-    	case ADDR_SHORT:
-    		WRITE16(txbuf, offset, tag_data.anchors[i].address.a.s);
-    		offset += 2;
-    		break;
-    	case ADDR_LONG:
-    	    WRITE64(txbuf, offset, tag_data.anchors[i].address.a.l);
-    	    offset += 8;
-    	    break;
-    	default:
-    		/* We have no way to specify no address. Just make one up. */
-    		txbuf[offset++] = ADDR_SHORT_BROADCAST & 0xff;
-    		txbuf[offset++] = ADDR_SHORT_BROADCAST >> 8;
-    		break;
-    	}
+        	switch (tag_data.anchors[i].address.type) {
+        	case ADDR_SHORT:
+        		WRITE16(txbuf, offset, tag_data.anchors[i].address.a.s);
+        		offset += 2;
+        		break;
+        	case ADDR_LONG:
+        	    WRITE64(txbuf, offset, tag_data.anchors[i].address.a.l);
+        	    offset += 8;
+        	    break;
+        	default:
+        		/* We have no way to specify no address. Just make one up. */
+        		txbuf[offset++] = ADDR_SHORT_BROADCAST & 0xff;
+    		    txbuf[offset++] = ADDR_SHORT_BROADCAST >> 8;
+    	    	break;
+    	    }
 
-    	TIMESTAMP_WRITE(txbuf+offset, td);
-    	offset += 5;
+    	    TIMESTAMP_WRITE(txbuf+offset, td);
+    	    offset += 5;
+        }
     }
 
     radio_writepayload(txbuf, offset, 0);
@@ -743,23 +792,32 @@ bool tail_timing(packet_t *p, int hlen)
 
 bool tag_rx(packet_t *p)
 {
-    if (p->payload[0] != TAIL_MAGIC)
+	bool encrypted = false;
+    if ((p->payload[0] != TAIL_MAGIC) && (p->payload[0] != TAIL_MAGIC_ENCRYPTED))
     	return false;
+    if (p->payload[0] == TAIL_MAGIC_ENCRYPTED)
+    	encrypted = true;
     p->hlen = 1;
 
-	/* Decode tail packet and despatch */
-	int tail_header = p->payload[p->hlen];
-
 #if 0
-	if (tail_header & TAIL_HEADER_CONFIG) {
+    if (encrypted)
+    	proto_decrypt(...);
+#endif
+
+	/* Decode tail packet and despatch */
+	int frame_type = p->payload[p->hlen];
+
+	switch (frame_type & 0xf0) {
+	case TAIL_FRAME_RANGING_REQUEST:
+		return tail_timing(p, p->hlen);
+	case TAIL_FRAME_CONFIG_REQUEST:
+		if (!encrypted)
+			break;
 		/* XXX we need to implement this */
 		// tail_config(p, hlen);
 		return false;
-	}
-#endif
-
-	if (tail_header & TAIL_HEADER_TIMING) {
-		return tail_timing(p, p->hlen);
+	default:
+		break;
 	}
 
 	return false;
