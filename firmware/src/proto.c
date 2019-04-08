@@ -334,10 +334,10 @@ void proto_rxdone(void)
     debug.in_rxdone = true;
 	GPIO_PinOutToggle(gpioPortA, 1); // up
 
-	len = radio_getpayload(rxbuf, BUFLEN);
-
 	radio_readrxtimestamp(time);
 	tag_data.last_stamp = TIMESTAMP_READ(time);
+
+	len = radio_getpayload(rxbuf, BUFLEN);
 
 	if (radio_overflow())
 		device.radio_active = false;
