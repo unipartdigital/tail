@@ -100,10 +100,10 @@ DW1000_COMP_SPLINES = {
 
 DW1000_ATTRS = (
     'channel',
-    'pcode',
     'prf',
-    'rate',
+    'pcode',
     'txpsr',
+    'rate',
     'smart_power',
     'tx_power',
     'xtalt',

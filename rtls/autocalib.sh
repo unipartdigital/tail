@@ -22,16 +22,17 @@ COUNT=${COUNT:-100}
 DELAY=${DELAY:-0.020}
 WAIT=${WAIT:-0.5}
 
-USER='pi'
 TAIL='~/tail/eeprom'
 
-DEFAULT='CH7-64'
-
+XTALT=16
 SPIMAX=20000000
 
 DWTMP="/tmp/dwtmp-$$"
 DWLST="/tmp/dwlst-$$"
 DWCHS="/tmp/dwchs-$$"
+
+:> ${DWTMP}
+:> ${DWLST}
 
 ##
 ## Channel combinations to calibrate
@@ -47,8 +48,10 @@ CH3-64,3,20,64,1024,-75,3,6
 CH3-16,3,8,16,1024,-75,3,6
 MEOW
 
-:> ${DWTMP}
-:> ${DWLST}
+##
+## Default profile
+##
+DEFPROF='CH7-64'
 
 
 ##
@@ -84,7 +87,7 @@ alive()
 
 picheck()
 {
-    alive ${HOST} && ssh ${USER}@${HOST} true 2>/dev/null 2>/dev/null
+    alive ${HOST} && ssh root@${HOST} true 2>/dev/null 2>/dev/null
 }
 
 prepare_dtree()
@@ -157,7 +160,7 @@ MEOW
 				decawave,eui64 = /bits/ 64 <0x${EUI64}>;
 				decawave,antd = <0x4020 0x4020>;
 				decawave,xtalt = <${XTALT}>;
-				decawave,default = "${DEFAULT}";
+				decawave,default = "${DEFPROF}";
 				decawave,calib {
 MEOW
 
@@ -211,7 +214,7 @@ flash()
 
 remboot()
 {
-    ssh ${USER}@${HOST} "sudo reboot" 2>/dev/null >/dev/null
+    ssh root@${HOST} reboot 2>/dev/null >/dev/null
 
     sleep 5
     
