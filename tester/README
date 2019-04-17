@@ -28,7 +28,45 @@ sudo -H pip3 install pigpio
 
 
 
-sudo apt install openocd
+#sudo apt install openocd
+
+# Raspbian Stretch has too old an openocd. We need at least 0.10.0.
+
+sudo apt install debhelper libftdi1-dev libusb-1.0-0-dev libusb-dev
+sudo apt install texinfo texlive libhidapi-dev
+sudo apt install libjim-dev pkg-config
+
+# Now download and untar openocd-0.10.0
+
+cd openocd-0.10.0
+./configure -disable-werror \
+	--disable-internal-jimtcl \
+	--disable-internal-libjaylink \
+	\
+	--enable-dummy \
+	--enable-ep93xx \
+	--enable-at91rm9200 \
+	--enable-usbprog \
+	--enable-vsllink \
+	--enable-rlink \
+	--enable-ulink \
+	--enable-arm-jtag-ew \
+	--enable-buspirate \
+	--enable-osbdm \
+	--enable-opendous \
+	--enable-remote-bitbang \
+	--enable-bcm2835gpio \
+	--enable-sysfsgpio \
+	--enable-parport \
+	--enable-parport_ppdev \
+	--enable-gw16012 \
+	--enable-amtjtagaccel \
+	--enable-ftdi \
+	--enable-stlink \
+	--enable-ti-icdi
+
+make
+sudo make install
 
 
 udev things for serial ports
