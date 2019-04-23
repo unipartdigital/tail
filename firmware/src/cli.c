@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include "aes.h"
 #include "cli.h"
 #include "uart.h"
 #include "version.h"
@@ -676,6 +677,199 @@ typedef struct {
 
 void fn_help(void);
 
+void set8bytes(uint8_t *buf, uint64_t in) {
+    int i;
+    uint8_t *in_b = (uint8_t *) &in;
+
+    for (i = 0; i < 8; i++) {
+        buf[i] = in_b[7 - i];
+    }
+}
+
+void set16bytes(uint8_t *buf, uint64_t in0, uint64_t in1) {
+    set8bytes(buf, in0);
+    set8bytes(buf + 8, in1);
+}
+
+void show_mem_dbg(uint8_t *base, int n) {
+    int i, t;
+    for (i = 0; i < n; i++) {
+        t = (uint32_t) base[i];
+        write_hex(t);
+        write_string(" ");
+    }
+    write_string("\r\n");
+}
+
+void check_aes_test(uint8_t *out, uint8_t *expected, int blocks) {
+    int eq = memcmp(out, expected, blocks * 16);
+    if (eq == 0) {
+        write_string("equal, crypto test passed!\r\n");
+    } else {
+        write_string("not equal, crypto test failed!\r\n");
+        show_mem_dbg(out, blocks * 16);
+    }
+}
+
+void fn_test_aes(void) {
+    uint8_t out[16];
+    uint8_t in[48];
+    uint8_t key[16];
+    uint8_t iv[16];
+    uint8_t expected[48];
+
+    /* CBCKeySbox128.rsp 20 - check non-zero key*/
+    write_string("CBC: 1 block, non-zero key, encrypt: ");
+    set16bytes(out, 0, 0);
+    set16bytes(in, 0, 0);
+    set16bytes(key, 0xfebd9a24d8b65c1c, 0x787d50a4ed3619a9);
+    set16bytes(iv, 0, 0);
+
+    set16bytes(expected, 0xf4a70d8af877f9b0, 0x2b4c40df57d45b17);
+    aes_cbc128(out, in, 16, key, iv, true);
+    check_aes_test(out, expected, 1);
+
+    /* CBCKeySbox128.rsp 20 - check in = out */
+    write_string("CBC: 1 block, in = out, encrypt: ");
+    set16bytes(in, 0, 0);
+    set16bytes(key, 0xfebd9a24d8b65c1c, 0x787d50a4ed3619a9);
+    set16bytes(iv, 0, 0);
+
+    set16bytes(expected, 0xf4a70d8af877f9b0, 0x2b4c40df57d45b17);
+    aes_cbc128(in, in, 16, key, iv, true);
+    check_aes_test(in, expected, 1);
+
+    /* CBCVarTxt128.rsp 0 - check non-zero plaintext */
+    write_string("CBC: 1 block, non-zero plaintext, encrypt: ");
+    set16bytes(out, 0, 0);
+    set16bytes(in, 0x8000000000000000, 0);
+    set16bytes(key, 0, 0);
+    set16bytes(iv, 0, 0);
+
+    set16bytes(expected, 0x3ad78e726c1ec02b, 0x7ebfe92b23d9ec34);
+    aes_cbc128(out, in, 16, key, iv, true);
+    check_aes_test(out, expected, 1);
+
+    /* CBCMMT128.rsp 0 - 1 block */
+    write_string("CBC: 1 block, non-zero vals, encrypt: ");
+    set16bytes(out, 0, 0);
+    set16bytes(in,  0x45cf12964fc824ab, 0x76616ae2f4bf0822);
+    set16bytes(key, 0x1f8e4973953f3fb0, 0xbd6b16662e9a3c17);
+    set16bytes(iv,  0x2fe2b333ceda8f98, 0xf4a99b40d2cd34a8);
+
+    set16bytes(expected, 0x0f61c4d44c5147c0, 0x3c195ad7e2cc12b2);
+    aes_cbc128(out, in, 16, key, iv, true);
+    check_aes_test(out, expected, 1);
+
+    /* CBCMMT128.rsp 1 - two blocks */
+    write_string("CBC: 2 blocks, non-zero vals, encrypt: ");
+    set16bytes(out, 0, 0);
+    set16bytes(in,    0x068b25c7bfb1f8bd, 0xd4cfc908f69dffc5);
+    set16bytes(in+16, 0xddc726a197f0e5f7, 0x20f730393279be91);
+    set16bytes(key,   0x0700d603a1c514e4, 0x6b6191ba430a3a0c);
+    set16bytes(iv,    0xaad1583cd91365e3, 0xbb2f0c3430d065bb);
+
+    set16bytes(expected,   0xc4dc61d9725967a3, 0x020104a9738f2386);
+    set16bytes(expected+16, 0x8527ce839aab1752, 0xfd8bdb95a82c4d00);
+    aes_cbc128(in, in, 32, key, iv, true);
+    check_aes_test(in, expected, 2);
+
+    /* CBCMMT128.rsp 2 - 3 blocks */
+    write_string("CBC: 3 blocks, non-zero vals, encrypt: ");
+    set16bytes(out,         0,                  0);
+    set16bytes(in,          0x9b7cee827a26575a, 0xfdbb7c7a329f8872);
+    set16bytes(in+16,       0x38052e3601a79174, 0x56ba61251c214763);
+    set16bytes(in+32,       0xd5e1847a6ad5d541, 0x27a399ab07ee3599);
+    set16bytes(key,         0x3348aa51e9a45c2d, 0xbe33ccc47f96e8de);
+    set16bytes(iv,          0x19153c673160df2b, 0x1d38c28060e59b96);
+
+    set16bytes(expected,    0xd5aed6c9622ec451, 0xa15db12819952b67);
+    set16bytes(expected+16,  0x52501cf05cdbf8cd, 0xa34a457726ded978);
+    set16bytes(expected+32, 0x18e1f127a28d72db, 0x5652749f0c6afee5);
+    aes_cbc128(in, in, 48, key, iv, true);
+    check_aes_test(in, expected, 3);
+
+    /* CBCKeySbox128.rsp 20 decrypt */
+    write_string("CBC: 1 block, decrypt w/derived key: ");
+    set16bytes(out, 0, 0);
+    set16bytes(in,  0xf4a70d8af877f9b0, 0x2b4c40df57d45b17);
+    set16bytes(key, 0xfebd9a24d8b65c1c, 0x787d50a4ed3619a9);
+    set16bytes(iv,  0, 0);
+
+    set16bytes(expected, 0, 0);
+    aes_cbc128_encdecrypt(out, in, 16, key, iv);
+    check_aes_test(out, expected, 1);
+
+    /* CBCMMT128.rsp 1 - two blocks, decrypt */
+    write_string("CBC: 2 block, decrypt w/derived key: ");
+    set16bytes(out,   0, 0);
+    set16bytes(in,    0x5d6fed86f0c4fe59, 0xa078d6361a142812);
+    set16bytes(in+16, 0x514b295dc62ff5d6, 0x08a42ea37614e6a1);
+    set16bytes(key,   0x625eefa18a475645, 0x4e218d8bfed56e36);
+    set16bytes(iv,    0x73d9d0e27c2ec568, 0xfbc11f6a0998d7c8);
+
+    set16bytes(expected,    0x360dc1896ce601df, 0xb2a949250067aad9);
+    set16bytes(expected+16, 0x6737847a4580ede2, 0x654a329b842fe81e);
+    aes_cbc128_encdecrypt(out, in, 32, key, iv);
+    check_aes_test(out, expected, 2);
+
+    /* CBCMMT128.rsp 0 - 1 block, round trip */
+    write_string("CBC: 1 block, round trip encrypt+decrypt: ");
+    set16bytes(out, 0, 0);
+    set16bytes(in,  0x45cf12964fc824ab, 0x76616ae2f4bf0822);
+    set16bytes(key, 0x1f8e4973953f3fb0, 0xbd6b16662e9a3c17);
+    set16bytes(iv,  0x2fe2b333ceda8f98, 0xf4a99b40d2cd34a8);
+
+    set16bytes(expected, 0x0f61c4d44c5147c0, 0x3c195ad7e2cc12b2);
+    aes_cbc128(out, in, 16, key, iv, true);
+    check_aes_test(out, expected, 1);
+
+    write_string("... continuing test: ");
+    set16bytes(expected,  0x45cf12964fc824ab, 0x76616ae2f4bf0822);
+    aes_cbc128_encdecrypt(out, out, 16, key, iv);
+    check_aes_test(out, expected, 1);
+
+    /* ECBKeySbox128.rsp 20. Only one block, so ECB = CBC */
+    write_string("ECB: 1 block, non-zero key, encrypt: ");
+    set16bytes(out, 0, 0);
+    set16bytes(in, 0, 0);
+    set16bytes(key, 0xfebd9a24d8b65c1c, 0x787d50a4ed3619a9);
+
+    set16bytes(expected, 0xf4a70d8af877f9b0, 0x2b4c40df57d45b17);
+    aes_ecb128(out, in, 16, key, true);
+    check_aes_test(out, expected, 1);
+
+
+    /* ECBMMT128.rsp 1 - two blocks */
+    write_string("ECB: 2 blocks, non-zero vals, encrypt: ");
+    set16bytes(out,   0, 0);
+    set16bytes(in,    0x1b0a69b7bc534c16, 0xcecffae02cc53231);
+    set16bytes(in+16, 0x90ceb413f1db3e9f, 0x0f79ba654c54b60e);
+    set16bytes(key,   0x7723d87d773a8bbf, 0xe1ae5b081235b566);
+
+    set16bytes(expected,    0xad5b089515e78210, 0x87c61652dc477ab1);
+    set16bytes(expected+16, 0xf2cc6331a70dfc59, 0xc9ffb0c723c682f6);
+    aes_ecb128(in, in, 32, key, true);
+    check_aes_test(in, expected, 2);
+
+    /* ECBKeySbox128.rsp 20. Only one block, so ECB = CBC. Decrypt */
+    write_string("ECB: 1 block, non-zero key, decrypt2: ");
+    set16bytes(out, 0, 0);
+    set16bytes(in, 0xf4a70d8af877f9b0, 0x2b4c40df57d45b17);
+    set16bytes(key, 0xfebd9a24d8b65c1c, 0x787d50a4ed3619a9);
+    set16bytes(expected, 0, 0);
+
+    /* check using the wrapper API that takes encryption keys */
+    aes_ecb128_encdecrypt(out, in, 16, key);
+    check_aes_test(out, expected, 1);
+
+    /* check in a way that requires turning AES hardware on twice */
+    write_string("Same test, different internal API: ");
+    aes_decrypt_key128(key, key);
+    aes_ecb128(out, in, 16, key, false);
+    check_aes_test(out, expected, 1);
+}
+
 static command command_table[] = {
 		{"help", &fn_help},
 		{"help_config", &fn_help_config},
@@ -703,7 +897,8 @@ static command command_table[] = {
 		{"smartpower", &fn_smartpower},
 		{"turnaround_delay", &fn_turnaround_delay},
 		{"rxtimeout", &fn_rxtimeout},
-		{"accel", &fn_accel}
+		{"accel", &fn_accel},
+		{"test_aes", &fn_test_aes}
 };
 
 void fn_help(void)
