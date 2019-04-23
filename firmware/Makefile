@@ -18,6 +18,7 @@ DEBUG_FLAGS += -g -gdwarf-2
 CFLAGS += $(DEBUG_FLAGS)
 CFLAGS += $(TARGET_ARCH)
 CFLAGS += -std=c99 -DNDEBUG=1 -DEFM32HG222F64=1
+CFLAGS += -O3 -Wall -fmessage-length=0 -ffunction-sections -fdata-sections
 
 LDFLAGS += -T "Tail.ld" -Xlinker --gc-sections -Xlinker -Map="Tail.map" --specs=nano.specs
 SYSLIBS = -Wl,--start-group -lgcc -lc -lnosys -Wl,--end-group # TODO rename?
