@@ -297,8 +297,6 @@ void proto_update_battery(void)
     else {
     	device.adc_volts = device.adc_volts - (device.adc_volts >> BATTERY_FILTER) + volts;
     }
-    write_int(proto_battery_volts());
-    write_string("\r\n");
 }
 
 uint16_t proto_battery_volts(void)
