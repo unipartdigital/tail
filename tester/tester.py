@@ -222,6 +222,9 @@ class TesterApp(App):
         self.stop_test()
         self.root.ids['test_screen'].stop()
 
+    def shutdown(self):
+        os.system("sudo shutdown now -h")
+
     pass
 
 class RootWidget(Screen):
