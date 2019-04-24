@@ -99,6 +99,10 @@ typedef int config_iterator;
 void config_enumerate_start(config_iterator *iterator);
 config_key config_enumerate(config_iterator *iterator);
 
+/* Check if a given iterator is valid. True if valid, false
+ * otherwise.
+ */
+bool config_enumerate_valid(config_iterator *iterator);
 
 const char *config_key_to_name(config_key key);
 config_key config_key_from_name(const char *name);
@@ -106,5 +110,21 @@ config_key config_key_from_name(const char *name);
 /* Same rules as for config_enumerate */
 void config_enumerate_key_names_start(config_key *key);
 const char *config_enumerate_key_names(config_key *key);
+
+
+/* To do an atomic write on a number of keys:
+ * int free = config_freespace();
+ * int delta = 0;
+ * for each key:
+ *   delta += config_space_required_for_key(key length);
+ *   delta -= config_space_used_by_key(key id);
+ * if (free < delta)
+ *   report out of space error;
+ */
+
+int config_freespace(void);
+int config_space_used_by_key(config_key key);
+int config_space_required_for_key(int len);
+
 
 #endif

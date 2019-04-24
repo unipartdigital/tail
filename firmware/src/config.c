@@ -201,7 +201,7 @@ int config_get(config_key key, uint8_t *data, int maxlen)
 	return len;
 }
 
-#define CONFIG_SPACE_FOR_KEY(offset, len) ((offset >= 0) && (offset < (CONFIG_AREA_SIZE - CONFIG_TOTLEN(len)) - CONFIG_HEADER_SIZE))
+#define CONFIG_SPACE_FOR_KEY(offset, len) ((offset >= 0) && (offset < CONFIG_AREA_SIZE - CONFIG_ALIGN(len) - 2*CONFIG_HEADER_SIZE))
 bool config_put(config_key key, uint8_t *data, int len)
 {
 	int offset;
@@ -273,6 +273,44 @@ config_key config_enumerate(config_iterator *iterator)
 	key = CONFIG_KEY(*iterator);
 	*iterator += CONFIG_TOTLEN(*iterator);
     return key;
+}
+
+bool config_enumerate_valid(config_iterator *iterator)
+{
+	if (*iterator >= (CONFIG_AREA_SIZE - CONFIG_HEADER_SIZE))
+		return CONFIG_KEY_INVALID;
+
+	int offset;
+	for (offset = CONFIG_AREA_OFFSET; (offset < (CONFIG_AREA_SIZE - CONFIG_HEADER_SIZE)) && (CONFIG_KEY(offset) != CONFIG_KEY_UNPROGRAMMED); offset += CONFIG_TOTLEN(offset))
+		if (offset == *iterator)
+			return true;
+
+	return false;
+}
+
+int config_freespace(void)
+{
+	int offset, count;
+	count = 0;
+	for (offset = CONFIG_AREA_OFFSET; (offset < (CONFIG_AREA_SIZE - CONFIG_HEADER_SIZE)) && (CONFIG_KEY(offset) != CONFIG_KEY_UNPROGRAMMED); offset += CONFIG_TOTLEN(offset))
+		count += CONFIG_TOTLEN(offset);
+
+    return CONFIG_AREA_SIZE - CONFIG_AREA_OFFSET - CONFIG_HEADER_SIZE - count;
+}
+
+int config_space_used_by_key(config_key key)
+{
+	int offset = config_find(key);
+
+	if (offset < 0)
+		return 0;
+
+	return CONFIG_TOTLEN(offset);
+}
+
+int config_space_required_for_key(int len)
+{
+	return CONFIG_HEADER_SIZE + CONFIG_ALIGN(len);
 }
 
 uint8_t config_get8(config_key key)
