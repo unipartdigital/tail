@@ -7,6 +7,7 @@
 
 void battery_init(void);
 uint16_t battery_read(void);
-uint8_t battery_state(uint16_t voltage);
+int battery_state(uint16_t voltage);
+bool battery_flat(uint16_t voltage);
 
 #endif /* _BATTERY_H */

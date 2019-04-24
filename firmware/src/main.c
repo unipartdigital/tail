@@ -4,6 +4,7 @@
 #include "em_gpio.h"
 #include "em_leuart.h"
 #include "em_emu.h"
+#include "em_rmu.h"
 
 #include "common.h"
 #include "radio.h"
@@ -92,6 +93,46 @@ int main(void)
    * for the LFXO to be stable.
    */
   uart_init();
+
+  uint32_t reset_cause = RMU_ResetCauseGet();
+  RMU_ResetCauseClear();
+
+
+#define RMU_RSTCAUSE_PORST_XMASK         0x00000000UL
+#define RMU_RSTCAUSE_BODUNREGRST_XMASK   0x00000081UL
+#define RMU_RSTCAUSE_BODREGRST_XMASK     0x00000091UL
+#define RMU_RSTCAUSE_EXTRST_XMASK        0x00000001UL
+#define RMU_RSTCAUSE_WDOGRST_XMASK       0x00000003UL
+#define RMU_RSTCAUSE_LOCKUPRST_XMASK     0x0000EFDFUL
+#define RMU_RSTCAUSE_SYSREQRST_XMASK     0x0000EF9FUL
+#define RMU_RSTCAUSE_EM4RST_XMASK        0x00000719UL
+#define RMU_RSTCAUSE_EM4WURST_XMASK      0x00000619UL
+#define RMU_RSTCAUSE_BODAVDD0_XMASK      0x0000041FUL
+#define RMU_RSTCAUSE_BODAVDD1_XMASK      0x0000021FUL
+
+  if (reset_cause & RMU_RSTCAUSE_PORST)
+	  write_string("Power on reset\r\n");
+  if (reset_cause & RMU_RSTCAUSE_BODUNREGRST)
+	  write_string("Brownout in unregulated domain\r\n");
+  if (reset_cause & RMU_RSTCAUSE_BODREGRST)
+	  write_string("Brownout in regulated domain\r\n");
+  if (reset_cause & RMU_RSTCAUSE_EXTRST)
+	  write_string("External reset\r\n");
+  if (reset_cause & RMU_RSTCAUSE_WDOGRST)
+	  write_string("Watchdog reset\r\n");
+  if (reset_cause & RMU_RSTCAUSE_LOCKUPRST)
+	  write_string("Lockup reset\r\n");
+  if (reset_cause & RMU_RSTCAUSE_SYSREQRST)
+	  write_string("System requested reset\r\n");
+  if (reset_cause & RMU_RSTCAUSE_EM4RST)
+	  write_string("Woke up from EM4\r\n");
+  if (reset_cause & RMU_RSTCAUSE_EM4WURST)
+	  write_string("Woken from EM4 by pin\r\n");
+  if (reset_cause & RMU_RSTCAUSE_BODAVDD0)
+	  write_string("Brownout in analogue domain 0\r\n");
+  if (reset_cause & RMU_RSTCAUSE_BODAVDD1)
+	  write_string("Brownout in analogue domain 1\r\n");
+  write_hex(reset_cause);
 
   if (accel_present)
       write_string("Accelerometer detected\r\n");

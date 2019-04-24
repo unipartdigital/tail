@@ -46,5 +46,6 @@ void set_antenna_delay_rx(uint16_t delay);
 int proto_volts(void);
 int proto_temp(void);
 void proto_prepare_immediate(void);
+uint16_t proto_battery_volts(void);
 
 #endif

@@ -31,6 +31,11 @@
 
 #define DWTIME_TO_MILLIMETRES(x) ((x)*SPEED_OF_LIGHT/(128*499200))
 
+/* Periods in nominal ms */
+#define PERIOD_DEFAULT_ACTIVE  1000
+#define PERIOD_DEFAULT_IDLE  100000
+#define PERIOD_BATTERY_FLAT  600000
+
 
 struct {
 	volatile bool in_rxdone;
@@ -61,6 +66,7 @@ typedef struct {
 	uint32_t adc_volts;
 	uint64_t turnaround_delay;
 	uint32_t rxtimeout;
+	bool reset_requested;
 } device_t;
 
 device_t device = {
@@ -81,7 +87,8 @@ device_t device = {
 		.radio_temp_cal = 0,
 		.adc_volts = 0,
 		.turnaround_delay = TURNAROUND_DELAY,
-		.rxtimeout = 10000
+		.rxtimeout = 10000,
+		.reset_requested = false
 };
 
 #define MAX_ANCHORS 8
@@ -106,6 +113,7 @@ typedef struct {
 	int min_responses;
 	int responses_sent;
 	bool idle;
+	bool ranging_aborted;
 } tag_data_t;
 
 #define DEFAULT_TARGET_ADDR {.type = ADDR_SHORT, .pan = PAN_BROADCAST, .a.s = 0xffff}
@@ -122,7 +130,8 @@ tag_data_t tag_data = {
 		.max_anchors = 0,
 		.min_responses = 0,
 		.responses_sent = 0,
-		.idle = false
+		.idle = false,
+		.ranging_aborted = false
 };
 
 #define READ16(buf, i) (buf[i] + (buf[i+1] << 8))
@@ -152,6 +161,8 @@ tag_data_t tag_data = {
 
 #define TAIL_MAGIC                          0x37
 #define TAIL_MAGIC_ENCRYPTED                0x38
+#define TAIL_MAGIC_RESET_REQUEST            0xcafe
+#define TAIL_MAGIC_RESET_RESPONSE           0xdada
 
 #define TAIL_FRAME_BLINK                    0x00
 #define TAIL_FRAME_BLINK_IV                 0x08
@@ -286,11 +297,18 @@ void proto_update_battery(void)
     else {
     	device.adc_volts = device.adc_volts - (device.adc_volts >> BATTERY_FILTER) + volts;
     }
+    write_int(proto_battery_volts());
+    write_string("\r\n");
 }
 
 uint16_t proto_battery_volts(void)
 {
 	return device.adc_volts >> BATTERY_FILTER;
+}
+
+bool proto_battery_flat(void)
+{
+    return battery_flat(proto_battery_volts());
 }
 
 void proto_init(void)
@@ -342,10 +360,14 @@ void proto_txdone(void)
 		device.txtime_ptr = NULL;
 	}
 
-	if (device.receive_after_transmit && (tag_data.responses_sent == 0))
-	    start_rx();
-	else
-	    tail_finish_ranging(); /* clears radio_active if done */
+	if (tag_data.ranging_aborted)
+		device.radio_active = false;
+	else {
+		if (device.receive_after_transmit && (tag_data.responses_sent == 0))
+			start_rx();
+		else
+			tail_finish_ranging(); /* clears radio_active if done */
+	}
 
 	GPIO_PinOutToggle(gpioPortA, 1);
 	debug.in_txdone = false;
@@ -416,6 +438,11 @@ void tag_set_event(uint32_t now)
 		tag_data.idle = true;
 	}
 
+	if (proto_battery_flat()) {
+		if (period < PERIOD_BATTERY_FLAT)
+			period = PERIOD_BATTERY_FLAT;
+	}
+
     uint32_t time = time_add(tag_data.last_event, period);
     time_event_at(tag_start, time);
 }
@@ -436,7 +463,7 @@ address_t my_mac_address(void)
 
 void tag_start(void)
 {
-    int offset, iecount, iecountoffset;
+    int offset, ftoffset, iecount, iecountoffset;
     uint8_t voltage, temperature;
 
     tag_data.active = true;
@@ -444,12 +471,15 @@ void tag_start(void)
     tag_data.last_event = time_now();
     tag_set_event(tag_data.last_event);
 
+    if (proto_battery_flat())
+    	return;
+
     proto_header(txbuf);
     offset = proto_dest(txbuf, &tag_data.target_mac_addr);
     offset = proto_source(txbuf, offset);
     txbuf[offset++] = TAIL_MAGIC;
 
-    int frame_type = TAIL_FRAME_BLINK | TAIL_FRAME_BLINK_IE;
+    int frame_type = TAIL_FRAME_BLINK;
     int flags = 0;
 
     if (device.receive_after_transmit)
@@ -459,6 +489,7 @@ void tag_start(void)
     	flags |= TAIL_FLAGS_ACCEL;
 
     /* payload goes here */
+    ftoffset = offset;
     txbuf[offset++] = frame_type;
     txbuf[offset++] = flags;
 
@@ -470,9 +501,12 @@ void tag_start(void)
     txbuf[offset++] = 0;
     iecount = 0;
 
-    txbuf[offset++] = TAIL_IE_BATTERY;
-    txbuf[offset++] = battery_state(volts);
-    iecount++;
+    int battery = battery_state(volts);
+    if (battery >= 0) {
+        txbuf[offset++] = TAIL_IE_BATTERY;
+        txbuf[offset++] = battery_state(volts);
+        iecount++;
+    }
 
     txbuf[offset++] = TAIL_IE_DEBUG;
     txbuf[offset++] = 6; /* Length of debug field */
@@ -484,6 +518,9 @@ void tag_start(void)
     txbuf[offset++] = volts >> 8;
     iecount++;
 
+    if (iecount > 0)
+    	txbuf[ftoffset] = frame_type | TAIL_FRAME_BLINK_IE;
+
     txbuf[iecountoffset] = iecount;
 
     radio_writepayload(txbuf, offset, 0);
@@ -492,9 +529,9 @@ void tag_start(void)
     device.txtime_ptr = &tag_data.tx_stamp;
     tag_data.anchors_heard = 0;
     tag_data.responses_sent = 0;
+    tag_data.ranging_aborted = false;
 	device.radio_active = true;
 
-	write_string("<");
 	radio_txstart(false);
 }
 
@@ -528,9 +565,9 @@ void tag(void)
 	uint32_t period_idle = 0;
 	uint32_t transition_time = 0;
 	if (config_get(config_key_tag_period, (uint8_t *)&period_active, sizeof(int)) <= 0)
-		period_active = 1000;
+		period_active = PERIOD_DEFAULT_ACTIVE; // 1000;
 	if (config_get(config_key_tag_period_idle, (uint8_t *)&period_idle, sizeof(int)) <= 0)
-		period_idle = 100000;
+		period_idle = PERIOD_DEFAULT_IDLE; // 100000;
 	if (config_get(config_key_tag_transition_time, (uint8_t *)&transition_time, sizeof(int)) <= 0)
 		transition_time = 10;
 	tag_with_period(TIME_FROM_MS((uint64_t)period_active), TIME_FROM_MS((uint64_t)period_idle), TIME_FROM_SECONDS((uint64_t)transition_time));
@@ -562,6 +599,8 @@ void proto_poll()
     	    radio_entersleep();
     	}
     }
+    if (!device.radio_active && device.reset_requested)
+    	NVIC_SystemReset();
 }
 
 /* Called when the radio may be asleep and we need to get ready for action */
@@ -569,10 +608,12 @@ void proto_prepare(void)
 {
     if (!device.radio_sleeping)
     	return;
+    proto_update_battery();
+    if (proto_battery_flat())
+    	return;
     device.radio_sleeping = false;
     /* Keep the radio awake until it is used */
     device.radio_active = true;
-    proto_update_battery();
     radio_wakeup();
     radio_wakeup_adc_readings(&device.radio_volts, &device.radio_temp);
 }
@@ -584,8 +625,10 @@ void proto_prepare_immediate(void)
 {
     if (!device.radio_sleeping)
     	return;
-    device.radio_sleeping = false;
     proto_update_battery();
+    if (proto_battery_flat())
+    	return;
+    device.radio_sleeping = false;
     radio_wakeup();
     radio_wakeup_adc_readings(&device.radio_volts, &device.radio_temp);
 }
@@ -790,6 +833,131 @@ bool tail_timing(packet_t *p, int hlen)
     return false;
 }
 
+#define CHECK_PADDING(p, roffset) do { \
+	    int i = (roffset); \
+	    while (i < (p)->len) \
+	    	if ((p)->payload[i++] != 0) \
+	    		return false; \
+    } while (0)
+
+/* We need to check if the encrypted data, rounded up to 16 bytes,
+ * plus the MAC, plus any unencrypted data, fits within the buffer
+ */
+
+#define ROUND16(n) (((n) + 15) & ~0xf)
+
+#define FITS_IN_BUFFER(encryption_start, offset, n) \
+	((ROUND16((offset) - (encryption_start) + (n)) + 16 + encryption_start) <= BUFLEN)
+
+bool tail_config(packet_t *p, int hlen)
+{
+	int roffset = hlen;
+    int subtype = p->payload[roffset++] & 0x0f;
+
+    /* We're not going to process any more incoming packets after
+     * receiving a config request, until the next blink.
+     */
+    radio_txrxoff();
+    tag_data.ranging_aborted = true;
+
+	int offset = proto_reply(txbuf, p);
+    txbuf[offset++] = TAIL_MAGIC_ENCRYPTED;
+    int encryption_start = offset;
+    int len = p->len - 2; /* Length of payload after frame header */
+    /* Note that we don't necessarily know the exact length, because it
+     * will be rounded up to a crypto block size. It should however be
+     * padded with zeros.
+     */
+
+    switch (subtype) {
+    case TAIL_FRAME_CONFIG_RESET:
+    	if (len < 2)
+    		return false;
+    	int magic = READ16(p->payload, roffset);
+    	roffset += 2;
+    	if (magic != TAIL_MAGIC_RESET_REQUEST)
+    		return false;
+    	CHECK_PADDING(p, roffset);
+    	device.reset_requested = true;
+    	txbuf[offset++] = TAIL_FRAME_CONFIG_RESPONSE | TAIL_FRAME_CONFIG_RESET;
+        WRITE16(txbuf, offset, TAIL_MAGIC_RESET_RESPONSE);
+        offset += 2;
+        break;
+    case TAIL_FRAME_CONFIG_ENUMERATE:
+    	if (len < 2)
+    		return false;
+    	config_iterator iterator = READ16(p->payload, roffset);
+    	roffset += 2;
+    	CHECK_PADDING(p, roffset);
+    	txbuf[offset++] = TAIL_FRAME_CONFIG_RESPONSE | TAIL_FRAME_CONFIG_ENUMERATE;
+    	int values = 0;
+    	int iterator_offset = offset;
+    	offset += 2;
+    	int values_offset = offset;
+    	offset++;
+    	if (iterator == 0)
+    		config_enumerate_start(&iterator);
+		else
+			if (!config_enumerate_valid(&iterator))
+				return false;
+		while (FITS_IN_BUFFER(encryption_start, offset, 2)) {
+			config_key key = config_enumerate(&iterator);
+			if (key == CONFIG_KEY_INVALID) {
+				iterator = 0;
+				break;
+			} else {
+				WRITE16(txbuf, offset, key);
+				offset += 2;
+				values++;
+			}
+		}
+        txbuf[iterator_offset] = iterator;
+        txbuf[values_offset] = values;
+        break;
+    case TAIL_FRAME_CONFIG_READ:
+    	if (len < 1)
+    		return false;
+        int count = p->payload[roffset++];
+        if (len < 1 + 2*count)
+        	return false;
+    	CHECK_PADDING(p, roffset+2*count);
+    	txbuf[offset++] = TAIL_FRAME_CONFIG_RESPONSE | TAIL_FRAME_CONFIG_READ;
+    	int keys_written = 0;
+    	int keys_offset = offset++;
+    	for (int i = 0; i < count; i++) {
+    		config_key key = READ16(p->payload, roffset);
+    		roffset += 2;
+    		WRITE16(txbuf, offset, key);
+    		int keylen = config_get(key, txbuf + offset + 3, BUFLEN-offset-1);
+    		if (keylen < 0)
+    			continue;
+        	offset += 2;
+        	txbuf[offset++] = keylen;
+        	if (!FITS_IN_BUFFER(encryption_start, offset, keylen)) {
+        		offset -= 3;
+        		break;
+        	}
+        	offset += keylen;
+        	keys_written++;
+    	}
+    	txbuf[keys_offset] = keys_written;
+        break;
+    case TAIL_FRAME_CONFIG_WRITE:
+    case TAIL_FRAME_CONFIG_SALT:
+    case TAIL_FRAME_CONFIG_TEST:
+    default:
+    	return false;
+    }
+
+    // offset = crypto_encrypt(txbuf + encryption_start, offset - encryption_start) + encryption_start;
+
+    radio_writepayload(txbuf, offset, 0);
+    radio_txprepare(offset+2, 0, true);
+    radio_txstart(false);
+
+    return true;
+}
+
 bool tag_rx(packet_t *p)
 {
 	bool encrypted = false;
@@ -801,7 +969,7 @@ bool tag_rx(packet_t *p)
 
 #if 0
     if (encrypted)
-    	proto_decrypt(...);
+    	crypto_decrypt(...);
 #endif
 
 	/* Decode tail packet and despatch */
@@ -813,8 +981,7 @@ bool tag_rx(packet_t *p)
 	case TAIL_FRAME_CONFIG_REQUEST:
 		if (!encrypted)
 			break;
-		/* XXX we need to implement this */
-		// tail_config(p, hlen);
+		tail_config(p, p->hlen);
 		return false;
 	default:
 		break;
@@ -936,6 +1103,7 @@ bool proto_despatch(uint8_t *buf, int len)
 		/* Data */
 		switch (buf[pp]) {
 		case TAIL_MAGIC:
+		case TAIL_MAGIC_ENCRYPTED:
 			return tag_rx(&p);
 		}
 		break;

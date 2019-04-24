@@ -31,22 +31,29 @@ uint16_t battery_read(void)
 
 /* mV */
 #define FULL_SCALE 5000
-#define FULL  READING_FOR_MV(4100)
+#define FULL  READING_FOR_MV(4150)
 #define MIN   READING_FOR_MV(2000)
 #define EMPTY READING_FOR_MV(3600)
 
 #define READING_FOR_MV(x) ((32768 * (x)) / FULL_SCALE)
 
-uint8_t battery_state(uint16_t voltage)
+/* Returns 0-255 for battery state, or -1 if no info */
+int battery_state(uint16_t voltage)
 {
     if (voltage > FULL)
-        return 254;
+        return 255;
     if (voltage < MIN)
-        return 0; /* No information */
+        return -1; /* No information */
     if (voltage < EMPTY)
-        return 1;
+        return 0;
     /* For now, let's use a linear estimator. This needs to be
      * updated after discharge curve measurements.
      */
-    return ((253 * (voltage - EMPTY)) / (FULL - EMPTY)) + 1;
+    return ((255 * (voltage - EMPTY)) / (FULL - EMPTY));
+}
+
+bool battery_flat(uint16_t voltage)
+{
+	return false;
+	return (voltage < EMPTY);
 }

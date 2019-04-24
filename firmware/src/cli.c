@@ -13,6 +13,7 @@
 #include "radio_reg.h"
 #include "proto.h"
 #include "accel.h"
+#include "battery.h"
 
 #include "em_msc.h"
 
@@ -618,6 +619,14 @@ void fn_status(void)
     write_string("\r\n");
 }
 
+void fn_battery(void)
+{
+	uint16_t volts = proto_battery_volts();
+	int status = battery_state(volts);
+    write_int(status);
+    write_string("\r\n");
+}
+
 void fn_help_config(void)
 {
 	write_string("Recognised config variables:\r\n");
@@ -703,7 +712,8 @@ static command command_table[] = {
 		{"smartpower", &fn_smartpower},
 		{"turnaround_delay", &fn_turnaround_delay},
 		{"rxtimeout", &fn_rxtimeout},
-		{"accel", &fn_accel}
+		{"accel", &fn_accel},
+		{"battery", &fn_battery}
 };
 
 void fn_help(void)
