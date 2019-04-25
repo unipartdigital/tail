@@ -11,13 +11,10 @@ static uint32_t frequency;
 static void (*handler)(void);
 static volatile bool running;
 
-#include "uart.h"
-
 void TIMER0_IRQHandler(void)
 {
 	TIMER_IntClear(TIMER0, TIMER_IntGet(TIMER0));
 	running = false;
-	write_string("!");
         if (handler != NULL)
             handler();
 }
@@ -79,14 +76,12 @@ void timer_start(void)
 {
 	running = true;
         TIMER_Enable(TIMER0, true);
-        write_string("E");
 }
 
 void timer_stop(void)
 {
         TIMER_Enable(TIMER0, false);
         running = false;
-        write_string(".");
 }
 
 bool timer_prepare_sleep(void)
