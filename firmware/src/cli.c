@@ -15,6 +15,7 @@
 #include "accel.h"
 #include "battery.h"
 
+#include "aes_cmac_test.h"
 #include "em_msc.h"
 
 /* 127 bytes for the tx command should fit in this */
@@ -685,6 +686,14 @@ typedef struct {
 
 void fn_help(void);
 
+void fn_test_cmac(void) {
+    test_subkey();
+    test_cmac_empty();
+    test_cmac16();
+    test_cmac40();
+    test_cmac64();
+}
+
 static command command_table[] = {
 		{"help", &fn_help},
 		{"help_config", &fn_help_config},
@@ -713,7 +722,8 @@ static command command_table[] = {
 		{"turnaround_delay", &fn_turnaround_delay},
 		{"rxtimeout", &fn_rxtimeout},
 		{"accel", &fn_accel},
-		{"battery", &fn_battery}
+		{"battery", &fn_battery},
+		{"test_cmac", &fn_test_cmac}
 };
 
 void fn_help(void)
