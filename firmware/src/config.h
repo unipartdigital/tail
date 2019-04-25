@@ -41,7 +41,8 @@
 	X(accel_count,       0x0020) \
 	X_OBSOLETE(tag_two_way,       0x0021) \
 	X(tag_max_anchors,   0x0022) \
-	X(tag_min_responses, 0x0023)
+	X(tag_min_responses, 0x0023) \
+	X(allow_flat_battery, 0x0024)
 
 #define CONFIG_KEY_INVALID 0x0000
 

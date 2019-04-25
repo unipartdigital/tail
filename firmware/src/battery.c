@@ -9,11 +9,15 @@
 #include "battery.h"
 #include "adc.h"
 
-void battery_init(void)
+static bool battery_allow_flat;
+
+void battery_init(bool allow_flat)
 {
     GPIO_PinModeSet(gpioPortD, 7, gpioModePushPull, 0);
 
     adc_init();
+
+    battery_allow_flat = allow_flat;
 }
 
 uint16_t battery_read(void)
@@ -54,6 +58,8 @@ int battery_state(uint16_t voltage)
 
 bool battery_flat(uint16_t voltage)
 {
-	return false;
-	return (voltage < EMPTY);
+	if (battery_allow_flat)
+		return false;
+	else
+		return (voltage < EMPTY);
 }

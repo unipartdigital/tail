@@ -339,7 +339,8 @@ void proto_init(void)
     device.radio_sleeping = false;
 
     radio_read_adc_cal(&device.radio_volts_cal, &device.radio_temp_cal);
-    battery_init();
+
+    battery_init(config_get8(config_key_allow_flat_battery));
     proto_update_battery();
 
     time_early_wakeup(proto_prepare, PROTO_PREPARETIME);
