@@ -4,6 +4,7 @@
 #include "aes_x86.h"
 #include "util.h"
 
+/* https://tools.ietf.org/html/rfc4493 */
 void generate_subkey(uint8_t *k1, uint8_t *k2, const uint8_t *k) {
     uint8_t const_zero[16];
     uint8_t const_rb[16];
@@ -81,17 +82,10 @@ void aes_cmac(uint8_t *cmac, uint8_t *msg, uint32_t len, uint8_t *key) {
     for (int i = 0; i < nblocks - 1; i++) {
         memcpy(y, x, bsize);
         xor128(y, msg + i * bsize);
-        /*printf("\nafter xor\n");
-        show_mem_dbg(y, 16);
-        show_mem_dbg(x, 16);
-        show_mem_dbg(key, 16);*/
         aes_ecb128(x, y, bsize, key, true);
-        //printf("after AES\n");
-        //show_mem_dbg(x, 16);
     }
 
     memcpy(y, m_last, bsize);
     xor128(y, x);
     aes_ecb128(cmac, y, bsize, key, true);
 }
-

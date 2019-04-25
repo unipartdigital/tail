@@ -33,4 +33,3 @@ void check_aes_test(uint8_t *out, uint8_t *expected, int blocks) {
         show_mem_dbg(out, blocks * 16);
     }
 }
-
