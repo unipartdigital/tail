@@ -4,10 +4,6 @@
 #include "aes_x86.h"
 #include "util.h"
 
-// REMOVE
-#include <stdio.h>
-#include "x86_util.h"
-
 void generate_subkey(uint8_t *k1, uint8_t *k2, const uint8_t *k) {
     uint8_t const_zero[16];
     uint8_t const_rb[16];
