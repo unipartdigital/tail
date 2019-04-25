@@ -7,6 +7,7 @@
 #include "config.h"
 #include "accel.h"
 #include "battery.h"
+#include "timer.h"
 
 #include "em_gpio.h"
 
@@ -18,11 +19,16 @@
 /* Note that TIME refers to system time and DWTIME refers
  * to the time on the DW1000.
  */
-#define DWTIME_TO_SECONDS(x) ((x)/(128*4992*100000))
+
+#define DWCLOCK (499200000)
+
+#define DWTIME_TO_SECONDS(x) ((x)/((uint64_t)128*4992*100000))
 #define DWTIME_TO_NANOSECONDS(x) (10000*(x)/(128*4992))
 #define DWTIME_TO_PICOSECONDS(x) (10000000*(x)/(128*4992))
 
 #define MICROSECONDS_TO_DWTIME(x) ((x)*((uint64_t)128*4992)/10)
+
+#define DWTIME_SUB(x, y) (((x) - (y)) & 0xffffffffff)
 
 /* This is the default value */
 #define TURNAROUND_DELAY MICROSECONDS_TO_DWTIME(700)
@@ -67,6 +73,9 @@ typedef struct {
 	uint64_t turnaround_delay;
 	uint32_t rxtimeout;
 	bool reset_requested;
+	uint32_t rxwindow;
+	uint64_t rxstarttime;
+	uint64_t rxendtime;
 } device_t;
 
 device_t device = {
@@ -88,7 +97,10 @@ device_t device = {
 		.adc_volts = 0,
 		.turnaround_delay = TURNAROUND_DELAY,
 		.rxtimeout = 10000,
-		.reset_requested = false
+		.reset_requested = false,
+		.rxwindow = false,
+		.rxstarttime = 0,
+		.rxendtime = 0
 };
 
 #define MAX_ANCHORS 8
@@ -278,6 +290,7 @@ bool proto_despatch(uint8_t *buf, int len);
 void proto_prepare(void);
 address_t my_mac_address(void);
 void tail_finish_ranging(void);
+void proto_rxtimer(void);
 
 
 radio_callbacks proto_callbacks = {
@@ -331,16 +344,39 @@ void proto_init(void)
 
     time_early_wakeup(proto_prepare, PROTO_PREPARETIME);
 
+    timer_init();
+    timer_sethandler(proto_rxtimer);
+
     if (configured)
         tag();
 }
 
+void proto_update_window(void)
+{
+	uint32_t frequency = timer_frequency();
+
+	if (device.rxwindow == 0) {
+		uint64_t window = (((uint64_t)device.rxtimeout*512) * frequency) / DWCLOCK;
+		device.rxwindow = window;
+	} else {
+		uint64_t delta = DWTIME_SUB(device.rxendtime, device.rxstarttime);
+		device.rxwindow = (uint64_t)device.rxwindow * device.rxtimeout*512*128 / delta;
+	}
+}
+
 void start_rx(void)
 {
+	uint8_t time[5];
+
 	device.radio_active = true;
 	radio_autoreceive(true);
-    radio_setrxtimeout(device.rxtimeout);
+    radio_setrxtimeout(0); // device.rxtimeout
+    timer_set(device.rxwindow);
 	radio_rxstart(false);
+	timer_start();
+
+	radio_gettime(time);
+	device.rxstarttime = TIMESTAMP_READ(time);
 }
 
 void proto_txdone(void)
@@ -402,6 +438,19 @@ void proto_rxtimeout(void)
 	tag_data.last_stamp = TIMESTAMP_READ(time);
 	tail_finish_ranging(); /* clears radio_active if done */
 	debug.in_rxtimeout = false;
+}
+
+void proto_rxtimer(void)
+{
+	uint8_t time[5];
+
+	radio_txrxoff();
+
+	radio_gettime(time);
+	tag_data.last_stamp = TIMESTAMP_READ(time);
+	device.rxendtime = TIMESTAMP_READ(time);
+	tail_finish_ranging(); /* clears radio_active if done */
+	proto_update_window();
 }
 
 void proto_rxerror(void)
@@ -554,6 +603,9 @@ void tag_with_period(int period, int period_idle, int transition_time)
 
 	device.receive_after_transmit = (tag_data.max_anchors > 0);
 
+	device.rxwindow = 0;
+    proto_update_window();
+
 	tag_start();
 }
 
@@ -576,7 +628,8 @@ void stop(void)
     radio_callbacks callbacks = { NULL, NULL, NULL, NULL };
     radio_setcallbacks(&callbacks);
 	time_event_clear(tag_start);
-    radio_txrxoff();
+    timer_stop();
+	radio_txrxoff();
     device.radio_active = false;
     tag_data.active = false;
 }
@@ -824,6 +877,7 @@ bool tail_timing(packet_t *p, int hlen)
 
 	if (tag_data.anchors_heard >= tag_data.max_anchors) {
 		radio_txrxoff();
+		timer_stop();
 		tail_finish_ranging();
 		return true;
 	}
@@ -856,6 +910,7 @@ bool tail_config(packet_t *p, int hlen)
      * receiving a config request, until the next blink.
      */
     radio_txrxoff();
+    timer_stop();
     tag_data.ranging_aborted = true;
 
 	int offset = proto_reply(txbuf, p);

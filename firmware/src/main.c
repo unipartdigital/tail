@@ -16,6 +16,7 @@
 #include "time.h"
 #include "config.h"
 #include "proto.h"
+#include "timer.h"
 
 #define CLOCK_DEBUG 0
 
@@ -217,6 +218,8 @@ int main(void)
         if (!uart_prepare_sleep())
         	continue;
         if (!time_prepare_sleep())
+        	continue;
+        if (!timer_prepare_sleep())
         	continue;
         EMU_EnterEM2(true);
     }
