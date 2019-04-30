@@ -163,7 +163,7 @@ int main(void)
 
   accel_enter_mode(ACCEL_SNIFF);
 
-    radio_leds(true, 1);
+    radio_leds(true, config_get8(config_key_radio_leds));
 
     uint8_t byte;
 
