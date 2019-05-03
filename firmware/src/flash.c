@@ -10,7 +10,7 @@ void flash_write(void *addr, void *data, int len)
 	MSC_WriteWord(addr, data, len & ~3);
 	if (len & 3) {
 		uint8_t b[4] = {0xff, 0xff, 0xff, 0xff};
-		memcpy(b, data + (len & ~3), len);
+		memcpy(b, data + (len & ~3), len & 3);
 		MSC_WriteWord(addr + (len & ~3), b, 4);
 	}
 	MSC_Deinit();
