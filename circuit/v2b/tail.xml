@@ -1,0 +1,1418 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<export version="D">
+  <design>
+    <source>/home/gavan/Nextcloud/unipart/git/tail/circuit/v2b/tail.sch</source>
+    <date>Fri 03 May 2019 18:22:07 BST</date>
+    <tool>Eeschema 4.0.7-e2-6376~61~ubuntu18.04.1</tool>
+    <sheet number="1" name="/" tstamps="/">
+      <title_block>
+        <title/>
+        <company/>
+        <rev/>
+        <date/>
+        <source>tail.sch</source>
+        <comment number="1" value=""/>
+        <comment number="2" value=""/>
+        <comment number="3" value=""/>
+        <comment number="4" value=""/>
+      </title_block>
+    </sheet>
+  </design>
+  <components>
+    <comp ref="U1">
+      <value>DWM1000</value>
+      <footprint>tail:DWM1000</footprint>
+      <fields>
+        <field name="MFR">Decawave</field>
+        <field name="MPN">DWM1000</field>
+        <field name="SPR">DigiKey</field>
+        <field name="SPN">1479-1002-1-ND</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="tail" part="DWM1000"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>58D154EE</tstamp>
+    </comp>
+    <comp ref="J25">
+      <value>USB_OTG</value>
+      <footprint>tail:USB_Micro-B_SMD</footprint>
+      <fields>
+        <field name="MFR">Molex</field>
+        <field name="MPN">47346-0001</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">1568026</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="conn" part="USB_OTG"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>58D8FE71</tstamp>
+    </comp>
+    <comp ref="J19">
+      <value>LiPo</value>
+      <footprint>Connectors_JST:JST_SH_SM02B-SRSS-TB_02x1.00mm_Angled</footprint>
+      <fields>
+        <field name="MFR">JST</field>
+        <field name="MPN">SM02B-SRSS-TB (LF)(SN)</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">1679117</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="tail-cache" part="CONN_01X02"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>58D93C6F</tstamp>
+    </comp>
+    <comp ref="U2">
+      <value>EFM32HG222F64</value>
+      <footprint>EnergyMicro:EFM32_TQFP48</footprint>
+      <fields>
+        <field name="MFR">Silicon Labs</field>
+        <field name="MPN">EFM32HG222F64G-B-QFP48</field>
+        <field name="SPR">Mouser</field>
+        <field name="SPN">634-HG222F64GBQFP48</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="tail" part="EFM32HG222F64"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>58E24C3B</tstamp>
+    </comp>
+    <comp ref="U4">
+      <value>XC6215B332NR</value>
+      <footprint>tail:SSOT-24</footprint>
+      <fields>
+        <field name="MFR">Torex</field>
+        <field name="MPN">XC6215B332NR</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">1057811</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="tail" part="XC6215B332NR"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>58E24DEB</tstamp>
+    </comp>
+    <comp ref="C14">
+      <value>100n</value>
+      <footprint>Capacitors_SMD:C_0603</footprint>
+      <fields>
+        <field name="MFR">Multicomp</field>
+        <field name="MPN">MC0603B104K500CT</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">1759122</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="device" part="C_Small"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>58E2BD30</tstamp>
+    </comp>
+    <comp ref="D1">
+      <value>RED</value>
+      <footprint>LEDs:LED_0603</footprint>
+      <fields>
+        <field name="MFR">Kingbright</field>
+        <field name="MPN">KP-1608SURCK</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">2290329</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="device" part="LED_Small"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>58E38ED8</tstamp>
+    </comp>
+    <comp ref="D2">
+      <value>RED</value>
+      <footprint>LEDs:LED_0603</footprint>
+      <fields>
+        <field name="MFR">Kingbright</field>
+        <field name="MPN">KP-1608SURCK</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">2290329</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="device" part="LED_Small"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>58E38F4B</tstamp>
+    </comp>
+    <comp ref="D4">
+      <value>RED</value>
+      <footprint>LEDs:LED_0603</footprint>
+      <fields>
+        <field name="MFR">Kingbright</field>
+        <field name="MPN">KP-1608SURCK</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">2290329</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="device" part="LED_Small"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>58E38FAC</tstamp>
+    </comp>
+    <comp ref="D3">
+      <value>RED</value>
+      <footprint>LEDs:LED_0603</footprint>
+      <fields>
+        <field name="MFR">Kingbright</field>
+        <field name="MPN">KP-1608SURCK</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">2290329</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="device" part="LED_Small"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>58E39013</tstamp>
+    </comp>
+    <comp ref="R3">
+      <value>150</value>
+      <footprint>Resistors_SMD:R_0603</footprint>
+      <fields>
+        <field name="MFR">Multicomp</field>
+        <field name="MPN">MCWR06X1500FTL</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">2447255</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="device" part="R"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>58E39219</tstamp>
+    </comp>
+    <comp ref="R4">
+      <value>150</value>
+      <footprint>Resistors_SMD:R_0603</footprint>
+      <fields>
+        <field name="MFR">Multicomp</field>
+        <field name="MPN">MCWR06X1500FTL</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">2447255</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="device" part="R"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>58E3926A</tstamp>
+    </comp>
+    <comp ref="R6">
+      <value>150</value>
+      <footprint>Resistors_SMD:R_0603</footprint>
+      <fields>
+        <field name="MFR">Multicomp</field>
+        <field name="MPN">MCWR06X1500FTL</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">2447255</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="device" part="R"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>58E393D0</tstamp>
+    </comp>
+    <comp ref="R5">
+      <value>150</value>
+      <footprint>Resistors_SMD:R_0603</footprint>
+      <fields>
+        <field name="MFR">Multicomp</field>
+        <field name="MPN">MCWR06X1500FTL</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">2447255</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="device" part="R"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>58E39447</tstamp>
+    </comp>
+    <comp ref="R8">
+      <value>100K</value>
+      <footprint>Resistors_SMD:R_0603</footprint>
+      <fields>
+        <field name="MFR">Multicomp</field>
+        <field name="MPN">MCWR06X1003FTL</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">2447226</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="device" part="R"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>58E50655</tstamp>
+    </comp>
+    <comp ref="R9">
+      <value>100K</value>
+      <footprint>Resistors_SMD:R_0603</footprint>
+      <fields>
+        <field name="MFR">Multicomp</field>
+        <field name="MPN">MCWR06X1003FTL</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">2447226</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="device" part="R"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>58E506FE</tstamp>
+    </comp>
+    <comp ref="Q1">
+      <value>Q_NMOS_GSD</value>
+      <footprint>TO_SOT_Packages_SMD:SOT-323_SC-70</footprint>
+      <fields>
+        <field name="MFR">Nexperia</field>
+        <field name="MPN">NX3020NAKW</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">2311183</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="device" part="Q_NMOS_GSD"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>58E5076D</tstamp>
+    </comp>
+    <comp ref="C2">
+      <value>10u</value>
+      <footprint>Capacitors_SMD:C_0603</footprint>
+      <fields>
+        <field name="MFR">Murata</field>
+        <field name="MPN">ZRB18AR61E106ME01L</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">2469398</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="device" part="C_Small"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>58E52A22</tstamp>
+    </comp>
+    <comp ref="U5">
+      <value>MCP73831-2-OT</value>
+      <footprint>TO_SOT_Packages_SMD:SOT-23-5</footprint>
+      <fields>
+        <field name="MFR">Microchip</field>
+        <field name="MPN">MCP73831T-2ACI/OT</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">1332158</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="battery_management" part="MCP73831-2-OT"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>58E5591F</tstamp>
+    </comp>
+    <comp ref="R10">
+      <value>5.1K</value>
+      <footprint>Resistors_SMD:R_0603</footprint>
+      <fields>
+        <field name="MFR">Multicomp</field>
+        <field name="MPN">MCWR06X5101FTL</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">2447404</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="device" part="R_Small"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>58E57310</tstamp>
+    </comp>
+    <comp ref="C18">
+      <value>4.7uF</value>
+      <footprint>Capacitors_SMD:C_0603</footprint>
+      <fields>
+        <field name="MFR">Murata</field>
+        <field name="MPN">GRM188R60J475ME19D</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">2362095</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="device" part="C_Small"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>58E575DB</tstamp>
+    </comp>
+    <comp ref="R11">
+      <value>470</value>
+      <footprint>Resistors_SMD:R_0603</footprint>
+      <fields>
+        <field name="MFR">Multicomp</field>
+        <field name="MPN">MCWR06X4700FTL</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">2447374</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="device" part="R_Small"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>58E5786C</tstamp>
+    </comp>
+    <comp ref="D5">
+      <value>RED</value>
+      <footprint>LEDs:LED_0603</footprint>
+      <fields>
+        <field name="MFR">Kingbright</field>
+        <field name="MPN">KP-1608SURCK</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">2290329</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="device" part="LED_Small_ALT"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>58E57935</tstamp>
+    </comp>
+    <comp ref="C16">
+      <value>4.7uF</value>
+      <footprint>Capacitors_SMD:C_0603</footprint>
+      <fields>
+        <field name="MFR">Murata</field>
+        <field name="MPN">GRM188R60J475ME19D</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">2362095</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="device" part="C_Small"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>58E57EDD</tstamp>
+    </comp>
+    <comp ref="J11">
+      <value>UART</value>
+      <footprint>tail:UART_Pads</footprint>
+      <fields>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="tail-cache" part="CONN_01X03"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>58E62B2B</tstamp>
+    </comp>
+    <comp ref="J9">
+      <value>DEBUG</value>
+      <footprint>tail:Debug_Pads</footprint>
+      <fields>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="conn" part="Conn_02x03_Odd_Even"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>58ECB849</tstamp>
+    </comp>
+    <comp ref="C4">
+      <value>100n</value>
+      <footprint>Capacitors_SMD:C_0603</footprint>
+      <fields>
+        <field name="MFR">Multicomp</field>
+        <field name="MPN">MC0603B104K500CT</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">1759122</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="device" part="C_Small"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>58ECCEB4</tstamp>
+    </comp>
+    <comp ref="C5">
+      <value>100n</value>
+      <footprint>Capacitors_SMD:C_0603</footprint>
+      <fields>
+        <field name="MFR">Multicomp</field>
+        <field name="MPN">MC0603B104K500CT</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">1759122</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="device" part="C_Small"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>58ECCFAD</tstamp>
+    </comp>
+    <comp ref="C6">
+      <value>100n</value>
+      <footprint>Capacitors_SMD:C_0603</footprint>
+      <fields>
+        <field name="MFR">Multicomp</field>
+        <field name="MPN">MC0603B104K500CT</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">1759122</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="device" part="C_Small"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>58ECD034</tstamp>
+    </comp>
+    <comp ref="C7">
+      <value>100n</value>
+      <footprint>Capacitors_SMD:C_0603</footprint>
+      <fields>
+        <field name="MFR">Multicomp</field>
+        <field name="MPN">MC0603B104K500CT</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">1759122</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="device" part="C_Small"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>58ECD0B7</tstamp>
+    </comp>
+    <comp ref="C8">
+      <value>100n</value>
+      <footprint>Capacitors_SMD:C_0603</footprint>
+      <fields>
+        <field name="MFR">Multicomp</field>
+        <field name="MPN">MC0603B104K500CT</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">1759122</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="device" part="C_Small"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>58ECD148</tstamp>
+    </comp>
+    <comp ref="C10">
+      <value>100n</value>
+      <footprint>Capacitors_SMD:C_0603</footprint>
+      <fields>
+        <field name="MFR">Multicomp</field>
+        <field name="MPN">MC0603B104K500CT</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">1759122</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="device" part="C_Small"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>58ECD1CF</tstamp>
+    </comp>
+    <comp ref="C12">
+      <value>10u</value>
+      <footprint>Capacitors_SMD:C_0603</footprint>
+      <fields>
+        <field name="MFR">Murata</field>
+        <field name="MPN">ZRB18AR61E106ME01L</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">2469398</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="device" part="C_Small"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>58ECD254</tstamp>
+    </comp>
+    <comp ref="C13">
+      <value>1u</value>
+      <footprint>Capacitors_SMD:C_0603</footprint>
+      <fields>
+        <field name="MFR">Multicomp</field>
+        <field name="MPN">MC0603B105K160CT</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">2320814</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="device" part="C_Small"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>58ED1A12</tstamp>
+    </comp>
+    <comp ref="Y1">
+      <value>32.768kHz CFPX-217 20ppm 7pF</value>
+      <footprint>Crystals:Crystal_SMD_3215-2pin_3.2x1.5mm</footprint>
+      <fields>
+        <field name="MFR">IQD Frequency Products</field>
+        <field name="MPN">LFXTAL009709</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">2449501</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="device" part="Crystal_Small"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>58ED2694</tstamp>
+    </comp>
+    <comp ref="C1">
+      <value>8p</value>
+      <footprint>Capacitors_SMD:C_0603</footprint>
+      <fields>
+        <field name="MFR">Multicomp</field>
+        <field name="MPN">MC0603N8R0D500CT</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">1759051</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="device" part="C_Small"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>58ED27A6</tstamp>
+    </comp>
+    <comp ref="C3">
+      <value>8p</value>
+      <footprint>Capacitors_SMD:C_0603</footprint>
+      <fields>
+        <field name="MFR">Multicomp</field>
+        <field name="MPN">MC0603N8R0D500CT</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">1759051</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="device" part="C_Small"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>58ED285B</tstamp>
+    </comp>
+    <comp ref="C15">
+      <value>1u</value>
+      <footprint>Capacitors_SMD:C_0603</footprint>
+      <fields>
+        <field name="MFR">Multicomp</field>
+        <field name="MPN">MC0603B105K160CT</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">2320814</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="device" part="C_Small"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>58F19010</tstamp>
+    </comp>
+    <comp ref="C17">
+      <value>100n</value>
+      <footprint>Capacitors_SMD:C_0603</footprint>
+      <fields>
+        <field name="MFR">Multicomp</field>
+        <field name="MPN">MC0603B104K500CT</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">1759122</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="device" part="C_Small"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>58F190C5</tstamp>
+    </comp>
+    <comp ref="U3">
+      <value>MC3630</value>
+      <footprint>tail:VLGA-12</footprint>
+      <fields>
+        <field name="MFR">mCube</field>
+        <field name="MPN">MC3630</field>
+        <field name="SPR">Mouser</field>
+        <field name="SPN">498-MC3630</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="tail" part="MC3630"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>58E24CBA</tstamp>
+    </comp>
+    <comp ref="FID1">
+      <value>Fiducial</value>
+      <footprint>Fiducials:Fiducial_1mm_Dia_2.54mm_Outer_CopperTop</footprint>
+      <fields>
+        <field name="MFR">-</field>
+        <field name="MPN">-</field>
+        <field name="SPR">-</field>
+        <field name="SPN">-</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="SymbolsSimilarEN60617+oldDIN617-RevE8" part="Dummy_FIDUCIAL_Passermarke_Type1_RevE_Date16Nov2011"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>590B5F08</tstamp>
+    </comp>
+    <comp ref="FID2">
+      <value>Fiducial</value>
+      <footprint>Fiducials:Fiducial_1mm_Dia_2.54mm_Outer_CopperTop</footprint>
+      <fields>
+        <field name="MFR">-</field>
+        <field name="MPN">-</field>
+        <field name="SPR">-</field>
+        <field name="SPN">-</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="SymbolsSimilarEN60617+oldDIN617-RevE8" part="Dummy_FIDUCIAL_Passermarke_Type1_RevE_Date16Nov2011"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>590B5FCB</tstamp>
+    </comp>
+    <comp ref="FID3">
+      <value>Fiducial</value>
+      <footprint>Fiducials:Fiducial_1mm_Dia_2.54mm_Outer_CopperTop</footprint>
+      <fields>
+        <field name="MFR">-</field>
+        <field name="MPN">-</field>
+        <field name="SPR">-</field>
+        <field name="SPN">-</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="SymbolsSimilarEN60617+oldDIN617-RevE8" part="Dummy_FIDUCIAL_Passermarke_Type1_RevE_Date16Nov2011"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>590B606C</tstamp>
+    </comp>
+    <comp ref="SW1">
+      <value>SW_SPDT</value>
+      <footprint>tail:SWITCH_SSSS811101</footprint>
+      <fields>
+        <field name="MFR">ALPS</field>
+        <field name="MPN">SSSS811101</field>
+        <field name="SPR">Mouser</field>
+        <field name="SPN">688-SSSS811101</field>
+      </fields>
+      <libsource lib="tail" part="SW_SPDT_SSSS8"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>5BB37913</tstamp>
+    </comp>
+    <comp ref="J1">
+      <value>LED_DEBUG</value>
+      <footprint>tail:LED_DEBUG_Pads</footprint>
+      <libsource lib="conn" part="Conn_01x05"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>5C3E9938</tstamp>
+    </comp>
+    <comp ref="J2">
+      <value>POWER_DEBUG</value>
+      <footprint>tail:LED_DEBUG_Pads</footprint>
+      <libsource lib="conn" part="Conn_01x05"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>5C40F58A</tstamp>
+    </comp>
+    <comp ref="J3">
+      <value>LiPo</value>
+      <footprint>tail:Battery_SMD</footprint>
+      <fields>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="tail-cache" part="CONN_01X02"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>5C45A9DA</tstamp>
+    </comp>
+    <comp ref="Q2">
+      <value>Q_NMOS_GSD</value>
+      <footprint>TO_SOT_Packages_SMD:SOT-323_SC-70</footprint>
+      <fields>
+        <field name="MFR">Nexperia</field>
+        <field name="MPN">NX3020NAKW</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">2311183</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="device" part="Q_NMOS_GSD"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>5CCC2EF8</tstamp>
+    </comp>
+    <comp ref="Q3">
+      <value>Q_NMOS_GSD</value>
+      <footprint>TO_SOT_Packages_SMD:SOT-323_SC-70</footprint>
+      <fields>
+        <field name="MFR">Nexperia</field>
+        <field name="MPN">NX3020NAKW</field>
+        <field name="SPR">Farnell</field>
+        <field name="SPN">2311183</field>
+        <field name="SPURL">-</field>
+      </fields>
+      <libsource lib="device" part="Q_NMOS_GSD"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamp>5CCC32FE</tstamp>
+    </comp>
+  </components>
+  <libparts>
+    <libpart lib="tail-cache" part="CONN_01X02">
+      <footprints>
+        <fp>Pin_Header_Straight_1X*</fp>
+        <fp>Pin_Header_Angled_1X*</fp>
+        <fp>Socket_Strip_Straight_1X*</fp>
+        <fp>Socket_Strip_Angled_1X*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">J</field>
+        <field name="Value">CONN_01X02</field>
+      </fields>
+      <pins>
+        <pin num="1" name="P1" type="passive"/>
+        <pin num="2" name="P2" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="tail-cache" part="CONN_01X03">
+      <footprints>
+        <fp>Pin_Header_Straight_1X*</fp>
+        <fp>Pin_Header_Angled_1X*</fp>
+        <fp>Socket_Strip_Straight_1X*</fp>
+        <fp>Socket_Strip_Angled_1X*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">J</field>
+        <field name="Value">CONN_01X03</field>
+      </fields>
+      <pins>
+        <pin num="1" name="P1" type="passive"/>
+        <pin num="2" name="P2" type="passive"/>
+        <pin num="3" name="P3" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="device" part="C_Small">
+      <description>Unpolarized capacitor</description>
+      <footprints>
+        <fp>C_*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">C</field>
+        <field name="Value">C_Small</field>
+      </fields>
+      <pins>
+        <pin num="1" name="~" type="passive"/>
+        <pin num="2" name="~" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="conn" part="Conn_01x05">
+      <description>Generic connector, single row, 01x05</description>
+      <docs>~</docs>
+      <footprints>
+        <fp>Connector*:*_??x*mm*</fp>
+        <fp>Connector*:*1x??x*mm*</fp>
+        <fp>Pin?Header?Straight?1X*</fp>
+        <fp>Pin?Header?Angled?1X*</fp>
+        <fp>Socket?Strip?Straight?1X*</fp>
+        <fp>Socket?Strip?Angled?1X*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">J</field>
+        <field name="Value">Conn_01x05</field>
+      </fields>
+      <pins>
+        <pin num="1" name="Pin_1" type="passive"/>
+        <pin num="2" name="Pin_2" type="passive"/>
+        <pin num="3" name="Pin_3" type="passive"/>
+        <pin num="4" name="Pin_4" type="passive"/>
+        <pin num="5" name="Pin_5" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="conn" part="Conn_02x03_Odd_Even">
+      <description>Generic connector, double row, 02x03, odd/even pin numbering scheme (row 1 odd numbers, row 2 even numbers)</description>
+      <docs>~</docs>
+      <footprints>
+        <fp>Connector*:*2x??x*mm*</fp>
+        <fp>Connector*:*2x???Pitch*</fp>
+        <fp>Pin_Header_Straight_2X*</fp>
+        <fp>Pin_Header_Angled_2X*</fp>
+        <fp>Socket_Strip_Straight_2X*</fp>
+        <fp>Socket_Strip_Angled_2X*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">J</field>
+        <field name="Value">Conn_02x03_Odd_Even</field>
+      </fields>
+      <pins>
+        <pin num="1" name="Pin_1" type="passive"/>
+        <pin num="2" name="Pin_2" type="passive"/>
+        <pin num="3" name="Pin_3" type="passive"/>
+        <pin num="4" name="Pin_4" type="passive"/>
+        <pin num="5" name="Pin_5" type="passive"/>
+        <pin num="6" name="Pin_6" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="device" part="Crystal_Small">
+      <description>Two pin crystal, small symbol</description>
+      <footprints>
+        <fp>Crystal*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">Y</field>
+        <field name="Value">Crystal_Small</field>
+      </fields>
+      <pins>
+        <pin num="1" name="1" type="passive"/>
+        <pin num="2" name="2" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="tail" part="DWM1000">
+      <fields>
+        <field name="Reference">U</field>
+        <field name="Value">DWM1000</field>
+      </fields>
+      <pins>
+        <pin num="1" name="EXTON" type="output"/>
+        <pin num="2" name="WAKEUP" type="BiDi"/>
+        <pin num="3" name="RSTn" type="BiDi"/>
+        <pin num="4" name="GPIO7" type="BiDi"/>
+        <pin num="5" name="VDDAON" type="power_in"/>
+        <pin num="6" name="VDD3V3" type="power_in"/>
+        <pin num="7" name="VDD3V3" type="power_in"/>
+        <pin num="8" name="VSS" type="power_in"/>
+        <pin num="9" name="GPIO6/SPIPHA" type="BiDi"/>
+        <pin num="10" name="GPIO5/SPIPOL" type="BiDi"/>
+        <pin num="11" name="GPIO4" type="BiDi"/>
+        <pin num="12" name="GPIO3/TXLED" type="BiDi"/>
+        <pin num="13" name="GPIO2/RXLED" type="BiDi"/>
+        <pin num="14" name="GPIO1/SFDLED" type="BiDi"/>
+        <pin num="15" name="GPIO0/RXOKLED" type="BiDi"/>
+        <pin num="16" name="VSS" type="power_in"/>
+        <pin num="17" name="SPICSn" type="input"/>
+        <pin num="18" name="SPIMOSI" type="input"/>
+        <pin num="19" name="SPIMISO" type="output"/>
+        <pin num="20" name="SPICLK" type="input"/>
+        <pin num="21" name="VSS" type="power_in"/>
+        <pin num="22" name="IRQ/GPIO8" type="BiDi"/>
+        <pin num="23" name="VSS" type="power_in"/>
+        <pin num="24" name="VSS" type="power_in"/>
+      </pins>
+    </libpart>
+    <libpart lib="SymbolsSimilarEN60617+oldDIN617-RevE8" part="Dummy_FIDUCIAL_Passermarke_Type1_RevE_Date16Nov2011">
+      <fields>
+        <field name="Reference">FID</field>
+        <field name="Value">Dummy_FIDUCIAL_Passermarke_Type1_RevE_Date16Nov2011</field>
+      </fields>
+      <pins>
+        <pin num="~" name="~" type="NotConnected"/>
+      </pins>
+    </libpart>
+    <libpart lib="tail" part="EFM32HG222F64">
+      <description>Happy Gecko 25MHz QFP48</description>
+      <footprints>
+        <fp>QFP48</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">U</field>
+        <field name="Value">EFM32HG222F64</field>
+      </fields>
+      <pins>
+        <pin num="1" name="PA0" type="BiDi"/>
+        <pin num="2" name="PA1" type="BiDi"/>
+        <pin num="3" name="PA2" type="BiDi"/>
+        <pin num="4" name="IOVDD_0" type="power_in"/>
+        <pin num="5" name="VSS" type="power_in"/>
+        <pin num="6" name="PC0" type="BiDi"/>
+        <pin num="7" name="PC1" type="BiDi"/>
+        <pin num="8" name="PC2" type="BiDi"/>
+        <pin num="9" name="PC3" type="BiDi"/>
+        <pin num="10" name="PC4" type="BiDi"/>
+        <pin num="11" name="PB7" type="BiDi"/>
+        <pin num="12" name="PB8" type="BiDi"/>
+        <pin num="13" name="PA8" type="BiDi"/>
+        <pin num="14" name="PA9" type="BiDi"/>
+        <pin num="15" name="PA10" type="BiDi"/>
+        <pin num="16" name="RESETn" type="input"/>
+        <pin num="17" name="PB11" type="BiDi"/>
+        <pin num="18" name="VSS" type="power_in"/>
+        <pin num="19" name="AVDD_1" type="power_in"/>
+        <pin num="20" name="PB13" type="BiDi"/>
+        <pin num="21" name="PB14" type="BiDi"/>
+        <pin num="22" name="IOVDD_3" type="power_in"/>
+        <pin num="23" name="AVDD_0" type="power_in"/>
+        <pin num="24" name="PD4" type="BiDi"/>
+        <pin num="25" name="PD5" type="BiDi"/>
+        <pin num="26" name="PD6" type="BiDi"/>
+        <pin num="27" name="PD7" type="BiDi"/>
+        <pin num="28" name="VDD_DREG" type="power_in"/>
+        <pin num="29" name="DECOUPLE" type="passive"/>
+        <pin num="30" name="PC8" type="BiDi"/>
+        <pin num="31" name="PC9" type="BiDi"/>
+        <pin num="32" name="PC10" type="BiDi"/>
+        <pin num="33" name="PC11" type="BiDi"/>
+        <pin num="34" name="PC13" type="BiDi"/>
+        <pin num="35" name="PC14" type="BiDi"/>
+        <pin num="36" name="PC15" type="BiDi"/>
+        <pin num="37" name="PF0" type="BiDi"/>
+        <pin num="38" name="PF1" type="BiDi"/>
+        <pin num="39" name="PF2" type="BiDi"/>
+        <pin num="40" name="PF3" type="BiDi"/>
+        <pin num="41" name="PF4" type="BiDi"/>
+        <pin num="42" name="PF5" type="BiDi"/>
+        <pin num="43" name="IOVDD_5" type="power_in"/>
+        <pin num="44" name="VSS" type="power_in"/>
+        <pin num="45" name="PE10" type="BiDi"/>
+        <pin num="46" name="PE11" type="BiDi"/>
+        <pin num="47" name="PE12" type="BiDi"/>
+        <pin num="48" name="PE13" type="BiDi"/>
+      </pins>
+    </libpart>
+    <libpart lib="device" part="LED_Small">
+      <description>LED, small symbol</description>
+      <footprints>
+        <fp>LED-*</fp>
+        <fp>LED_*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">D</field>
+        <field name="Value">LED_Small</field>
+      </fields>
+      <pins>
+        <pin num="1" name="K" type="passive"/>
+        <pin num="2" name="A" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="device" part="LED_Small_ALT">
+      <description>LED, small symbol, alternativ symbol</description>
+      <footprints>
+        <fp>LED-*</fp>
+        <fp>LED_*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">D</field>
+        <field name="Value">LED_Small_ALT</field>
+      </fields>
+      <pins>
+        <pin num="1" name="K" type="passive"/>
+        <pin num="2" name="A" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="tail" part="MC3630">
+      <fields>
+        <field name="Reference">U</field>
+        <field name="Value">MC3630</field>
+      </fields>
+      <pins>
+        <pin num="1" name="DOUT_A1" type="BiDi"/>
+        <pin num="2" name="DIN_SDA" type="BiDi"/>
+        <pin num="3" name="VDDIO" type="power_in"/>
+        <pin num="4" name="VPP" type="power_in"/>
+        <pin num="5" name="INTN" type="output"/>
+        <pin num="6" name="NC" type="NotConnected"/>
+        <pin num="7" name="VDD" type="power_in"/>
+        <pin num="8" name="NC" type="NotConnected"/>
+        <pin num="9" name="GND" type="power_in"/>
+        <pin num="10" name="CSN" type="input"/>
+        <pin num="11" name="NC" type="NotConnected"/>
+        <pin num="12" name="SCK_SCL" type="input"/>
+      </pins>
+    </libpart>
+    <libpart lib="battery_management" part="MCP73832-2-OT">
+      <aliases>
+        <alias>MCP73832-5-OT</alias>
+        <alias>MCP73832-4-OT</alias>
+        <alias>MCP73832-3-OT</alias>
+        <alias>MCP73831-2-OT</alias>
+        <alias>MCP73831-5-OT</alias>
+        <alias>MCP73831-4-OT</alias>
+        <alias>MCP73831-3-OT</alias>
+      </aliases>
+      <description>Single cell, Li-Ion/Li-Po charge management controller, 4.20V, Open-Drain Status Output, in SOT23-5 package</description>
+      <docs>http://ww1.microchip.com/downloads/en/DeviceDoc/20001984g.pdf</docs>
+      <fields>
+        <field name="Reference">U</field>
+        <field name="Value">MCP73832-2-OT</field>
+        <field name="Footprint">TO_SOT_Packages_SMD:SOT-23-5</field>
+      </fields>
+      <pins>
+        <pin num="1" name="STAT" type="output"/>
+        <pin num="2" name="Vss" type="power_in"/>
+        <pin num="3" name="Vbat" type="power_out"/>
+        <pin num="4" name="Vdd" type="power_in"/>
+        <pin num="5" name="PROG" type="input"/>
+      </pins>
+    </libpart>
+    <libpart lib="device" part="Q_NMOS_GSD">
+      <description>Transistor N-MOSFETwith substrate diode (general)</description>
+      <fields>
+        <field name="Reference">Q</field>
+        <field name="Value">Q_NMOS_GSD</field>
+      </fields>
+      <pins>
+        <pin num="1" name="G" type="input"/>
+        <pin num="2" name="S" type="passive"/>
+        <pin num="3" name="D" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="device" part="R">
+      <description>Resistor</description>
+      <footprints>
+        <fp>R_*</fp>
+        <fp>R_*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">R</field>
+        <field name="Value">R</field>
+      </fields>
+      <pins>
+        <pin num="1" name="~" type="passive"/>
+        <pin num="2" name="~" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="device" part="R_Small">
+      <description>Resistor, small symbol</description>
+      <footprints>
+        <fp>R_*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">R</field>
+        <field name="Value">R_Small</field>
+      </fields>
+      <pins>
+        <pin num="1" name="~" type="passive"/>
+        <pin num="2" name="~" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="tail" part="SW_SPDT_SSSS8">
+      <description>Switch, single pole double throw</description>
+      <fields>
+        <field name="Reference">SW</field>
+        <field name="Value">SW_SPDT_SSSS8</field>
+      </fields>
+      <pins>
+        <pin num="1" name="B" type="passive"/>
+        <pin num="2" name="C" type="passive"/>
+        <pin num="3" name="A" type="passive"/>
+        <pin num="4" name="Body" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="conn" part="USB_OTG">
+      <description>USB mini/micro connector</description>
+      <footprints>
+        <fp>USB*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">J</field>
+        <field name="Value">USB_OTG</field>
+      </fields>
+      <pins>
+        <pin num="1" name="VBUS" type="power_in"/>
+        <pin num="2" name="D-" type="passive"/>
+        <pin num="3" name="D+" type="passive"/>
+        <pin num="4" name="ID" type="passive"/>
+        <pin num="5" name="GND" type="power_in"/>
+        <pin num="6" name="Shield" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="tail" part="XC6215B332NR">
+      <description>3.3V Low Quiescent Current LDO</description>
+      <footprints>
+        <fp>SSOT-24</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">U</field>
+        <field name="Value">XC6215B332NR</field>
+      </fields>
+      <pins>
+        <pin num="1" name="CE" type="input"/>
+        <pin num="2" name="VSS" type="power_in"/>
+        <pin num="3" name="VOUT" type="power_out"/>
+        <pin num="4" name="VIN" type="power_in"/>
+      </pins>
+    </libpart>
+  </libparts>
+  <libraries>
+    <library logical="SymbolsSimilarEN60617+oldDIN617-RevE8">
+      <uri>/usr/share/kicad/library/contrib_symbols_dl1eic/SymbolsSimilarEN60617+oldDIN617-RevE8.lib</uri>
+    </library>
+    <library logical="tail-cache">
+      <uri>/home/gavan/Nextcloud/unipart/git/tail/circuit/v2b/tail-cache.lib</uri>
+    </library>
+    <library logical="conn">
+      <uri>/usr/share/kicad/library/conn.lib</uri>
+    </library>
+    <library logical="device">
+      <uri>/usr/share/kicad/library/device.lib</uri>
+    </library>
+    <library logical="tail">
+      <uri>/home/gavan/Nextcloud/unipart/git/tail/circuit/v2b/tail.lib</uri>
+    </library>
+    <library logical="battery_management">
+      <uri>/usr/share/kicad/library/battery_management.lib</uri>
+    </library>
+  </libraries>
+  <nets>
+    <net code="1" name="Net-(C1-Pad1)">
+      <node ref="U2" pin="11"/>
+      <node ref="C1" pin="1"/>
+      <node ref="Y1" pin="1"/>
+    </net>
+    <net code="2" name="Net-(C3-Pad1)">
+      <node ref="C3" pin="1"/>
+      <node ref="Y1" pin="2"/>
+      <node ref="U2" pin="12"/>
+    </net>
+    <net code="3" name="Net-(C13-Pad1)">
+      <node ref="U2" pin="29"/>
+      <node ref="C13" pin="1"/>
+    </net>
+    <net code="4" name="Net-(C18-Pad1)">
+      <node ref="U5" pin="3"/>
+      <node ref="J19" pin="1"/>
+      <node ref="SW1" pin="2"/>
+      <node ref="J2" pin="3"/>
+      <node ref="J3" pin="1"/>
+      <node ref="C18" pin="1"/>
+    </net>
+    <net code="5" name="ACCEL_INTN">
+      <node ref="U2" pin="10"/>
+      <node ref="U3" pin="5"/>
+    </net>
+    <net code="6" name="Net-(D5-Pad1)">
+      <node ref="U5" pin="1"/>
+      <node ref="D5" pin="1"/>
+    </net>
+    <net code="7" name="Net-(D2-Pad2)">
+      <node ref="J1" pin="4"/>
+      <node ref="D2" pin="2"/>
+      <node ref="U1" pin="13"/>
+    </net>
+    <net code="8" name="GND">
+      <node ref="C12" pin="2"/>
+      <node ref="SW1" pin="4"/>
+      <node ref="U2" pin="18"/>
+      <node ref="C14" pin="1"/>
+      <node ref="U4" pin="2"/>
+      <node ref="J1" pin="1"/>
+      <node ref="U2" pin="44"/>
+      <node ref="C13" pin="2"/>
+      <node ref="U5" pin="2"/>
+      <node ref="R5" pin="2"/>
+      <node ref="C7" pin="2"/>
+      <node ref="C5" pin="2"/>
+      <node ref="C8" pin="2"/>
+      <node ref="C4" pin="2"/>
+      <node ref="J3" pin="2"/>
+      <node ref="C6" pin="2"/>
+      <node ref="C10" pin="2"/>
+      <node ref="U3" pin="9"/>
+      <node ref="U3" pin="4"/>
+      <node ref="C17" pin="2"/>
+      <node ref="C15" pin="2"/>
+      <node ref="R10" pin="2"/>
+      <node ref="J9" pin="5"/>
+      <node ref="C18" pin="2"/>
+      <node ref="J11" pin="3"/>
+      <node ref="C16" pin="2"/>
+      <node ref="U1" pin="16"/>
+      <node ref="C2" pin="2"/>
+      <node ref="R9" pin="2"/>
+      <node ref="R6" pin="2"/>
+      <node ref="R4" pin="2"/>
+      <node ref="R3" pin="2"/>
+      <node ref="U1" pin="23"/>
+      <node ref="J25" pin="6"/>
+      <node ref="J25" pin="5"/>
+      <node ref="U1" pin="24"/>
+      <node ref="U1" pin="21"/>
+      <node ref="U1" pin="8"/>
+      <node ref="C1" pin="2"/>
+      <node ref="C3" pin="2"/>
+      <node ref="U2" pin="5"/>
+      <node ref="J19" pin="2"/>
+      <node ref="J2" pin="5"/>
+    </net>
+    <net code="9" name="+BATT">
+      <node ref="U4" pin="4"/>
+      <node ref="U4" pin="1"/>
+      <node ref="SW1" pin="1"/>
+      <node ref="C15" pin="1"/>
+      <node ref="J2" pin="2"/>
+      <node ref="R8" pin="1"/>
+    </net>
+    <net code="10" name="Net-(D1-Pad2)">
+      <node ref="J1" pin="5"/>
+      <node ref="D1" pin="2"/>
+      <node ref="U1" pin="12"/>
+    </net>
+    <net code="11" name="Net-(D4-Pad2)">
+      <node ref="D4" pin="2"/>
+      <node ref="U1" pin="14"/>
+      <node ref="J1" pin="3"/>
+    </net>
+    <net code="12" name="Net-(D3-Pad2)">
+      <node ref="J1" pin="2"/>
+      <node ref="U1" pin="15"/>
+      <node ref="D3" pin="2"/>
+    </net>
+    <net code="13" name="UART_RX">
+      <node ref="U2" pin="25"/>
+      <node ref="Q3" pin="2"/>
+    </net>
+    <net code="14" name="UART_TX">
+      <node ref="U2" pin="24"/>
+      <node ref="Q2" pin="2"/>
+    </net>
+    <net code="15" name="Net-(C16-Pad1)">
+      <node ref="J2" pin="4"/>
+      <node ref="J25" pin="1"/>
+      <node ref="U5" pin="4"/>
+      <node ref="C16" pin="1"/>
+      <node ref="R11" pin="1"/>
+    </net>
+    <net code="16" name="Net-(U2-Pad21)">
+      <node ref="U2" pin="21"/>
+    </net>
+    <net code="17" name="Net-(J25-Pad4)">
+      <node ref="J25" pin="4"/>
+    </net>
+    <net code="18" name="Net-(U2-Pad20)">
+      <node ref="U2" pin="20"/>
+    </net>
+    <net code="19" name="Net-(U2-Pad35)">
+      <node ref="U2" pin="35"/>
+    </net>
+    <net code="20" name="Net-(SW1-Pad3)">
+      <node ref="SW1" pin="3"/>
+    </net>
+    <net code="21" name="Net-(U2-Pad17)">
+      <node ref="U2" pin="17"/>
+    </net>
+    <net code="22" name="Net-(U2-Pad15)">
+      <node ref="U2" pin="15"/>
+    </net>
+    <net code="23" name="Net-(U2-Pad14)">
+      <node ref="U2" pin="14"/>
+    </net>
+    <net code="24" name="Net-(U2-Pad13)">
+      <node ref="U2" pin="13"/>
+    </net>
+    <net code="25" name="Net-(U2-Pad36)">
+      <node ref="U2" pin="36"/>
+    </net>
+    <net code="26" name="Net-(U2-Pad3)">
+      <node ref="U2" pin="3"/>
+    </net>
+    <net code="27" name="Net-(U2-Pad2)">
+      <node ref="U2" pin="2"/>
+    </net>
+    <net code="28" name="Net-(U2-Pad1)">
+      <node ref="U2" pin="1"/>
+    </net>
+    <net code="29" name="Net-(U2-Pad42)">
+      <node ref="U2" pin="42"/>
+    </net>
+    <net code="30" name="Net-(U2-Pad41)">
+      <node ref="U2" pin="41"/>
+    </net>
+    <net code="31" name="Net-(U2-Pad40)">
+      <node ref="U2" pin="40"/>
+    </net>
+    <net code="32" name="Net-(U2-Pad34)">
+      <node ref="U2" pin="34"/>
+    </net>
+    <net code="33" name="Net-(U2-Pad30)">
+      <node ref="U2" pin="30"/>
+    </net>
+    <net code="34" name="Net-(U1-Pad1)">
+      <node ref="U1" pin="1"/>
+    </net>
+    <net code="35" name="Net-(U1-Pad4)">
+      <node ref="U1" pin="4"/>
+    </net>
+    <net code="36" name="Net-(U1-Pad9)">
+      <node ref="U1" pin="9"/>
+    </net>
+    <net code="37" name="Net-(U1-Pad10)">
+      <node ref="U1" pin="10"/>
+    </net>
+    <net code="38" name="Net-(U1-Pad11)">
+      <node ref="U1" pin="11"/>
+    </net>
+    <net code="39" name="DBG_SWO">
+      <node ref="J9" pin="6"/>
+      <node ref="U2" pin="39"/>
+    </net>
+    <net code="40" name="BATT_MON_EN">
+      <node ref="Q1" pin="1"/>
+      <node ref="U2" pin="27"/>
+    </net>
+    <net code="41" name="BATT_MON">
+      <node ref="R9" pin="1"/>
+      <node ref="Q1" pin="2"/>
+      <node ref="U2" pin="26"/>
+    </net>
+    <net code="42" name="DBG_RESET">
+      <node ref="J9" pin="3"/>
+      <node ref="U2" pin="16"/>
+    </net>
+    <net code="43" name="Net-(D3-Pad1)">
+      <node ref="R5" pin="1"/>
+      <node ref="D3" pin="1"/>
+    </net>
+    <net code="44" name="Net-(Q1-Pad3)">
+      <node ref="Q1" pin="3"/>
+      <node ref="R8" pin="2"/>
+    </net>
+    <net code="45" name="Net-(D4-Pad1)">
+      <node ref="R6" pin="1"/>
+      <node ref="D4" pin="1"/>
+    </net>
+    <net code="46" name="Net-(D2-Pad1)">
+      <node ref="D2" pin="1"/>
+      <node ref="R4" pin="1"/>
+    </net>
+    <net code="47" name="Net-(D1-Pad1)">
+      <node ref="D1" pin="1"/>
+      <node ref="R3" pin="1"/>
+    </net>
+    <net code="48" name="UART_RX_HV">
+      <node ref="J25" pin="3"/>
+      <node ref="J11" pin="1"/>
+      <node ref="Q3" pin="3"/>
+    </net>
+    <net code="49" name="UART_TX_HV">
+      <node ref="J11" pin="2"/>
+      <node ref="J25" pin="2"/>
+      <node ref="Q2" pin="3"/>
+    </net>
+    <net code="50" name="RADIO_MISO">
+      <node ref="U2" pin="46"/>
+      <node ref="U1" pin="19"/>
+    </net>
+    <net code="51" name="RADIO_MOSI">
+      <node ref="U1" pin="18"/>
+      <node ref="U2" pin="45"/>
+    </net>
+    <net code="52" name="RADIO_CSN">
+      <node ref="U2" pin="48"/>
+      <node ref="U1" pin="17"/>
+    </net>
+    <net code="53" name="RADIO_SCK">
+      <node ref="U1" pin="20"/>
+      <node ref="U2" pin="47"/>
+    </net>
+    <net code="54" name="ACCEL_PWR">
+      <node ref="J9" pin="1"/>
+      <node ref="C14" pin="2"/>
+      <node ref="U4" pin="3"/>
+      <node ref="U2" pin="19"/>
+      <node ref="U2" pin="28"/>
+      <node ref="J2" pin="1"/>
+      <node ref="C4" pin="1"/>
+      <node ref="C5" pin="1"/>
+      <node ref="C6" pin="1"/>
+      <node ref="C7" pin="1"/>
+      <node ref="C8" pin="1"/>
+      <node ref="Q3" pin="1"/>
+      <node ref="C10" pin="1"/>
+      <node ref="Q2" pin="1"/>
+      <node ref="C12" pin="1"/>
+      <node ref="U1" pin="6"/>
+      <node ref="U1" pin="7"/>
+      <node ref="U3" pin="7"/>
+      <node ref="U3" pin="3"/>
+      <node ref="U1" pin="5"/>
+      <node ref="C17" pin="1"/>
+      <node ref="U2" pin="43"/>
+      <node ref="U2" pin="23"/>
+      <node ref="U2" pin="22"/>
+      <node ref="C2" pin="1"/>
+      <node ref="U2" pin="4"/>
+    </net>
+    <net code="55" name="RADIO_WAKEUP">
+      <node ref="U2" pin="33"/>
+      <node ref="U1" pin="2"/>
+    </net>
+    <net code="56" name="RADIO_RSTN">
+      <node ref="U2" pin="32"/>
+      <node ref="U1" pin="3"/>
+    </net>
+    <net code="57" name="RADIO_IRQ">
+      <node ref="U2" pin="31"/>
+      <node ref="U1" pin="22"/>
+    </net>
+    <net code="58" name="ACCEL_CSN">
+      <node ref="U2" pin="6"/>
+      <node ref="U3" pin="10"/>
+    </net>
+    <net code="59" name="Net-(FID3-Pad~)">
+      <node ref="FID3" pin="~"/>
+    </net>
+    <net code="60" name="Net-(FID2-Pad~)">
+      <node ref="FID2" pin="~"/>
+    </net>
+    <net code="61" name="Net-(FID1-Pad~)">
+      <node ref="FID1" pin="~"/>
+    </net>
+    <net code="62" name="ACCEL_SCK">
+      <node ref="U3" pin="12"/>
+      <node ref="U2" pin="9"/>
+    </net>
+    <net code="63" name="Net-(U3-Pad11)">
+      <node ref="U3" pin="11"/>
+    </net>
+    <net code="64" name="Net-(U3-Pad8)">
+      <node ref="U3" pin="8"/>
+    </net>
+    <net code="65" name="Net-(U3-Pad6)">
+      <node ref="U3" pin="6"/>
+    </net>
+    <net code="66" name="ACCEL_MOSI">
+      <node ref="U3" pin="2"/>
+      <node ref="U2" pin="7"/>
+    </net>
+    <net code="67" name="ACCEL_MISO">
+      <node ref="U2" pin="8"/>
+      <node ref="U3" pin="1"/>
+    </net>
+    <net code="68" name="DBG_SWDCLK">
+      <node ref="U2" pin="37"/>
+      <node ref="J9" pin="4"/>
+    </net>
+    <net code="69" name="DBG_SWDIO">
+      <node ref="J9" pin="2"/>
+      <node ref="U2" pin="38"/>
+    </net>
+    <net code="70" name="Net-(D5-Pad2)">
+      <node ref="D5" pin="2"/>
+      <node ref="R11" pin="2"/>
+    </net>
+    <net code="71" name="Net-(R10-Pad1)">
+      <node ref="U5" pin="5"/>
+      <node ref="R10" pin="1"/>
+    </net>
+  </nets>
+</export>
