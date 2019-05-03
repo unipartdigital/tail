@@ -490,6 +490,18 @@ void fn_delete(void)
 	config_delete(key);
 }
 
+void fn_free(void)
+{
+	int free = config_freespace();
+	write_int(free);
+	write_string("\r\n");
+}
+
+void fn_dump(void)
+{
+	config_dump();
+}
+
 void fn_reset(void)
 {
 	write_string("\r\n");
@@ -695,6 +707,8 @@ static command command_table[] = {
 		{"stop", &fn_stop},
 		{"config", &fn_config},
 		{"delete", &fn_delete},
+		{"free", &fn_free},
+		{"dump", &fn_dump},
 		{"reset", &fn_reset},
 		{"echo", &fn_echo},
 		{"tx", &fn_tx},

@@ -78,6 +78,12 @@ int config_get(config_key key, uint8_t *data, int maxlen);
 /* Writes a key. Returns true if successful or false if not. */
 bool config_put(config_key key, uint8_t *data, int len);
 
+/* Checks if a key and its contents are already in place.
+ * Returns true if a key exists and already has identical contents.
+ * Returns false otherwise.
+ */
+bool config_key_in_place(config_key key, uint8_t *data, int len);
+
 /* Deletes a key. */
 void config_delete(config_key key);
 
@@ -128,5 +134,7 @@ int config_freespace(void);
 int config_space_used_by_key(config_key key);
 int config_space_required_for_key(int len);
 
+/* Debug only - dump internal data structure */
+void config_dump(void);
 
 #endif

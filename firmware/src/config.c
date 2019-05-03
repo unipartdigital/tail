@@ -56,7 +56,7 @@ bool config_valid(uint8_t *addr)
 
    	int offset;
    	for (offset = CONFIG_AREA_OFFSET; offset < CONFIG_AREA_SIZE; offset += CONFIG_TOTLEN(offset)) {
-   		if (offset >= (CONFIG_AREA_SIZE - CONFIG_HEADER_SIZE))
+   		if (offset > (CONFIG_AREA_SIZE - CONFIG_HEADER_SIZE))
    			return false;
        	if (CONFIG_KEY(offset) == CONFIG_KEY_UNPROGRAMMED)
             return true;
@@ -201,11 +201,9 @@ int config_get(config_key key, uint8_t *data, int maxlen)
 	return len;
 }
 
-#define CONFIG_SPACE_FOR_KEY(offset, len) ((offset >= 0) && (offset < CONFIG_AREA_SIZE - CONFIG_ALIGN(len) - 2*CONFIG_HEADER_SIZE))
-bool config_put(config_key key, uint8_t *data, int len)
+bool config_key_in_place(config_key key, uint8_t *data, int len)
 {
 	int offset;
-	uint8_t header[CONFIG_HEADER_SIZE];
 
 	if (len > 0xff)
 		return false;
@@ -221,6 +219,26 @@ bool config_put(config_key key, uint8_t *data, int len)
 				return true; // Data is identical to current contents
 		}
 	}
+
+	return false;
+}
+
+#define CONFIG_SPACE_FOR_KEY(offset, len) ((offset >= 0) && (offset <= CONFIG_AREA_SIZE - CONFIG_ALIGN(len) - 2*CONFIG_HEADER_SIZE))
+bool config_put(config_key key, uint8_t *data, int len)
+{
+	int offset;
+	uint8_t header[CONFIG_HEADER_SIZE];
+
+	if (len > 0xff)
+		return false;
+
+	if (config_key_in_place(key, data, len))
+		return true;
+
+	/* Avoid deleting the key if we know its replacement won't fit */
+	int delta = config_space_required_for_key(len) - config_space_used_by_key(key);
+	if (delta > config_freespace())
+		return false;
 
 	config_delete(key);
 	offset = config_findfree();
@@ -293,7 +311,8 @@ int config_freespace(void)
 	int offset, count;
 	count = 0;
 	for (offset = CONFIG_AREA_OFFSET; (offset < (CONFIG_AREA_SIZE - CONFIG_HEADER_SIZE)) && (CONFIG_KEY(offset) != CONFIG_KEY_UNPROGRAMMED); offset += CONFIG_TOTLEN(offset))
-		count += CONFIG_TOTLEN(offset);
+		if (CONFIG_KEY(offset) != CONFIG_KEY_INVALID)
+			count += CONFIG_TOTLEN(offset);
 
     return CONFIG_AREA_SIZE - CONFIG_AREA_OFFSET - CONFIG_HEADER_SIZE - count;
 }
@@ -366,4 +385,20 @@ const char *config_enumerate_key_names(config_key *key)
 	config_key k = *key;
 	(*key)++;
 	return config_key_table[k].name;
+}
+
+#include "uart.h"
+void config_dump(void)
+{
+	int offset;
+	for (offset = CONFIG_AREA_OFFSET; (offset < (CONFIG_AREA_SIZE - CONFIG_HEADER_SIZE)) && (CONFIG_KEY(offset) != CONFIG_KEY_UNPROGRAMMED); offset += CONFIG_TOTLEN(offset)) {
+		write_hex(offset);
+		write_string(": ");
+		write_hex(CONFIG_KEY(offset));
+		write_string(": ");
+		write_int(CONFIG_LENGTH(offset));
+		write_string(", ");
+		write_int(CONFIG_TOTLEN(offset));
+		write_string("\r\n");
+	}
 }

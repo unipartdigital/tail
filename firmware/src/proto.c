@@ -110,6 +110,8 @@ typedef struct {
 	uint64_t rx_stamp;
 } anchor_ranging_t;
 
+typedef struct packet packet_t;
+
 typedef struct {
 	address_t target_mac_addr;
 	int period_active;
@@ -194,7 +196,8 @@ tag_data_t tag_data = {
 #define TAIL_FRAME_CONFIG_ENUMERATE         0x01
 #define TAIL_FRAME_CONFIG_READ              0x02
 #define TAIL_FRAME_CONFIG_WRITE             0x03
-#define TAIL_FRAME_CONFIG_SALT              0x04
+#define TAIL_FRAME_CONFIG_DELETE            0x04
+#define TAIL_FRAME_CONFIG_SALT              0x05
 #define TAIL_FRAME_CONFIG_TEST              0x0f
 
 #define TAIL_FLAGS_LISTEN                   0x80
@@ -204,6 +207,10 @@ tag_data_t tag_data = {
 
 #define TAIL_IE_BATTERY                     0x00
 #define TAIL_IE_DEBUG                       0xff
+
+#define TAIL_CONFIG_WRITE_SUCCESS			0x00
+#define TAIL_CONFIG_WRITE_ERROR_FULL		0x01
+#define TAIL_CONFIG_WRITE_ERROR_UNKNOWN		0x02
 
 
 /* MAC frame (IEEE 802.15.4-2011)
@@ -635,6 +642,8 @@ void stop(void)
     tag_data.active = false;
 }
 
+bool tail_config(packet_t *p);
+
 void proto_poll()
 {
     if (accel_interrupt_fired()) {
@@ -868,7 +877,7 @@ void tail_finish_ranging(void)
 	tag_data.responses_sent++;
 }
 
-bool tail_timing(packet_t *p, int hlen)
+bool tail_timing(packet_t *p)
 {
 	if (tag_data.anchors_heard < tag_data.max_anchors) {
 		tag_data.anchors[tag_data.anchors_heard].address = p->source;
@@ -902,17 +911,18 @@ bool tail_timing(packet_t *p, int hlen)
 #define FITS_IN_BUFFER(encryption_start, offset, n) \
 	((ROUND16((offset) - (encryption_start) + (n)) + 16 + encryption_start) <= BUFLEN)
 
-bool tail_config(packet_t *p, int hlen)
+bool tail_config(packet_t *p)
 {
-	int roffset = hlen;
-    int subtype = p->payload[roffset++] & 0x0f;
-
     /* We're not going to process any more incoming packets after
      * receiving a config request, until the next blink.
      */
     radio_txrxoff();
     timer_stop();
     tag_data.ranging_aborted = true;
+
+    int roffset = p->hlen;
+    int subtype = p->payload[roffset++] & 0x0f;
+    int count;
 
 	int offset = proto_reply(txbuf, p);
     txbuf[offset++] = TAIL_MAGIC_ENCRYPTED;
@@ -971,7 +981,7 @@ bool tail_config(packet_t *p, int hlen)
     case TAIL_FRAME_CONFIG_READ:
     	if (len < 1)
     		return false;
-        int count = p->payload[roffset++];
+        count = p->payload[roffset++];
         if (len < 1 + 2*count)
         	return false;
     	CHECK_PADDING(p, roffset+2*count);
@@ -997,6 +1007,79 @@ bool tail_config(packet_t *p, int hlen)
     	txbuf[keys_offset] = keys_written;
         break;
     case TAIL_FRAME_CONFIG_WRITE:
+    	if (len < 1)
+    		return false;
+    	count = p->payload[roffset++];
+    	int delta = 0;
+    	int roffset_start = roffset;
+        for (int i = 0; i < count; i++) {
+        	config_key key = READ16(p->payload, roffset);
+        	roffset += 2;
+        	int keylen = p->payload[roffset++];
+        	roffset += keylen;
+        	if (p->len < roffset)
+        		return false;
+        	delta += config_space_required_for_key(keylen);
+        	delta -= config_space_used_by_key(key);
+        }
+        CHECK_PADDING(p, roffset);
+        roffset = roffset_start;
+        txbuf[offset++] = TAIL_FRAME_CONFIG_RESPONSE | TAIL_FRAME_CONFIG_WRITE;
+        int result = TAIL_CONFIG_WRITE_SUCCESS;
+        if (delta <= config_freespace()) {
+        	/* In order to guarantee that we have the free space available
+        	 * regardless of the order in which we write the keys, we need
+        	 * to do a deletion pass first. Don't delete keys which are
+        	 * already in place, in order to avoid unnecessary wear on the flash.
+        	 */
+            for (int i = 0; i < count; i++) {
+            	config_key key = READ16(p->payload, roffset);
+            	roffset += 2;
+            	int keylen = p->payload[roffset++];
+            	if (!config_key_in_place(key, p->payload+roffset, keylen))
+            	    config_delete(key);
+            	roffset += keylen;
+            }
+            roffset = roffset_start;
+            /* And now we can finally start writing the new keys. */
+            for (int i = 0; i < count; i++) {
+            	config_key key = READ16(p->payload, roffset);
+            	roffset += 2;
+            	int keylen = p->payload[roffset++];
+            	/* config_put requires the data to be aligned. We know that we have
+            	 * at least 3 bytes available immediately before the data, so we can
+            	 * use this to destructively align the data prior to calling
+            	 * config_put().
+            	 */
+            	uint8_t *ptr = (uint8_t *)(((uintptr_t)(p->payload + roffset)) & ~3);
+            	if (ptr != p->payload + roffset)
+            	    memmove(ptr, p->payload + roffset, keylen);
+            	if (!config_put(key, ptr, keylen)) {
+            		result = TAIL_CONFIG_WRITE_ERROR_UNKNOWN;
+            	    break;
+            	}
+            	roffset += keylen;
+            }
+        } else {
+        	result = TAIL_CONFIG_WRITE_ERROR_FULL;
+        }
+        txbuf[offset++] = result;
+        break;
+    case TAIL_FRAME_CONFIG_DELETE:
+    	if (len < 1)
+    		return false;
+        count = p->payload[roffset++];
+        if (len < 1 + 2*count)
+        	return false;
+    	CHECK_PADDING(p, roffset+2*count);
+    	txbuf[offset++] = TAIL_FRAME_CONFIG_RESPONSE | TAIL_FRAME_CONFIG_DELETE;
+    	for (int i = 0; i < count; i++) {
+    		config_key key = READ16(p->payload, roffset);
+    		roffset += 2;
+    		config_delete(key);
+    	}
+    	txbuf[offset++] = TAIL_CONFIG_WRITE_SUCCESS;
+        break;
     case TAIL_FRAME_CONFIG_SALT:
     case TAIL_FRAME_CONFIG_TEST:
     default:
@@ -1031,11 +1114,11 @@ bool tag_rx(packet_t *p)
 
 	switch (frame_type & 0xf0) {
 	case TAIL_FRAME_RANGING_REQUEST:
-		return tail_timing(p, p->hlen);
+		return tail_timing(p);
 	case TAIL_FRAME_CONFIG_REQUEST:
 		if (!encrypted)
 			break;
-		tail_config(p, p->hlen);
+		tail_config(p);
 		return false;
 	default:
 		break;
