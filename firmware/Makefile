@@ -10,7 +10,7 @@
 # Modernised example:
 # https://www.oreilly.com/library/view/managing-projects-with/0596006101/ch06.html
 
-all: Tailm.axf
+all: Tailf.axf bootloader.axf
 
 CC = arm-none-eabi-gcc
 TARGET_ARCH = -mcpu=cortex-m0plus -mthumb
@@ -28,7 +28,7 @@ INCDIRS += $(INCDIR_BASE)/device/EFM32HG/Include
 INCDIRS += $(INCDIR_BASE)/cmsis/Include
 CFLAGS += $(patsubst %,-I%,$(INCDIRS))
 
-MODULES := emlib src CMSIS/EFM32HG
+MODULES := emlib src CMSIS/EFM32HG bootloader_src
 SRCS :=
 include $(patsubst %,%/module.mk,$(MODULES))
 
@@ -58,6 +58,8 @@ $(BUILDDIR)/$(CMSIS_EFM32HG_SRC_DIRNAME)/%.o: $(CMSIS_EFM32HG_SRC_DIRNAME)/%.c
 	$(CC) $(DEPFLAGS) $(CFLAGS) $(CMSIS_EFM32HG_CFLAGS) $(OUTPUT_OPTION) -c $<
 	$(POSTCOMPILE)
 
+$(BUILDDIR)/$(BOOTLOADER_SRC_DIRNAME)/startup_efm32.o: $(BOOTLOADER_SRC_DIRNAME)/startup_efm32.s
+
 %.o : $.c
 $(BUILDDIR)/%.o : %.c $(DEPDIR)/%.d
 	$(COMPILE.c) $(OUTPUT_OPTION) $<
@@ -71,6 +73,16 @@ include $(wildcard $(patsubst %,$(DEPDIR)/%.d,$(basename $(SRCS))))
 CMSIS_OBJECTS = $(BUILDDIR)/CMSIS/EFM32HG/startup_gcc_efm32hg.o \
                 $(BUILDDIR)/CMSIS/EFM32HG/system_efm32hg.o
 
+# Build of tail to be loaded from a bootloader
+Tailf.axf: LDFLAGS := -T "Tailf.ld" -Xlinker --gc-sections -Xlinker -Map="Tailf.map" --specs=nano.specs
+Tailf.axf: $(TAIL_OBJECTS) $(CMSIS_OBJECTS)
+	$(CC) $(DEBUG_FLAGS) $(TARGET_ARCH) $(LDFLAGS) -o Tailf.axf $(CMSIS_OBJECTS) $(TAIL_OBJECTS) $(SYSLIBS)
+
+	arm-none-eabi-objcopy -O ihex "Tailf.axf" "Tailf.hex"
+	arm-none-eabi-objcopy -O binary "Tailf.axf" "Tailf.bin"
+	arm-none-eabi-objcopy -O srec "Tailf.axf" "Tailf.s37"
+	arm-none-eabi-size "Tailf.axf"
+
 # Monolithic (no bootloader) build of tail
 Tailm.axf: LDFLAGS := -T "Tailm.ld" -Xlinker --gc-sections -Xlinker -Map="Tailm.map" --specs=nano.specs
 Tailm.axf: $(TAIL_OBJECTS) $(CMSIS_OBJECTS)
@@ -81,9 +93,16 @@ Tailm.axf: $(TAIL_OBJECTS) $(CMSIS_OBJECTS)
 	arm-none-eabi-objcopy -O srec "Tailm.axf" "Tailm.s37"
 	arm-none-eabi-size "Tailm.axf"
 
+BOOTLOADER_OBJECTS := $(patsubst %.c,$(BUILDDIR)/%.o,$(BOOTLOADER_SRCS))
+BOOTLOADER_OBJECTS += $(BUILDDIR)/$(BOOTLOADER_SRC_DIRNAME)/startup_efm32.o
+bootloader.axf: LDFLAGS := -T "Tailb.ld" -Xlinker --gc-sections -Xlinker -Map="Tailb.map" --specs=nano.specs
+bootloader.axf: $(warning $(BOOTLOADER_OBJECTS))
+	$(CC) $(DEBUG_FLAGS) $(TARGET_ARCH) $(LDFLAGS) -o bootloader.axf $(BOOTLOADER_OBJECTS) $(SYSLIBS)
+
 # TODO: make this more defensive
 clean:
 	rm -rf $(DEPDIR) $(BUILDDIR)
 	rm -f Tail*.axf Tail*.hex Tail*.bin Tail*.s37
+	rm -f bootloader*.axf bootloader*.hex bootloader*.bin bootlader*.s37
 
 .PHONY: all clean
