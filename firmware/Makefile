@@ -10,7 +10,7 @@
 # Modernised example:
 # https://www.oreilly.com/library/view/managing-projects-with/0596006101/ch06.html
 
-all: Tail.axf
+all: Tailm.axf
 
 CC = arm-none-eabi-gcc
 TARGET_ARCH = -mcpu=cortex-m0plus -mthumb
@@ -20,7 +20,6 @@ CFLAGS += $(TARGET_ARCH)
 CFLAGS += -std=c99 -DNDEBUG=1 -DEFM32HG222F64=1
 CFLAGS += -O3 -Wall -fmessage-length=0 -ffunction-sections -fdata-sections
 
-LDFLAGS += -T "Tail.ld" -Xlinker --gc-sections -Xlinker -Map="Tail.map" --specs=nano.specs
 SYSLIBS = -Wl,--start-group -lgcc -lc -lnosys -Wl,--end-group # TODO rename?
 
 INCDIR_BASE = $(CURDIR)/efm32-base
@@ -72,17 +71,19 @@ include $(wildcard $(patsubst %,$(DEPDIR)/%.d,$(basename $(SRCS))))
 CMSIS_OBJECTS = $(BUILDDIR)/CMSIS/EFM32HG/startup_gcc_efm32hg.o \
                 $(BUILDDIR)/CMSIS/EFM32HG/system_efm32hg.o
 
-Tail.axf: $(TAIL_OBJECTS) $(CMSIS_OBJECTS)
-	$(CC) $(DEBUG_FLAGS) $(TARGET_ARCH) $(LDFLAGS) -o Tail.axf $(CMSIS_OBJECTS) $(TAIL_OBJECTS) $(SYSLIBS)
+# Monolithic (no bootloader) build of tail
+Tailm.axf: LDFLAGS := -T "Tailm.ld" -Xlinker --gc-sections -Xlinker -Map="Tailm.map" --specs=nano.specs
+Tailm.axf: $(TAIL_OBJECTS) $(CMSIS_OBJECTS)
+	$(CC) $(DEBUG_FLAGS) $(TARGET_ARCH) $(LDFLAGS) -o Tailm.axf $(CMSIS_OBJECTS) $(TAIL_OBJECTS) $(SYSLIBS)
 
-	arm-none-eabi-objcopy -O ihex "Tail.axf" "Tail.hex"
-	arm-none-eabi-objcopy -O binary "Tail.axf" "Tail.bin"
-	arm-none-eabi-objcopy -O srec "Tail.axf" "Tail.s37"
-	arm-none-eabi-size "Tail.axf"
+	arm-none-eabi-objcopy -O ihex "Tailm.axf" "Tailm.hex"
+	arm-none-eabi-objcopy -O binary "Tailm.axf" "Tailm.bin"
+	arm-none-eabi-objcopy -O srec "Tailm.axf" "Tailm.s37"
+	arm-none-eabi-size "Tailm.axf"
 
 # TODO: make this more defensive
 clean:
 	rm -rf $(DEPDIR) $(BUILDDIR)
-	rm -f Tail.axf Tail.hex Tail.bin Tail.s37
+	rm -f Tail*.axf Tail*.hex Tail*.bin Tail*.s37
 
 .PHONY: all clean
