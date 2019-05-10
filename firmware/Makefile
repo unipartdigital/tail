@@ -10,7 +10,8 @@
 # Modernised example:
 # https://www.oreilly.com/library/view/managing-projects-with/0596006101/ch06.html
 
-all: Tailf.axf bootloader.axf
+#all: Tailf.axf bootloader.axf
+all: bootloader.axf
 
 CC = arm-none-eabi-gcc
 TARGET_ARCH = -mcpu=cortex-m0plus -mthumb
@@ -102,8 +103,8 @@ BOOTLOADER_OBJECTS := $(patsubst %.c,$(BUILDDIR)/%.o,$(BOOTLOADER_SRCS))
 BOOTLOADER_OBJECTS += $(BUILDDIR)/$(CMSIS_EFM32HG_SRC_DIRNAME)/startup_gcc_efm32hg.o
 bootloader.axf: LDFLAGS := -T "Tailb.ld" -Xlinker --gc-sections -Xlinker -Map="Tailb.map" --specs=nano.specs
 bootloader.axf: $(BOOTLOADER_OBJECTS)
-	$(warning $(BOOTLOADER_OBJECTS))
-	$(warning $(TAIL_OBJECTS))
+	#$(warning $(BOOTLOADER_OBJECTS))
+	#$(warning $(TAIL_OBJECTS))
 	$(CC) $(DEBUG_FLAGS) $(TARGET_ARCH) $(LDFLAGS) -o bootloader.axf $(BOOTLOADER_OBJECTS) $(SYSLIBS)
 
 # TODO: make this more defensive
