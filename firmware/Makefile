@@ -96,7 +96,9 @@ Tailm.axf: $(TAIL_OBJECTS) $(CMSIS_OBJECTS)
 BOOTLOADER_OBJECTS := $(patsubst %.c,$(BUILDDIR)/%.o,$(BOOTLOADER_SRCS))
 BOOTLOADER_OBJECTS += $(BUILDDIR)/$(BOOTLOADER_SRC_DIRNAME)/startup_efm32.o
 bootloader.axf: LDFLAGS := -T "Tailb.ld" -Xlinker --gc-sections -Xlinker -Map="Tailb.map" --specs=nano.specs
-bootloader.axf: $(warning $(BOOTLOADER_OBJECTS))
+bootloader.axf: $(BOOTLOADER_OBJECTS)
+	$(warning $(BOOTLOADER_OBJECTS))
+	$(warning $(TAIL_OBJECTS))
 	$(CC) $(DEBUG_FLAGS) $(TARGET_ARCH) $(LDFLAGS) -o bootloader.axf $(BOOTLOADER_OBJECTS) $(SYSLIBS)
 
 # TODO: make this more defensive

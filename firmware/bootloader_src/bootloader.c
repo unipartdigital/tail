@@ -23,6 +23,7 @@
 #include "crc.h"
 #include "config.h"
 #include "flash.h"
+#include "gcc_bootloader_hacks.h"
 
 #ifndef NDEBUG
 #include "debug.h"

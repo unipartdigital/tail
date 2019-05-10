@@ -18,6 +18,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "gcc_bootloader_hacks.h"
 
 __ramfunc void BOOT_boot(void);
 bool BOOT_checkFirmwareIsValid(void);

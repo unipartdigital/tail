@@ -15,6 +15,7 @@
 
 #ifndef FLASH_H
 #define FLASH_H
+#include "gcc_bootloader_hacks.h"
 
 /*
  * Flash programming hardware interface

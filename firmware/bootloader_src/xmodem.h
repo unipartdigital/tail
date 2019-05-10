@@ -17,6 +17,7 @@
 #define XMODEM_H
 
 #include <stdint.h>
+#include "gcc_bootloader_hacks.h"
 
 #define XMODEM_SOH                1
 #define XMODEM_EOT                4

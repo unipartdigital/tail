@@ -17,6 +17,7 @@
 #define CRC_H
 
 #include <stdint.h>
+#include "gcc_bootloader_hacks.h"
 
 __ramfunc uint16_t CRC_calc(uint8_t *start, uint8_t *end);
 

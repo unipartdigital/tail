@@ -18,6 +18,7 @@
 
 #include "config.h"
 #include <stdint.h>
+#include "gcc_bootloader_hacks.h"
 
 #if defined( CoreDebug )        /* In core_cmX.h */
 __ramfunc void DEBUGLOCK_startDebugInterface(void);

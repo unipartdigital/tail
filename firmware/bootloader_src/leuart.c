@@ -16,6 +16,7 @@
 #include "em_device.h"
 #include "usart.h"
 #include "config.h"
+#include "gcc_bootloader_hacks.h"
 
 /***************************************************************************//**
  * @brief

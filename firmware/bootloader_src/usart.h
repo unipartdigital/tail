@@ -18,6 +18,7 @@
 
 #include <stdint.h>
 #include "em_device.h"
+#include "gcc_bootloader_hacks.h"
 
 __ramfunc void USART_printHex(uint32_t integer);
 __ramfunc void USART_txByte(uint8_t data);
