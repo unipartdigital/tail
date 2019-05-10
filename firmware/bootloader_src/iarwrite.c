@@ -8,7 +8,7 @@
  *
  ********************/
 #include <stdint.h>
-#include <yfuns.h>
+//#include <yfuns.h>
 #include "debug.h"
 
 #ifndef NDEBUG

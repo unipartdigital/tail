@@ -20,6 +20,9 @@ CFLAGS += $(TARGET_ARCH)
 CFLAGS += -std=c99 -DNDEBUG=1 -DEFM32HG222F64=1
 CFLAGS += -O3 -Wall -fmessage-length=0 -ffunction-sections -fdata-sections
 
+BOOTLOADER_DEFINES := -DBOOTLOADER_VERSION_STRING=\"0.0.1\" -DNDEBUG
+CFLAGS += $(BOOTLOADER_DEFINES)
+
 SYSLIBS = -Wl,--start-group -lgcc -lc -lnosys -Wl,--end-group # TODO rename?
 
 INCDIR_BASE = $(CURDIR)/efm32-base
@@ -58,7 +61,8 @@ $(BUILDDIR)/$(CMSIS_EFM32HG_SRC_DIRNAME)/%.o: $(CMSIS_EFM32HG_SRC_DIRNAME)/%.c
 	$(CC) $(DEPFLAGS) $(CFLAGS) $(CMSIS_EFM32HG_CFLAGS) $(OUTPUT_OPTION) -c $<
 	$(POSTCOMPILE)
 
-$(BUILDDIR)/$(BOOTLOADER_SRC_DIRNAME)/startup_efm32.o: $(BOOTLOADER_SRC_DIRNAME)/startup_efm32.s
+#$(BUILDDIR)/$(BOOTLOADER_SRC_DIRNAME)/startup_efm32.o: $(BOOTLOADER_SRC_DIRNAME)/startup_efm32.s
+#	$(CC) $(TARGET_ARCH) $(CMSIS_EFM32HG_ASM_FLAGS) $(OUTPUT_OPTION) $<
 
 %.o : $.c
 $(BUILDDIR)/%.o : %.c $(DEPDIR)/%.d
@@ -94,7 +98,8 @@ Tailm.axf: $(TAIL_OBJECTS) $(CMSIS_OBJECTS)
 	arm-none-eabi-size "Tailm.axf"
 
 BOOTLOADER_OBJECTS := $(patsubst %.c,$(BUILDDIR)/%.o,$(BOOTLOADER_SRCS))
-BOOTLOADER_OBJECTS += $(BUILDDIR)/$(BOOTLOADER_SRC_DIRNAME)/startup_efm32.o
+#BOOTLOADER_OBJECTS += $(BUILDDIR)/$(BOOTLOADER_SRC_DIRNAME)/startup_efm32.o
+BOOTLOADER_OBJECTS += $(BUILDDIR)/$(CMSIS_EFM32HG_SRC_DIRNAME)/startup_gcc_efm32hg.o
 bootloader.axf: LDFLAGS := -T "Tailb.ld" -Xlinker --gc-sections -Xlinker -Map="Tailb.map" --specs=nano.specs
 bootloader.axf: $(BOOTLOADER_OBJECTS)
 	$(warning $(BOOTLOADER_OBJECTS))
