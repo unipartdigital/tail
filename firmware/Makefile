@@ -21,7 +21,7 @@ CFLAGS += $(TARGET_ARCH)
 CFLAGS += -std=c99 -DNDEBUG=1 -DEFM32HG222F64=1
 CFLAGS += -O3 -Wall -fmessage-length=0 -ffunction-sections -fdata-sections
 
-BOOTLOADER_DEFINES := -DBOOTLOADER_VERSION_STRING=\"0.0.1\" -DNDEBUG
+BOOTLOADER_DEFINES := -DBOOTLOADER_VERSION_STRING=\"0.0.1\" -DNDEBUG -D_EFM32_HAPPY_FAMILY=1
 CFLAGS += $(BOOTLOADER_DEFINES)
 
 SYSLIBS = -Wl,--start-group -lgcc -lc -lnosys -Wl,--end-group # TODO rename?
