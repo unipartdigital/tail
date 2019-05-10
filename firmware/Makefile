@@ -107,6 +107,11 @@ bootloader.axf: $(BOOTLOADER_OBJECTS)
 	#$(warning $(TAIL_OBJECTS))
 	$(CC) $(DEBUG_FLAGS) $(TARGET_ARCH) $(LDFLAGS) -o bootloader.axf $(BOOTLOADER_OBJECTS) $(SYSLIBS)
 
+	arm-none-eabi-objcopy -O ihex "bootloader.axf" "bootloader.hex"
+	arm-none-eabi-objcopy -O binary "bootloader.axf" "bootloader.bin"
+	arm-none-eabi-objcopy -O srec "bootloader.axf" "bootloader.s37"
+	arm-none-eabi-size "bootloader.axf"
+
 # TODO: make this more defensive
 clean:
 	rm -rf $(DEPDIR) $(BUILDDIR)

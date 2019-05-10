@@ -149,3 +149,7 @@ __ramfunc __noreturn void BOOT_boot(void)
 
   BOOT_jump(sp, pc);
 }
+
+void SystemInit(void)
+{
+}
