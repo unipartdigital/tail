@@ -16,8 +16,6 @@
 
 #define CLOCK_DEBUG 0
 
-uint8_t xtal_trim;
-
 extern void *__StackTop;
 extern void *__StackLimit;
 extern void *__HeapLimit;
