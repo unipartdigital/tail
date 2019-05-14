@@ -72,48 +72,48 @@ __HeapLimit:
     .globl      __Vectors
 __Vectors:
     .long       __StackTop            /* Top of Stack */
-    .long       Reset_Handler         /* Reset Handler */
-    .long       NMI_Handler           /* NMI Handler */
-    .long       HardFault_Handler     /* Hard Fault Handler */
-    .long       Default_Handler       /* Reserved */
-    .long       Default_Handler       /* Reserved */
-    .long       Default_Handler       /* Reserved */
-    .long       Default_Handler       /* Reserved */
-    .long       Default_Handler       /* Reserved */
-    .long       Default_Handler       /* Reserved */
-    .long       Default_Handler       /* Reserved */
-    .long       SVC_Handler           /* SVCall Handler */
-    .long       Default_Handler       /* Reserved */
-    .long       Default_Handler       /* Reserved */
-    .long       PendSV_Handler        /* PendSV Handler */
-    .long       SysTick_Handler       /* SysTick Handler */
+    //.long       Reset_Handler         /* Reset Handler */
+    //.long       NMI_Handler           /* NMI Handler */
+    //.long       HardFault_Handler     /* Hard Fault Handler */
+    //.long       Default_Handler       /* Reserved */
+    //.long       Default_Handler       /* Reserved */
+    //.long       Default_Handler       /* Reserved */
+    //.long       Default_Handler       /* Reserved */
+    //.long       Default_Handler       /* Reserved */
+    //.long       Default_Handler       /* Reserved */
+    //.long       Default_Handler       /* Reserved */
+    //.long       SVC_Handler           /* SVCall Handler */
+    //.long       Default_Handler       /* Reserved */
+    //.long       Default_Handler       /* Reserved */
+    //.long       PendSV_Handler        /* PendSV Handler */
+    //.long       SysTick_Handler       /* SysTick Handler */
 
     /* External interrupts */
 
-    .long       DMA_IRQHandler    /* 0 - DMA */
-    .long       GPIO_EVEN_IRQHandler    /* 1 - GPIO_EVEN */
-    .long       TIMER0_IRQHandler    /* 2 - TIMER0 */
-    .long       ACMP0_IRQHandler    /* 3 - ACMP0 */
-    .long       ADC0_IRQHandler    /* 4 - ADC0 */
-    .long       I2C0_IRQHandler    /* 5 - I2C0 */
-    .long       GPIO_ODD_IRQHandler    /* 6 - GPIO_ODD */
-    .long       TIMER1_IRQHandler    /* 7 - TIMER1 */
-    .long       USART1_RX_IRQHandler    /* 8 - USART1_RX */
-    .long       USART1_TX_IRQHandler    /* 9 - USART1_TX */
-    .long       LEUART0_IRQHandler    /* 10 - LEUART0 */
-    .long       PCNT0_IRQHandler    /* 11 - PCNT0 */
-    .long       RTC_IRQHandler    /* 12 - RTC */
-    .long       CMU_IRQHandler    /* 13 - CMU */
-    .long       VCMP_IRQHandler    /* 14 - VCMP */
-    .long       MSC_IRQHandler    /* 15 - MSC */
-    .long       AES_IRQHandler    /* 16 - AES */
-    .long       USART0_RX_IRQHandler    /* 17 - USART0_RX */
-    .long       USART0_TX_IRQHandler    /* 18 - USART0_TX */
-    .long       USB_IRQHandler    /* 19 - USB */
-    .long       TIMER2_IRQHandler    /* 20 - TIMER2 */
+    //.long       DMA_IRQHandler    /* 0 - DMA */
+    //.long       GPIO_EVEN_IRQHandler    /* 1 - GPIO_EVEN */
+    //.long       TIMER0_IRQHandler    /* 2 - TIMER0 */
+    //.long       ACMP0_IRQHandler    /* 3 - ACMP0 */
+    //.long       ADC0_IRQHandler    /* 4 - ADC0 */
+    //.long       I2C0_IRQHandler    /* 5 - I2C0 */
+    //.long       GPIO_ODD_IRQHandler    /* 6 - GPIO_ODD */
+    //.long       TIMER1_IRQHandler    /* 7 - TIMER1 */
+    //.long       USART1_RX_IRQHandler    /* 8 - USART1_RX */
+    //.long       USART1_TX_IRQHandler    /* 9 - USART1_TX */
+    //.long       LEUART0_IRQHandler    /* 10 - LEUART0 */
+    //.long       PCNT0_IRQHandler    /* 11 - PCNT0 */
+    //.long       RTC_IRQHandler    /* 12 - RTC */
+    //.long       CMU_IRQHandler    /* 13 - CMU */
+    //.long       VCMP_IRQHandler    /* 14 - VCMP */
+    //.long       MSC_IRQHandler    /* 15 - MSC */
+    //.long       AES_IRQHandler    /* 16 - AES */
+    //.long       USART0_RX_IRQHandler    /* 17 - USART0_RX */
+    //.long       USART0_TX_IRQHandler    /* 18 - USART0_TX */
+    //.long       USB_IRQHandler    /* 19 - USB */
+    //.long       TIMER2_IRQHandler    /* 20 - TIMER2 */
 
 
-    .size       __Vectors, . - __Vectors
+    .size       __Vectors, 47//. - __Vectors
 
     .text
     .thumb

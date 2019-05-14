@@ -37,27 +37,27 @@
 
 // Vector table in RAM. We construct a new vector table to conserve space in
 // flash as it is sparsly populated.
-#pragma location=0x20000000
+//#pragma location=0x20000000
 #if (_SILICON_LABS_32B_SERIES_1_CONFIG == 2) \
   || (_SILICON_LABS_32B_SERIES_1_CONFIG == 3) \
   || ((_SILICON_LABS_32B_SERIES_1_CONFIG == 1) && defined(_EFM32_GIANT_FAMILY))\
   || ((_SILICON_LABS_32B_SERIES_1_CONFIG == 1) && defined(_EFM32_TINY_FAMILY))
-__no_init uint32_t vectorTable[48];
+/*__no_init*/ __attribute__((section (".myVectorTable"))) uint32_t vectorTable[48];
 #else
-__no_init uint32_t vectorTable[47];
+/*__no_init*/ __attribute__((section (".myVectorTable"))) uint32_t vectorTable[47];
 #endif
 
 // This variable holds the computed CRC-16 of the bootloader and is used during
 // production testing to ensure the correct programming of the bootloader.
 // This can safely be omitted if you are rolling your own bootloader.
-#if (_SILICON_LABS_32B_SERIES_1_CONFIG == 2) \
+/*#if (_SILICON_LABS_32B_SERIES_1_CONFIG == 2) \
   || (_SILICON_LABS_32B_SERIES_1_CONFIG == 3) \
   || ((_SILICON_LABS_32B_SERIES_1_CONFIG == 1) && defined(_EFM32_GIANT_FAMILY))\
   || ((_SILICON_LABS_32B_SERIES_1_CONFIG == 1) && defined(_EFM32_TINY_FAMILY))
 #pragma location=0x200000c0
 #else
 #pragma location=0x200000bc
-#endif
+#endif*/
 __no_init uint16_t bootloaderCRC;
 
 // If this flag is set the bootloader will be reset when the RTC expires.
@@ -376,13 +376,13 @@ __noreturn void main(void)
   // Calculate CRC16 for the bootloader itself and the Device Information page.
   // This is used for production testing and can safely be omitted in
   // your own code.
-  bootloaderCRC  = CRC_calc((void *)BOOTLOADER_START_ADDR,
+  /*bootloaderCRC  = CRC_calc((void *)BOOTLOADER_START_ADDR,
                             (void *)BOOTLOADER_END_ADDR);
   bootloaderCRC |= CRC_calc((void *)(DEVINFO_START_ADDR + 2),
                             // Skip first 2 bytes, they are DEVINFO crc.
                             (void *)DEVINFO_END_ADDR)
                    << 16;
-  // End safe to omit.
+  // End safe to omit.*/
 
   // Enable clocks for peripherals.
 #if defined(_SILICON_LABS_32B_SERIES_1)

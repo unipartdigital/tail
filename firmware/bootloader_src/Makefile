@@ -18,25 +18,29 @@ TARGET_ARCH = -mcpu=cortex-m0plus -mthumb
 DEBUG_FLAGS += -g -gdwarf-2
 CFLAGS += $(DEBUG_FLAGS)
 CFLAGS += $(TARGET_ARCH)
-CFLAGS += -std=c99 -DEFM32HG222F64=1 # -DNDEBUG=1
+CFLAGS += -std=c99 -DEFM32HG222F64=1 -DNDEBUG=1
 CFLAGS += -O3 -Wall -fmessage-length=0 -ffunction-sections -fdata-sections
+#CFLAGS += -O0 -Wall -fmessage-length=0 -ffunction-sections -fdata-sections
 
-BOOTLOADER_DEFINES := -DBOOTLOADER_VERSION_STRING=\"0.0.1\" -DNDEBUG -D_EFM32_HAPPY_FAMILY=1
+BOOTLOADER_DEFINES := -DBOOTLOADER_VERSION_STRING=\"0.0.1\" \
+	-DNDEBUG -D_EFM32_HAPPY_FAMILY=1 \
+
+# Consider setting _DEVINFO_HFRCOCAL1_BAND28_MASK or _DEVINFO_HFRCOCAL1_BAND21_MASK
 CFLAGS += $(BOOTLOADER_DEFINES)
 
 SYSLIBS = -Wl,--start-group -lgcc -lc -lnosys -Wl,--end-group # TODO rename?
 
-INCDIR_BASE = $(CURDIR)/efm32-base
+INCDIR_BASE = $(CURDIR)/../efm32-base
 INCDIRS = $(INCDIR_BASE)/emlib/inc
 INCDIRS += $(INCDIR_BASE)/device/EFM32HG/Include
 INCDIRS += $(INCDIR_BASE)/cmsis/Include
 CFLAGS += $(patsubst %,-I%,$(INCDIRS))
 
-MODULES := emlib src CMSIS/EFM32HG bootloader_src
+MODULES := .
 SRCS :=
 include $(patsubst %,%/module.mk,$(MODULES))
 
-BUILDDIR := .build
+BUILDDIR := ../.build
 $(shell mkdir -p $(BUILDDIR) >/dev/null)
 TAIL_OBJECTS := $(patsubst %.c,$(BUILDDIR)/%.o,$(SRCS))
 
@@ -53,17 +57,8 @@ POSTCOMPILE = @mv -f $(DEPDIR)/$*.Td $(DEPDIR)/$*.d && touch $@
 
 # FIXME: layer cmsis builds more cleanly
 CMSIS_EFM32HG_ASM_FLAGS := -c -x assembler-with-cpp
-$(BUILDDIR)/$(CMSIS_EFM32HG_SRC_DIRNAME)/%.o: $(CMSIS_EFM32HG_SRC_DIRNAME)/%.s
+$(BUILDDIR)/%.o: %.s
 	$(CC) $(TARGET_ARCH) $(CMSIS_EFM32HG_ASM_FLAGS) $(OUTPUT_OPTION) $<
-
-CMSIS_EFM32HG_CFLAGS += -O0 -Wall -fmessage-length=0 -mno-sched-prolog \
-    -fno-builtin -ffunction-sections -fdata-sections
-$(BUILDDIR)/$(CMSIS_EFM32HG_SRC_DIRNAME)/%.o: $(CMSIS_EFM32HG_SRC_DIRNAME)/%.c
-	$(CC) $(DEPFLAGS) $(CFLAGS) $(CMSIS_EFM32HG_CFLAGS) $(OUTPUT_OPTION) -c $<
-	$(POSTCOMPILE)
-
-#$(BUILDDIR)/$(BOOTLOADER_SRC_DIRNAME)/startup_efm32.o: $(BOOTLOADER_SRC_DIRNAME)/startup_efm32.s
-#	$(CC) $(TARGET_ARCH) $(CMSIS_EFM32HG_ASM_FLAGS) $(OUTPUT_OPTION) $<
 
 %.o : $.c
 $(BUILDDIR)/%.o : %.c $(DEPDIR)/%.d
@@ -75,8 +70,6 @@ $(DEPDIR)/%.d: ;
 
 include $(wildcard $(patsubst %,$(DEPDIR)/%.d,$(basename $(SRCS))))
 
-CMSIS_OBJECTS = $(BUILDDIR)/CMSIS/EFM32HG/startup_gcc_efm32hg.o \
-                $(BUILDDIR)/CMSIS/EFM32HG/system_efm32hg.o
 
 # Build of tail to be loaded from a bootloader
 Tailf.axf: LDFLAGS := -T "Tailf.ld" -Xlinker --gc-sections -Xlinker -Map="Tailf.map" --specs=nano.specs
@@ -99,12 +92,10 @@ Tailm.axf: $(TAIL_OBJECTS) $(CMSIS_OBJECTS)
 	arm-none-eabi-size "Tailm.axf"
 
 BOOTLOADER_OBJECTS := $(patsubst %.c,$(BUILDDIR)/%.o,$(BOOTLOADER_SRCS))
-#BOOTLOADER_OBJECTS += $(BUILDDIR)/$(BOOTLOADER_SRC_DIRNAME)/startup_efm32.o
-BOOTLOADER_OBJECTS += $(BUILDDIR)/$(CMSIS_EFM32HG_SRC_DIRNAME)/startup_gcc_efm32hg.o
+BOOTLOADER_OBJECTS += $(BUILDDIR)/startup_gcc_efm32hg.o
 bootloader.axf: LDFLAGS := -T "Tailb.ld" -Xlinker --gc-sections -Xlinker -Map="Tailb.map" --specs=nano.specs
 bootloader.axf: $(BOOTLOADER_OBJECTS)
-	#$(warning $(BOOTLOADER_OBJECTS))
-	#$(warning $(TAIL_OBJECTS))
+	$(warning $(BOOTLOADER_OBJECTS))
 	$(CC) $(DEBUG_FLAGS) $(TARGET_ARCH) $(LDFLAGS) -o bootloader.axf $(BOOTLOADER_OBJECTS) $(SYSLIBS)
 
 	arm-none-eabi-objcopy -O ihex "bootloader.axf" "bootloader.hex"
