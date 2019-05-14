@@ -28,31 +28,6 @@ void write_string(const char *s)
 // Should be enough, right?
 #define S_LEN 22
 
-void write_int(uint32_t n)
-{
-	char s[S_LEN+1];
-	int i;
-	bool negative;
-
-	s[S_LEN] = '\0';
-	s[S_LEN-1] = '0';
-	negative = (n >= (1<<31));
-	if (negative) {
-		n = ~n;
-	    n++;
-	}
-	for (i = S_LEN-1; n; i--) {
-		s[i] = '0' + (n % 10);
-		n = n / 10;
-	}
-	if (i == S_LEN-1)
-		i--;
-	if (negative)
-		s[i--] = '-';
-
-    write_string(s+i+1);
-}
-
 void write_hex(uint32_t n)
 {
 	char s[S_LEN+1];
@@ -67,31 +42,6 @@ void write_hex(uint32_t n)
 	}
 	if (i == S_LEN-1)
 		i--;
-
-    write_string(s+i+1);
-}
-
-void write_int64(uint64_t n)
-{
-	char s[S_LEN+1];
-	int i;
-	bool negative;
-
-	s[S_LEN] = '\0';
-	s[S_LEN-1] = '0';
-	negative = (n >= (1<<31));
-	if (negative) {
-		n = ~n;
-	    n++;
-	}
-	for (i = S_LEN-1; n; i--) {
-		s[i] = '0' + (n % 10);
-		n = n / 10;
-	}
-	if (i == S_LEN-1)
-		i--;
-	if (negative)
-		s[i--] = '-';
 
     write_string(s+i+1);
 }
