@@ -6,7 +6,6 @@
 #include "cli.h"
 #include "uart.h"
 #include "version.h"
-#include "battery.h"
 
 #include "em_msc.h"
 
