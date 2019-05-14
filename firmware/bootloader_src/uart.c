@@ -2,6 +2,7 @@
 #include "em_leuart.h"
 #include "em_gpio.h"
 
+#include "emlib_wrap.h"
 #include "uart.h"
 #include "buf.h"
 

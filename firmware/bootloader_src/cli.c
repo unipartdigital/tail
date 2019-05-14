@@ -6,8 +6,6 @@
 #include "cli.h"
 #include "uart.h"
 #include "version.h"
-#include "config.h"
-#include "flash.h"
 #include "battery.h"
 
 #include "em_msc.h"
@@ -138,133 +136,6 @@ void fn_read(void)
     write_string("\r\n");
 }
 
-void fn_write(void)
-{
-	int addr, value;
-	if ((!token_int(&addr, 16)) || (!token_int(&value, 0))) {
-		write_string("Usage: write <address> <value>\r\n");
-		return;
-	}
-
-	flash_write((void *)addr, &value, 4);
-}
-
-void fn_erase(void)
-{
-	int addr;
-	if (!token_int(&addr, 16)) {
-		write_string("Usage: erase <address>\r\n");
-		return;
-	}
-
-	flash_erase((void *)addr, FLASH_PAGE_SIZE);
-}
-
-/* We pass in the buffer because this is called from fn_config which has already allocated
- * a large enough buffer. We don't want to allocate it twice on the stack.
- */
-void display_key(config_key key, uint8_t *buf, int len)
-{
-	int l;
-	const char *name;
-	int namelen;
-
-	if ((l = config_get(key, buf, len)) < 0) {
-		write_string("Key not found\r\n");
-		return;
-	}
-
-	name = config_key_to_name(key);
-	namelen = strlen(name);
-
-	write_string(name);
-	write_string(": ");
-
-	for (int i = 0; i < l; i++) {
-		if (i) {
-		    if (i % 16)
-		        write_string(" ");
-		    else {
-			    write_string("\r\n");
-		        for (int j = 0; j < namelen+2; j++)
-		        	write_string(" ");
-		    }
-		}
-		write_hex(buf[i]);
-	}
-	write_string("\r\n");
-}
-
-void fn_config(void)
-{
-	config_key key;
-	char *name;
-	uint8_t buf[CONFIG_KEY_MAXLEN];
-	int len;
-	int value;
-	if (!token_str(&name)) {
-		config_iterator iterator;
-		config_enumerate_start(&iterator);
-		while ((key = config_enumerate(&iterator)) != CONFIG_KEY_INVALID) {
-			display_key(key, buf, CONFIG_KEY_MAXLEN);
-		}
-		return;
-	}
-	for (len = 0; (len < CONFIG_KEY_MAXLEN) && token_int(&value, 0); len++) {
-		if ((value > 0xff) || (value < 0)) {
-			write_string("Values must fit within a byte\r\n");
-			return;
-		}
-	    buf[len] = value;
-	}
-
-	key = config_key_from_name(name);
-
-	if (key == CONFIG_KEY_INVALID) {
-		write_string("Key not known\r\n");
-		return;
-	}
-
-	if (len == 0) {
-		display_key(key, buf, CONFIG_KEY_MAXLEN);
-	    return;
-	}
-
-	if (!config_put(key, buf, len))
-		write_string("Error writing key\r\n");
-}
-
-void fn_delete(void)
-{
-	config_key key;
-	char *name;
-	if (!token_str(&name)) {
-		write_string("Which key do you want to delete?\r\n");
-		return;
-	}
-
-	key = config_key_from_name(name);
-
-	if (key == CONFIG_KEY_INVALID) {
-		write_string("Key not known\r\n");
-		return;
-	}
-
-	config_delete(key);
-}
-
-void fn_free(void)
-{
-	int free = config_freespace();
-	write_int(free);
-	write_string("\r\n");
-}
-
-void fn_dump(void)
-{
-	config_dump();
-}
-
 void fn_reset(void)
 {
 	write_string("\r\n");
@@ -281,19 +152,6 @@ void fn_echo(void)
 bool cli_prepare_sleep(void)
 {
 	return (cli_pending == NULL);
-}
-
-void fn_help_config(void)
-{
-	write_string("Recognised config variables:\r\n");
-	config_key key;
-	config_enumerate_key_names_start(&key);
-	const char *name;
-	while ((name = config_enumerate_key_names(&key)) != NULL) {
-		write_string("  ");
-		write_string(name);
-		write_string("\r\n");
-	}
 }
 
 void write_int3(int n)
@@ -321,14 +179,7 @@ void fn_help(void);
 
 static command command_table[] = {
 		{"help", &fn_help},
-		{"help_config", &fn_help_config},
 		{"read", &fn_read},
-		{"write", &fn_write},
-		{"erase", &fn_erase},
-		{"config", &fn_config},
-		{"delete", &fn_delete},
-		{"free", &fn_free},
-		{"dump", &fn_dump},
 		{"reset", &fn_reset},
 		{"echo", &fn_echo},
 };

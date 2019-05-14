@@ -9,7 +9,6 @@
 #include "common.h"
 #include "uart.h"
 #include "cli.h"
-#include "config.h"
 #include "timer.h"
 
 #include "misc.h"
@@ -58,7 +57,6 @@ int main(void)
 
   delay(100);
   //time_init();
-  config_init();
   //bool accel_present = accel_init();
 
   /* Defer uart_init() until the latest possible time, because it will wait
