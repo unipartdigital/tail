@@ -6,7 +6,6 @@
 #include "em_emu.h"
 #include "em_rmu.h"
 
-#include "common.h"
 #include "uart.h"
 #include "cli.h"
 #include "timer.h"

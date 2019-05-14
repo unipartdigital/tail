@@ -3,8 +3,6 @@
 #ifndef _TIMER_H
 #define _TIMER_H
 
-#include "common.h"
-
 #include <stdint.h>
 #include <stdbool.h>
 

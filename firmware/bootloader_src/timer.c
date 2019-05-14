@@ -1,7 +1,5 @@
 /* timer.c */
 
-#include "common.h"
-
 #include "timer.h"
 #include "em_timer.h"
 #include "em_cmu.h"
