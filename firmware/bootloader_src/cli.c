@@ -8,8 +8,6 @@
 #include "version.h"
 #include "config.h"
 #include "flash.h"
-#include "time.h"
-#include "accel.h"
 #include "battery.h"
 
 #include "em_msc.h"
@@ -161,56 +159,6 @@ void fn_erase(void)
 
 	flash_erase((void *)addr, FLASH_PAGE_SIZE);
 }
-
-
-void fn_aread(void)
-{
-	int reg;
-	int len = 1;
-	int i;
-
-	if (!token_int(&reg, 16)) {
-		write_string("Usage: aread <register> [length]\r\n");
-		return;
-	}
-
-    token_int(&len, 0);
-
-	for (i = 0; i < len; i++)
-	{
-		uint8_t value = accel_read(reg);
-		reg++;
-        write_hex(value);
-        write_string(" ");
-	}
-    write_string("\r\n");
-}
-
-void fn_awrite(void)
-{
-	int reg;
-	int value;
-
-	if ((!token_int(&reg, 16)) || (!token_int(&value, 0))) {
-		write_string("Usage: awrite <register> <value>\r\n");
-		return;
-	}
-
-	accel_write(reg, value);
-}
-
-void fn_accel(void)
-{
-	uint16_t x, y, z;
-	accel_readings(&x, &y, &z);
-	write_int(x);
-	write_string(" ");
-	write_int(y);
-	write_string(" ");
-	write_int(z);
-	write_string("\r\n");
-}
-
 
 /* We pass in the buffer because this is called from fn_config which has already allocated
  * a large enough buffer. We don't want to allocate it twice on the stack.
@@ -383,7 +331,6 @@ static command command_table[] = {
 		{"dump", &fn_dump},
 		{"reset", &fn_reset},
 		{"echo", &fn_echo},
-		{"accel", &fn_accel},
 };
 
 void fn_help(void)

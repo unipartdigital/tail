@@ -7,10 +7,8 @@
 #include "em_rmu.h"
 
 #include "common.h"
-#include "accel.h"
 #include "uart.h"
 #include "cli.h"
-#include "time.h"
 #include "config.h"
 #include "timer.h"
 
@@ -61,9 +59,9 @@ int main(void)
   GPIO_PinModeSet(gpioPortD, 7, gpioModePushPull, 0);
 
   delay(100);
-  time_init();
+  //time_init();
   config_init();
-  bool accel_present = accel_init();
+  //bool accel_present = accel_init();
 
   /* Defer uart_init() until the latest possible time, because it will wait
    * for the LFXO to be stable.
@@ -110,48 +108,21 @@ int main(void)
 	  write_string("Brownout in analogue domain 1\r\n");
   write_hex(reset_cause);
 
-  if (accel_present)
-      write_string("Accelerometer detected\r\n");
-  else
-	  write_string("No accelerometer detected\r\n");
-
   cli_init();
-
-  uint8_t sniff_sensitivity = 2;
-  uint8_t sniff_exponent = 0;
-  uint8_t sniff_mode = 1;
-  uint8_t sniff_count = 0;
-  (void) config_get(config_key_accel_sensitivity, &sniff_sensitivity, 1);
-  (void) config_get(config_key_accel_exponent, &sniff_exponent, 1);
-  (void) config_get(config_key_accel_mode, &sniff_mode, 1);
-  (void) config_get(config_key_accel_count, &sniff_count, 1);
-  accel_enter_mode(ACCEL_STANDBY);
-  accel_config_power_mode(ACCEL_ULP, ACCEL_ULP);
-  accel_config_range_resolution(ACCEL_2G, ACCEL_6BITS);
-  accel_config_rate(ACCEL_ULP_ODR_25);
-  accel_config_threshold(sniff_sensitivity, sniff_sensitivity, sniff_sensitivity, sniff_exponent);
-  if (sniff_count > 0)
-      accel_config_detection_count(sniff_count-1, sniff_count-1, sniff_count-1, true);
-  else
-      accel_config_detection_count(0, 0, 0, false);
-  accel_config_sniff_mode(false, sniff_mode);
-
-  accel_enter_mode(ACCEL_SNIFF);
-
 
    // proto_init();
 
     while (1) {
-    	time_event_poll();
+    	//time_event_poll();
         cli_poll();
         //proto_poll();
-        accel_poll();
+        //accel_poll();
         if (!cli_prepare_sleep())
         	continue;
         if (!uart_prepare_sleep())
         	continue;
-        if (!time_prepare_sleep())
-        	continue;
+        //if (!time_prepare_sleep())
+        //	continue;
         if (!timer_prepare_sleep())
         	continue;
         EMU_EnterEM2(true);
