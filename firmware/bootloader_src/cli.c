@@ -9,9 +9,6 @@
 #include "config.h"
 #include "flash.h"
 #include "time.h"
-#include "radio.h"
-#include "radio_reg.h"
-#include "proto.h"
 #include "accel.h"
 #include "battery.h"
 
@@ -19,11 +16,6 @@
 
 /* 127 bytes for the tx command should fit in this */
 #define CLI_MAXLEN 400
-#define TX_BUF_SIZE 127
-#define TXRX_RXBUFLEN 127
-
-static uint8_t txrx_rxbuf[TXRX_RXBUFLEN];
-static int txrx_rxlen;
 
 static char clibuf[CLI_MAXLEN+1];
 static int bufp;
@@ -35,13 +27,6 @@ static int exep;
 
 static bool echo;
 static void (*cli_pending)(void);
-
-static bool txrx_txcomplete;
-static bool txrx_rxcomplete;
-static uint8_t txrx_txtime[5];
-static uint8_t txrx_rxtime[5];
-static bool txrx_rxactive = false;
-
 
 void cli_init(void)
 {
@@ -177,107 +162,6 @@ void fn_erase(void)
 	flash_erase((void *)addr, FLASH_PAGE_SIZE);
 }
 
-void fn_rread(void)
-{
-	int file;
-	int reg;
-	int len;
-	int i;
-
-	if ((!token_int(&file, 16)) || (!token_int(&reg, 16)) || (!token_int(&len, 0))) {
-		write_string("Usage: read <file> <register> <length>\r\n");
-		return;
-	}
-
-	proto_prepare_immediate();
-
-	/* We're going to use clibuf because at this point it's not going to be reused.
-	 * This will be a problem if we ever decide to implement command history.
-	 */
-	if (len > CLI_MAXLEN+1)
-		len = CLI_MAXLEN+1;
-	radio_read(file, reg, (uint8_t *)clibuf, len);
-
-	for (i = 0; i < len; i++)
-	{
-        write_hex(clibuf[i]);
-        write_string(" ");
-	}
-    write_string("\r\n");
-}
-
-void fn_rdump(void)
-{
-	struct { const char *name; uint8_t file; uint16_t reg; uint8_t len; } rset[] = {
-#define X(name)			{ #name, RREG(name), RLEN(name) },
-			X(DEV_ID)
-			X(SYS_STATUS)
-			X(SYS_STATE)
-			X(SYS_CFG)
-			X(SYS_MASK)
-			X(SYS_CTRL)
-			X(EC_CTRL)
-			X(OTP_SF)
-			X(OTP_CTRL)
-			X(FS_PLLCFG)
-			X(FS_PLLTUNE)
-			X(FS_XTALT)
-			X(RF_RXCTRLH)
-			X(RF_TXCTRL)
-			X(DRX_TUNE0B)
-			X(DRX_TUNE1A)
-			X(DRX_TUNE1B)
-			X(DRX_TUNE4H)
-			X(DRX_TUNE2)
-			X(DRX_SFDTOC)
-			X(AGC_TUNE2)
-			X(AGC_TUNE1)
-			X(USR_SFD)
-			X(CHAN_CTRL)
-			X(TX_FCTRL)
-			X(RX_FWTO)
-			X(RX_FINFO)
-			X(LDE_CFG1)
-			X(LDE_CFG2)
-			X(LDE_REPC)
-			X(DX_TIME)
-			X(TX_TIME)
-			X(RX_TIME)
-			X(PMSC_CTRL0)
-			X(PMSC_CTRL1)
-			X(PMSC_LEDC)
-			X(GPIO_MODE)
-			X(AON_WCFG)
-			X(AON_CFG0)
-			X(AON_CFG1)
-			X(AON_CTRL)
-			X(LDE_RXANTD)
-			X(TX_ANTD)
-			X(TX_POWER)
-#undef X
-	};
-	int r, i;
-
-	proto_prepare_immediate();
-
-	for (r = 0; r < ARRAY_SIZE(rset); r++) {
-		uint8_t file = rset[r].file;
-		uint16_t reg = rset[r].reg;
-		int len = rset[r].len;
-	    if (len > CLI_MAXLEN+1)
-		    len = CLI_MAXLEN+1;
-	    radio_read(file, reg, (uint8_t *)clibuf, len);
-
-	    write_string(rset[r].name);
-	    write_string(": ");
-	    for (i = 0; i < len; i++)
-	    {
-            write_hex(clibuf[i]);
-            write_string(" ");
-	    }
-        write_string("\r\n");
-	}
-}
 
 void fn_aread(void)
 {
@@ -327,75 +211,6 @@ void fn_accel(void)
 	write_string("\r\n");
 }
 
-void fn_stop(void)
-{
-	txrx_rxactive = false;
-	stop();
-}
-
-void fn_tag(void)
-{
-	int period = 1000;
-	int period_idle = 100000;
-	int transition_time = 10;
-	(void) token_int(&period, 0);
-	(void) token_int(&period_idle, 0);
-	(void) token_int(&transition_time, 0);
-
-	tag_with_period(TIME_FROM_MS(period), TIME_FROM_MS(period_idle),
-			TIME_FROM_SECONDS(transition_time));
-}
-
-void fn_power(void)
-{
-	uint32_t power;
-
-	if (!token_uint32(&power, 16)) {
-		write_string("Usage: power <register value>\r\n");
-	    return;
-    }
-
-	proto_prepare_immediate();
-	radio_settxpower(power);
-}
-
-void fn_smartpower(void)
-{
-	int enabled;
-
-	if (!token_int(&enabled, 0)) {
-		write_string("Usage: smartpower <1|0>\r\n");
-	    return;
-    }
-
-	proto_prepare_immediate();
-	radio_smarttxpowercontrol(enabled);
-}
-
-void fn_turnaround_delay(void)
-{
-	uint32_t us;
-
-	if (!token_uint32(&us, 0)) {
-		write_string("Usage: turnaround_delay <microseconds>\r\n");
-	    return;
-    }
-
-	proto_turnaround_delay(us);
-}
-
-void fn_rxtimeout(void)
-{
-	uint32_t time;
-
-	if (!token_uint32(&time, 0)) {
-		write_string("Usage: rxtimeout <time>\r\n");
-		write_string("time is in units of 1.0256 us (512/499.2MHz)\r\n");
-	    return;
-    }
-
-	proto_rx_timeout(time);
-}
 
 /* We pass in the buffer because this is called from fn_config which has already allocated
  * a large enough buffer. We don't want to allocate it twice on the stack.
@@ -515,128 +330,9 @@ void fn_echo(void)
 		echo = val;
 }
 
-void txrx_txdone(void)
-{
-	radio_readtxtimestamp(txrx_txtime);
-	txrx_txcomplete = true;
-	if (txrx_rxactive)
-		radio_rxstart(false);
-}
-
-void txrx_rxdone(void)
-{
-	if (txrx_rxcomplete) {
-		radio_rxstart(false);
-		return;
-	}
-
-	txrx_rxlen = radio_getpayload(txrx_rxbuf, TXRX_RXBUFLEN) - 2;
-	radio_readrxtimestamp(txrx_rxtime);
-
-	txrx_rxcomplete = true;
-
-	radio_rxstart(false);
-}
-
-void txrx_recover(void)
-{
-	radio_rxstart(false);
-}
-
-void tx_poll(void)
-{
-	if (!txrx_txcomplete)
-		return;
-
-	txrx_txcomplete = false;
-	cli_pending = NULL;
-	for (int i = 0; i < 5; i++) {
-    	write_hex(txrx_txtime[i]);
-    	if (i < 4)
-        	write_string(" ");
-	}
-	write_string("\r\n");
-}
-
-void rx_poll(void)
-{
-	if (!txrx_rxcomplete)
-		return;
-
-	write_hex(txrx_rxlen);
-	write_string(": ");
-
-	for (int i = 0; i < txrx_rxlen; i++) {
-		write_hex(txrx_rxbuf[i]);
-		if (i < txrx_rxlen-1)
-			write_string(" ");
-	}
-	write_string("\r\n");
-	for (int i = 0; i < 5; i++) {
-    	write_hex(txrx_rxtime[i]);
-    	if (i < 4)
-        	write_string(" ");
-	}
-	write_string("\r\n");
-	txrx_rxcomplete = false;
-}
-
-static radio_callbacks txrx_callbacks = {
-		.txdone = txrx_txdone,
-		.rxdone = txrx_rxdone,
-		.rxtimeout = txrx_recover,
-		.rxerror = txrx_recover
-};
-
-void fn_tx(void)
-{
-	uint8_t buf[TX_BUF_SIZE];
-    int i, val;
-    for (i = 0; (i < TX_BUF_SIZE) && token_int(&val, 16); i++)
-        buf[i] = val;
-
-    radio_txrxoff();
-
-	radio_setcallbacks(&txrx_callbacks);
-
-    radio_writepayload((uint8_t *)buf, i, 0);
-    radio_txprepare(i+2, 0, false);
-
-    cli_pending = tx_poll;
-
-	radio_txstart(false);
-}
-
-void fn_rx(void)
-{
-	int timeout = 0;
-	token_int(&timeout, 0);
-
-	txrx_rxactive = true;
-	radio_setrxtimeout(timeout);
-	radio_setcallbacks(&txrx_callbacks);
-	radio_rxstart(false);
-}
-
 bool cli_prepare_sleep(void)
 {
 	return (cli_pending == NULL);
-}
-
-void fn_status(void)
-{
-	proto_prepare_immediate();
-	uint32_t status = radio_read32(RREG(SYS_STATUS));
-    write_hex(status);
-    write_string("\r\n");
-}
-
-void fn_battery(void)
-{
-	uint16_t volts = proto_battery_volts();
-	int status = battery_state(volts);
-    write_int(status);
-    write_string("\r\n");
 }
 
 void fn_help_config(void)
@@ -650,17 +346,6 @@ void fn_help_config(void)
 		write_string(name);
 		write_string("\r\n");
 	}
-}
-
-void fn_sleep(void)
-{
-	radio_configsleep(RADIO_SLEEP_CONFIG | RADIO_SLEEP_TANDV, RADIO_SLEEP_WAKE_WAKEUP | RADIO_SLEEP_ENABLE);
-	radio_entersleep();
-}
-
-void fn_wake(void)
-{
-	radio_wakeup();
 }
 
 void write_int3(int n)
@@ -678,17 +363,6 @@ void write_int3(int n)
 		write_string("0");
 	write_int(d);
 }
-void fn_volts(void)
-{
-	write_int3(proto_volts());
-	write_string("\r\n");
-}
-
-void fn_temp(void)
-{
-	write_int3(proto_temp());
-	write_string("\r\n");
-}
 
 typedef struct {
 	const char *command;
@@ -703,31 +377,13 @@ static command command_table[] = {
 		{"read", &fn_read},
 		{"write", &fn_write},
 		{"erase", &fn_erase},
-		{"tag", &fn_tag},
-		{"stop", &fn_stop},
 		{"config", &fn_config},
 		{"delete", &fn_delete},
 		{"free", &fn_free},
 		{"dump", &fn_dump},
 		{"reset", &fn_reset},
 		{"echo", &fn_echo},
-		{"tx", &fn_tx},
-		{"rx", &fn_rx},
-		{"status", &fn_status},
-		{"sleep", &fn_sleep},
-		{"wake", &fn_wake},
-		{"rread", &fn_rread},
-		{"rdump", &fn_rdump},
-		{"aread", &fn_aread},
-		{"awrite", &fn_awrite},
-		{"volts", &fn_volts},
-		{"temp", &fn_temp},
-		{"power", &fn_power},
-		{"smartpower", &fn_smartpower},
-		{"turnaround_delay", &fn_turnaround_delay},
-		{"rxtimeout", &fn_rxtimeout},
 		{"accel", &fn_accel},
-		{"battery", &fn_battery}
 };
 
 void fn_help(void)
@@ -769,8 +425,6 @@ void cli_poll(void)
 			return;
 		write_string(PROMPT);
 	}
-	if (!cli_pending)
-    	rx_poll();
 	while (uart_rx(&c)) {
 #if 0
 		write_int(c);

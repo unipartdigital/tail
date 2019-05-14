@@ -7,36 +7,16 @@
 #include "em_rmu.h"
 
 #include "common.h"
-#include "radio.h"
-#include "radio_spi.h"
-#include "radio_reg.h"
 #include "accel.h"
 #include "uart.h"
 #include "cli.h"
 #include "time.h"
 #include "config.h"
-#include "proto.h"
 #include "timer.h"
 
+#include "misc.h"
+
 #define CLOCK_DEBUG 0
-
-/* XXX no longer used */
-#define ANTENNA_DELAY_TX 16434
-#define ANTENNA_DELAY_RX 16434
-
-radio_config_t radio_config = {
-		/* chan */        5,
-		/* prf_high */    false,
-		/* tx_plen */     RADIO_PLEN_128,
-		/* rx_pac */      RADIO_PAC_8,
-		/* tx_pcode */    4,
-		/* rx_pcode */    4,
-		/* ns_sfd */      false,
-		/* data_rate */   RADIO_RATE_6M8,
-		/* long_frames */ false,
-		/* sfd_timeout */ 0
-};
-
 
 uint8_t xtal_trim;
 
@@ -83,12 +63,7 @@ int main(void)
   delay(100);
   time_init();
   config_init();
-  radio_init(true);
   bool accel_present = accel_init();
-
-  xtal_trim = 0x10; // Default value in radio driver
-  if (config_get(config_key_xtal_trim, &xtal_trim, 1))
-	  radio_xtal_trim(xtal_trim);
 
   /* Defer uart_init() until the latest possible time, because it will wait
    * for the LFXO to be stable.
@@ -163,55 +138,13 @@ int main(void)
 
   accel_enter_mode(ACCEL_SNIFF);
 
-    radio_leds(true, config_get8(config_key_radio_leds));
 
-    uint8_t byte;
-
-    (void) config_get(config_key_chan, &radio_config.chan, sizeof(radio_config.chan));
-    if (config_get(config_key_prf_high, &byte, 1) > 0)
-    	radio_config.prf_high = byte?true:false;
-    (void) config_get(config_key_tx_plen, &radio_config.tx_plen, sizeof(radio_config.tx_plen));
-    (void) config_get(config_key_rx_pac, &radio_config.rx_pac, sizeof(radio_config.rx_pac));
-    (void) config_get(config_key_tx_pcode, &radio_config.tx_pcode, sizeof(radio_config.tx_pcode));
-    (void) config_get(config_key_rx_pcode, &radio_config.rx_pcode, sizeof(radio_config.rx_pcode));
-    if (config_get(config_key_ns_sfd, &byte, 1) > 0)
-    	radio_config.ns_sfd = byte?true:false;
-    (void) config_get(config_key_data_rate, &radio_config.data_rate, sizeof(radio_config.data_rate));
-    if (config_get(config_key_long_frames, &byte, 1) > 0)
-    	radio_config.long_frames = byte?true:false;
-    (void) config_get(config_key_sfd_timeout, (uint8_t *)&radio_config.sfd_timeout, sizeof(radio_config.sfd_timeout));
-
-
-    radio_configure(&radio_config);
-	radio_doublebuffer(true);
-
-    radio_spi_speed(true);
-
-    set_antenna_delay_tx(config_get16(config_key_antenna_delay_tx));
-    set_antenna_delay_rx(config_get16(config_key_antenna_delay_rx));
-
-    uint32_t word = 0;
-
-    if (config_get(config_key_tx_power, (uint8_t *)&word, 4) > 0)
-    	radio_settxpower(word);
-    if (config_get(config_key_smart_tx_power, &byte, 1) > 0)
-    	radio_smarttxpowercontrol(byte);
-
-    word = 0;
-    if (config_get(config_key_turnaround_delay, (uint8_t *)&word, 4) > 0)
-    	proto_turnaround_delay(word);
-
-    word = 0;
-    if (config_get(config_key_rxtimeout, (uint8_t *)&word, 4) > 0)
-    	proto_rx_timeout(word);
-
-
-    proto_init();
+   // proto_init();
 
     while (1) {
     	time_event_poll();
         cli_poll();
-        proto_poll();
+        //proto_poll();
         accel_poll();
         if (!cli_prepare_sleep())
         	continue;
