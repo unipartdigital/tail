@@ -10,7 +10,7 @@
 # Modernised example:
 # https://www.oreilly.com/library/view/managing-projects-with/0596006101/ch06.html
 
-all: Tail.axf
+all: bootloader.axf
 
 CC = arm-none-eabi-gcc
 TARGET_ARCH = -mcpu=cortex-m0plus -mthumb
@@ -29,13 +29,14 @@ INCDIRS += $(INCDIR_BASE)/device/EFM32HG/Include
 INCDIRS += $(INCDIR_BASE)/cmsis/Include
 CFLAGS += $(patsubst %,-I%,$(INCDIRS))
 
-MODULES := emlib src CMSIS/EFM32HG
+MODULES := emlib src CMSIS/EFM32HG bootloader_src
 SRCS :=
 include $(patsubst %,%/module.mk,$(MODULES))
 
 BUILDDIR := .build
 $(shell mkdir -p $(BUILDDIR) >/dev/null)
 TAIL_OBJECTS := $(patsubst %.c,$(BUILDDIR)/%.o,$(SRCS))
+BOOTLOADER_OBJECTS := $(patsubst %.c,$(BUILDDIR)/%.o,$(BOOTLOADER_SRCS))
 
 DEPDIR := $(BUILDDIR)/.d
 $(shell mkdir -p $(DEPDIR) >/dev/null)
@@ -80,9 +81,17 @@ Tail.axf: $(TAIL_OBJECTS) $(CMSIS_OBJECTS)
 	arm-none-eabi-objcopy -O srec "Tail.axf" "Tail.s37"
 	arm-none-eabi-size "Tail.axf"
 
+bootloader.axf: $(BOOTLOADER_OBJECTS) $(CMSIS_OBJECTS)
+	$(CC) $(DEBUG_FLAGS) $(TARGET_ARCH) $(LDFLAGS) -o bootloader.axf $(CMSIS_OBJECTS) $(BOOTLOADER_OBJECTS) $(SYSLIBS)
+
+	arm-none-eabi-objcopy -O ihex "bootloader.axf" "bootloader.hex"
+	arm-none-eabi-objcopy -O binary "bootloader.axf" "bootloader.bin"
+	arm-none-eabi-objcopy -O srec "bootloader.axf" "bootloader.s37"
+	arm-none-eabi-size "bootloader.axf"
+
 # TODO: make this more defensive
 clean:
 	rm -rf $(DEPDIR) $(BUILDDIR)
-	rm -f Tail.axf Tail.hex Tail.bin Tail.s37
+	rm -f [Tb]*.axf [Tb]*.hex [Tb]*.bin [Tb]*.s37 [Tb]*.map
 
 .PHONY: all clean
