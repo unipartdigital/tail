@@ -8,7 +8,6 @@
 
 #include "uart.h"
 #include "cli.h"
-#include "timer.h"
 
 #include "misc.h"
 
@@ -77,10 +76,6 @@ int main(void)
         if (!cli_prepare_sleep())
         	continue;
         if (!uart_prepare_sleep())
-        	continue;
-        //if (!time_prepare_sleep())
-        //	continue;
-        if (!timer_prepare_sleep())
         	continue;
         EMU_EnterEM2(true);
     }
