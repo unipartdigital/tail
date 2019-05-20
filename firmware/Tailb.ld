@@ -129,6 +129,8 @@ SECTIONS
   } > FLASH
   */
 
+    . = ALIGN(4);
+
   __etext = .;
 
   vtable (NOLOAD) :
