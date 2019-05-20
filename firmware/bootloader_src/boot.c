@@ -52,7 +52,7 @@ bool BOOT_checkFirmwareIsValid(void)
 /**************************************************************************//**
  * @brief This function sets up the Cortex M-3 with a new SP and PC.
  *****************************************************************************/
-__ramfunc __noreturn void BOOT_jump(uint32_t sp, uint32_t pc)
+__ramfunc __noreturn __attribute__((naked)) void BOOT_jump(uint32_t sp, uint32_t pc)
 {
   (void) sp;
   (void) pc;

@@ -27,6 +27,7 @@ static LDMA_Descriptor_t descr;
 // DMA Control block. We only need 1 block for transfers.
 // This control block needs to be aligned to 256 byte boundaries.
 #pragma location=0x20000100
+__attribute__((aligned(256)))
 __no_init volatile DMA_DESCRIPTOR_TypeDef descr;
 #endif
 

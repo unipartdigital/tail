@@ -1,8 +1,7 @@
 #ifndef _GCC_BOOTLOADER_HACKS_H
 #define _GCC_BOOTLOADER_HACKS_H
-/*#define __ramfunc __attribute__ ((longcall, section(".data")))*/
-#define __ramfunc __attribute__ ((section(".data")))
-#define __no_init  __attribute__ ((section (".noinit")))
+#define __ramfunc __attribute__ ((long_call, section(".ram")))
+#define __no_init
 #define __noreturn __attribute__((noreturn))
 
 #endif /* _GCC_BOOTLOADER_HACKS_H */

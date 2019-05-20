@@ -19,7 +19,8 @@ DEBUG_FLAGS += -g -gdwarf-2
 CFLAGS += $(DEBUG_FLAGS)
 CFLAGS += $(TARGET_ARCH)
 CFLAGS += -std=c99 -DNDEBUG=1 -DEFM32HG222F64=1
-CFLAGS += -O3 -Wall -fmessage-length=0 -ffunction-sections -fdata-sections
+CFLAGS += -Os -Wall -Wno-main -fmessage-length=0 -ffunction-sections -fdata-sections
+ASFLAGS := -c -x assembler-with-cpp -D__STARTUP_CLEAR_BSS
 
 BOOTLOADER_DEFINES := -DBOOTLOADER_VERSION_STRING=\"0.0.1\" -DNDEBUG -D_EFM32_HAPPY_FAMILY=1
 CFLAGS += $(BOOTLOADER_DEFINES)
@@ -55,6 +56,9 @@ POSTCOMPILE = @mv -f $(DEPDIR)/$*.Td $(DEPDIR)/$*.d && touch $@
 CMSIS_EFM32HG_ASM_FLAGS := -c -x assembler-with-cpp
 $(BUILDDIR)/$(CMSIS_EFM32HG_SRC_DIRNAME)/%.o: $(CMSIS_EFM32HG_SRC_DIRNAME)/%.s
 	$(CC) $(TARGET_ARCH) $(CMSIS_EFM32HG_ASM_FLAGS) $(OUTPUT_OPTION) $<
+
+$(BUILDDIR)/$(BOOTLOADER_SRC_DIRNAME)/%.o: $(BOOTLOADER_SRC_DIRNAME)/%.s
+	$(CC) $(TARGET_ARCH) $(ASFLAGS) $(OUTPUT_OPTION) $<
 
 CMSIS_EFM32HG_CFLAGS += -O0 -Wall -fmessage-length=0 -mno-sched-prolog \
     -fno-builtin -ffunction-sections -fdata-sections
@@ -100,8 +104,9 @@ Tailm.axf: $(TAIL_OBJECTS) $(CMSIS_OBJECTS)
 
 BOOTLOADER_OBJECTS := $(patsubst %.c,$(BUILDDIR)/%.o,$(BOOTLOADER_SRCS))
 #BOOTLOADER_OBJECTS += $(BUILDDIR)/$(BOOTLOADER_SRC_DIRNAME)/startup_efm32.o
-BOOTLOADER_OBJECTS += $(BUILDDIR)/$(CMSIS_EFM32HG_SRC_DIRNAME)/startup_gcc_efm32hg.o
-bootloader.axf: LDFLAGS := -T "Tailb.ld" -Xlinker --gc-sections -Xlinker -Map="Tailb.map" --specs=nano.specs
+#BOOTLOADER_OBJECTS += $(BUILDDIR)/$(CMSIS_EFM32HG_SRC_DIRNAME)/startup_gcc_efm32hg.o
+BOOTLOADER_OBJECTS += $(BUILDDIR)/$(BOOTLOADER_SRC_DIRNAME)/startup_gcc_efm32hg.o
+bootloader.axf: LDFLAGS := -T "Tailb.ld" -Xlinker --gc-sections -Xlinker -Map="Tailb.map" --specs=nano.specs -nostartfiles
 bootloader.axf: $(BOOTLOADER_OBJECTS)
 	#$(warning $(BOOTLOADER_OBJECTS))
 	#$(warning $(TAIL_OBJECTS))

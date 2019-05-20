@@ -26,6 +26,7 @@
 
 // Packet storage. Double buffered version.
 #pragma data_alignment=4
+__attribute__((aligned(4)))
 uint8_t rawPacket[2][ALIGNMENT(sizeof(XMODEM_packet),4)];
 
 /**************************************************************************//**
@@ -34,7 +35,7 @@ uint8_t rawPacket[2][ALIGNMENT(sizeof(XMODEM_packet),4)];
  * @param sequenceNumber The current sequence number.
  * @returns -1 on packet error, 0 otherwise
  *****************************************************************************/
-__ramfunc __INLINE int XMODEM_verifyPacketChecksum(XMODEM_packet *pkt, int sequenceNumber)
+static __ramfunc __INLINE int XMODEM_verifyPacketChecksum(XMODEM_packet *pkt, int sequenceNumber)
 {
   uint16_t packetCRC;
   uint16_t calculatedCRC;

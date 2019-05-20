@@ -38,6 +38,7 @@
 // Vector table in RAM. We construct a new vector table to conserve space in
 // flash as it is sparsly populated.
 #pragma location=0x20000000
+__attribute__((section("vtable")))
 #if (_SILICON_LABS_32B_SERIES_1_CONFIG == 2) \
   || (_SILICON_LABS_32B_SERIES_1_CONFIG == 3) \
   || ((_SILICON_LABS_32B_SERIES_1_CONFIG == 1) && defined(_EFM32_GIANT_FAMILY))\
@@ -58,6 +59,7 @@ __no_init uint32_t vectorTable[47];
 #else
 #pragma location=0x200000bc
 #endif
+__attribute__((section("bootloadercrc")))
 __no_init uint16_t bootloaderCRC;
 
 // If this flag is set the bootloader will be reset when the RTC expires.
@@ -512,11 +514,11 @@ __noreturn void main(void)
 #endif
 
   // Print a message to show that we are in bootloader mode.
-  USART_printString("\r\n\r\n" BOOTLOADER_VERSION_STRING  " ChipID: ");
+  USART_printString((uint8_t *)"\r\n\r\n" BOOTLOADER_VERSION_STRING  " ChipID: ");
   // Print the chip ID. This is useful for production tracking.
   USART_printHex(DEVINFO->UNIQUEH);
   USART_printHex(DEVINFO->UNIQUEL);
-  USART_printString("\r\n");
+  USART_printString((uint8_t *)"\r\n");
 
   // Initialize flash for writing.
   FLASH_init();
