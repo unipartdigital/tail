@@ -690,6 +690,345 @@ void fn_temp(void)
 	write_string("\r\n");
 }
 
+#include "em_gpio.h"
+
+#define SWCLK gpioPortA, 0
+#define SWDIO gpioPortA, 1
+#define RESET gpioPortA, 2
+
+void send_aap_expansion(void)
+{
+	GPIO_PinOutClear(SWCLK);
+	GPIO_PinOutClear(SWDIO);
+	GPIO_PinOutSet(SWCLK);
+	GPIO_PinOutToggle(SWDIO);
+	GPIO_PinOutToggle(SWDIO);
+	GPIO_PinOutToggle(SWDIO);
+	GPIO_PinOutToggle(SWDIO);
+	GPIO_PinOutToggle(SWDIO);
+	GPIO_PinOutToggle(SWDIO);
+	GPIO_PinOutToggle(SWDIO);
+	GPIO_PinOutToggle(SWDIO);
+	GPIO_PinOutClear(SWCLK);
+	GPIO_PinOutToggle(SWDIO);
+	GPIO_PinOutToggle(SWDIO);
+	GPIO_PinOutToggle(SWDIO);
+	GPIO_PinOutToggle(SWDIO);
+	GPIO_PinOutToggle(SWDIO);
+	GPIO_PinOutToggle(SWDIO);
+	GPIO_PinOutToggle(SWDIO);
+	GPIO_PinOutToggle(SWDIO);
+}
+
+uint32_t read_swd(uint32_t address, bool ap)
+{
+	int bits = 1; /* Read */
+	GPIO_PinOutSet(SWDIO); // Start bit
+	GPIO_PinOutSet(SWCLK);
+	GPIO_PinOutClear(SWCLK);
+
+	if (ap) {
+		GPIO_PinOutSet(SWDIO);
+		bits++;
+	} else
+		GPIO_PinOutClear(SWDIO);
+	GPIO_PinOutSet(SWCLK);
+	GPIO_PinOutClear(SWCLK);
+
+	GPIO_PinOutSet(SWDIO); // Read
+	GPIO_PinOutSet(SWCLK);
+	GPIO_PinOutClear(SWCLK);
+
+	if (address & 0x04) {
+		GPIO_PinOutSet(SWDIO);
+		bits++;
+	} else
+		GPIO_PinOutClear(SWDIO);
+	GPIO_PinOutSet(SWCLK);
+	GPIO_PinOutClear(SWCLK);
+
+	if (address & 0x08) {
+		bits++;
+		GPIO_PinOutSet(SWDIO);
+	} else
+		GPIO_PinOutClear(SWDIO);
+	GPIO_PinOutSet(SWCLK);
+	GPIO_PinOutClear(SWCLK);
+
+	if (bits & 1) {
+		GPIO_PinOutSet(SWDIO);
+	} else
+		GPIO_PinOutClear(SWDIO);
+	GPIO_PinOutSet(SWCLK);
+	GPIO_PinOutClear(SWCLK);
+
+	GPIO_PinOutClear(SWDIO); // Stop
+	GPIO_PinOutSet(SWCLK);
+	GPIO_PinOutClear(SWCLK);
+
+	GPIO_PinOutSet(SWDIO); // Park
+	GPIO_PinOutSet(SWCLK);
+	GPIO_PinOutClear(SWCLK);
+
+	GPIO_PinModeSet(SWDIO, gpioModeInput, 0);
+	GPIO_PinOutSet(SWCLK); 	/* Turnaround */
+	GPIO_PinOutClear(SWCLK);
+
+    uint32_t ack = 0;
+    uint32_t value = 0;
+
+	for (int i = 0; i < 3; i++) {
+		GPIO_PinOutSet(SWCLK);
+		ack |= (GPIO_PinInGet(SWDIO) << i);
+		GPIO_PinOutClear(SWCLK);
+	}
+
+	for (int i = 0; i < 32; i++) {
+		GPIO_PinOutSet(SWCLK);
+		value |= (GPIO_PinInGet(SWDIO) << i);
+		GPIO_PinOutClear(SWCLK);
+	}
+
+    GPIO_PinOutSet(SWCLK);
+	int parity = GPIO_PinInGet(SWDIO);
+	GPIO_PinOutClear(SWCLK);
+
+	GPIO_PinModeSet(SWDIO, gpioModePushPull, 0);
+	GPIO_PinOutSet(SWCLK); 	/* Turnaround */
+	GPIO_PinOutClear(SWCLK);
+
+	return value;
+}
+
+void write_swd(uint32_t address, bool ap, uint32_t value)
+{
+	int bits = 0; /* Read */
+	GPIO_PinOutSet(SWDIO); // Start bit
+	GPIO_PinOutSet(SWCLK);
+	GPIO_PinOutClear(SWCLK);
+
+	if (ap) {
+		GPIO_PinOutSet(SWDIO);
+		bits++;
+	} else
+		GPIO_PinOutClear(SWDIO);
+	GPIO_PinOutSet(SWCLK);
+	GPIO_PinOutClear(SWCLK);
+
+	GPIO_PinOutClear(SWDIO); // Write
+	GPIO_PinOutSet(SWCLK);
+	GPIO_PinOutClear(SWCLK);
+
+	if (address & 0x04) {
+		GPIO_PinOutSet(SWDIO);
+		bits++;
+	} else
+		GPIO_PinOutClear(SWDIO);
+	GPIO_PinOutSet(SWCLK);
+	GPIO_PinOutClear(SWCLK);
+
+	if (address & 0x08) {
+		bits++;
+		GPIO_PinOutSet(SWDIO);
+	} else
+		GPIO_PinOutClear(SWDIO);
+	GPIO_PinOutSet(SWCLK);
+	GPIO_PinOutClear(SWCLK);
+
+	if (bits & 1) {
+		GPIO_PinOutSet(SWDIO);
+	} else
+		GPIO_PinOutClear(SWDIO);
+	GPIO_PinOutSet(SWCLK);
+	GPIO_PinOutClear(SWCLK);
+
+	GPIO_PinOutClear(SWDIO); // Stop
+	GPIO_PinOutSet(SWCLK);
+	GPIO_PinOutClear(SWCLK);
+
+	GPIO_PinOutSet(SWDIO); // Park
+	GPIO_PinOutSet(SWCLK);
+	GPIO_PinOutClear(SWCLK);
+
+	GPIO_PinModeSet(SWDIO, gpioModeInput, 0);
+	GPIO_PinOutSet(SWCLK); 	/* Turnaround */
+	GPIO_PinOutClear(SWCLK);
+
+    uint32_t ack = 0;
+
+	for (int i = 0; i < 3; i++) {
+		GPIO_PinOutSet(SWCLK);
+		ack |= (GPIO_PinInGet(SWDIO) << i);
+		GPIO_PinOutClear(SWCLK);
+	}
+
+	GPIO_PinModeSet(SWDIO, gpioModePushPull, 0);
+	GPIO_PinOutSet(SWCLK); 	/* Turnaround */
+	GPIO_PinOutClear(SWCLK);
+
+	bits = 0;
+
+	for (int i = 0; i < 32; i++) {
+		if (value & (1<<i)) {
+			bits++;
+		    GPIO_PinOutSet(SWDIO);
+		} else
+			GPIO_PinOutClear(SWDIO);
+		GPIO_PinOutSet(SWCLK);
+		GPIO_PinOutClear(SWCLK);
+	}
+
+    if (bits & 1)
+	    GPIO_PinOutSet(SWDIO);
+    else
+	    GPIO_PinOutClear(SWDIO);
+    GPIO_PinOutSet(SWCLK);
+    GPIO_PinOutClear(SWCLK);
+}
+
+
+void send_line_reset(void)
+{
+	GPIO_PinOutSet(SWDIO);
+	for (int i = 0; i < 50; i++) {
+		GPIO_PinOutSet(SWCLK);
+		GPIO_PinOutClear(SWCLK);
+	}
+}
+
+void send_swd_switch(void)
+{
+	// 0111
+	GPIO_PinOutClear(SWDIO);
+	GPIO_PinOutSet(SWCLK);
+	GPIO_PinOutClear(SWCLK);
+	GPIO_PinOutSet(SWDIO);
+	GPIO_PinOutSet(SWCLK);
+	GPIO_PinOutClear(SWCLK);
+	GPIO_PinOutSet(SWCLK);
+	GPIO_PinOutClear(SWCLK);
+	GPIO_PinOutSet(SWCLK);
+	GPIO_PinOutClear(SWCLK);
+
+	// 1001
+	GPIO_PinOutSet(SWCLK);
+	GPIO_PinOutClear(SWCLK);
+	GPIO_PinOutClear(SWDIO);
+	GPIO_PinOutSet(SWCLK);
+	GPIO_PinOutClear(SWCLK);
+	GPIO_PinOutSet(SWCLK);
+	GPIO_PinOutClear(SWCLK);
+	GPIO_PinOutSet(SWDIO);
+    GPIO_PinOutSet(SWCLK);
+	GPIO_PinOutClear(SWCLK);
+
+	// 1110
+	GPIO_PinOutSet(SWCLK);
+	GPIO_PinOutClear(SWCLK);
+	GPIO_PinOutSet(SWCLK);
+	GPIO_PinOutClear(SWCLK);
+	GPIO_PinOutSet(SWCLK);
+	GPIO_PinOutClear(SWCLK);
+	GPIO_PinOutClear(SWDIO);
+	GPIO_PinOutSet(SWCLK);
+	GPIO_PinOutClear(SWCLK);
+
+	// 0111
+	GPIO_PinOutClear(SWDIO);
+	GPIO_PinOutSet(SWCLK);
+	GPIO_PinOutClear(SWCLK);
+	GPIO_PinOutSet(SWDIO);
+	GPIO_PinOutSet(SWCLK);
+	GPIO_PinOutClear(SWCLK);
+	GPIO_PinOutSet(SWCLK);
+	GPIO_PinOutClear(SWCLK);
+	GPIO_PinOutSet(SWCLK);
+	GPIO_PinOutClear(SWCLK);
+}
+
+uint32_t read_memory(uint32_t address)
+{
+    write_swd(0x04, true, address);
+    read_swd(0x0c, true);
+    return read_swd(0x0c, false);
+}
+
+void write_memory(uint32_t address, uint32_t value)
+{
+    write_swd(0x04, true, address);
+    write_swd(0x0c, true, value);
+}
+
+void fn_unbrick(void)
+{
+	GPIO_PinModeSet(RESET, gpioModePushPull, 0);
+	GPIO_PinModeSet(SWCLK, gpioModePushPull, 0);
+	GPIO_PinModeSet(SWDIO, gpioModePushPull, 0);
+    GPIO_PinOutClear(RESET);
+    send_aap_expansion();
+    GPIO_PinOutSet(RESET);
+
+    for (volatile int d = 0; d < 250; d++)
+    	;
+
+    for (int i = 0; i < 1; i++) {
+        send_line_reset();
+        GPIO_PinOutClear(SWDIO);
+        GPIO_PinOutSet(SWCLK);
+        GPIO_PinOutClear(SWCLK);
+
+        GPIO_PinOutSet(SWCLK);
+        GPIO_PinOutClear(SWCLK);
+
+        send_swd_switch();
+        send_line_reset();
+
+        GPIO_PinOutClear(SWDIO);
+        GPIO_PinOutSet(SWCLK);
+        GPIO_PinOutClear(SWCLK);
+        GPIO_PinOutSet(SWCLK);
+        GPIO_PinOutClear(SWCLK);
+        GPIO_PinOutSet(SWCLK);
+        GPIO_PinOutClear(SWCLK);
+        GPIO_PinOutSet(SWCLK);
+        GPIO_PinOutClear(SWCLK);
+        GPIO_PinOutSet(SWCLK);
+        GPIO_PinOutClear(SWCLK);
+        GPIO_PinOutSet(SWCLK);
+        GPIO_PinOutClear(SWCLK);
+        GPIO_PinOutSet(SWCLK);
+        GPIO_PinOutClear(SWCLK);
+        GPIO_PinOutSet(SWCLK);
+        GPIO_PinOutClear(SWCLK);
+
+        uint32_t idcode = read_swd(0, 0);
+
+        write_swd(0x04, false, 0x50000000); // power up
+        write_swd(0x08, false, 0x000000F0); // Access AP0 high bank
+        read_swd(0xc, true);
+        uint32_t idr = read_swd(0xc, false);
+        write_swd(0x08, false, 0x00000000); // Access AP0
+
+        write_swd(0x00, true, 0x00000002); // 32-bit transfers
+        uint32_t aapidr = read_memory(0xF0E000FC);
+        write_memory(0xF0E00004, 0xcfacc118); // Enable AAP_CMD
+        write_memory(0xF0E00000, 0x00000001); // DEVICEERASE
+        write_memory(0xF0E00004, 0x00000000); // Disable AAP_CMD and execute
+
+        uint32_t status = read_memory(0xF0E00008);
+
+        write_string("IDCODE: ");
+        write_hex(idcode);
+        write_string("\r\nIDR: ");
+        write_hex(idr);
+        write_string("\r\nAAPIDR: ");
+        write_hex(aapidr);
+        write_string("\r\nStatus: ");
+        write_hex(status);
+        write_string("\r\n");
+    }
+}
+
 typedef struct {
 	const char *command;
 	void (*fn)(void);
@@ -727,7 +1066,8 @@ static command command_table[] = {
 		{"turnaround_delay", &fn_turnaround_delay},
 		{"rxtimeout", &fn_rxtimeout},
 		{"accel", &fn_accel},
-		{"battery", &fn_battery}
+		{"battery", &fn_battery},
+		{"unbrick", &fn_unbrick}
 };
 
 void fn_help(void)
