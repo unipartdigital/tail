@@ -18,7 +18,7 @@
 #include "usart.h"
 #include "xmodem.h"
 #include "boot.h"
-#include "debuglock.h"
+//#include "debuglock.h"
 //#include "autobaud.h"
 #include "crc.h"
 #include "config.h"
@@ -216,7 +216,9 @@ __ramfunc void verify(uint32_t start, uint32_t end)
 __ramfunc __noreturn void commandlineLoop(void)
 {
   uint8_t  c;
+#if 0
   uint8_t *returnString;
+#endif
 
   while (1)                                     // The main command loop.
   {
@@ -229,7 +231,7 @@ __ramfunc __noreturn void commandlineLoop(void)
     {
     case 'u':                                   // Upload.
       USART_printString(readyString);
-      XMODEM_download(APPLICATION_START_ADDR, flashSize);
+      XMODEM_download(APPLICATION_START_ADDR, flashSize - CONFIG_SIZE);
       break;
 
     case 'd':                                   // Destructive upload.
@@ -239,7 +241,7 @@ __ramfunc __noreturn void commandlineLoop(void)
       XMODEM_download(BOOTLOADER_START_ADDR,
                       BOOTLOADER_START_ADDR + BOOTLOADER_SIZE);
 #else
-      XMODEM_download(BOOTLOADER_START_ADDR, flashSize);
+      XMODEM_download(BOOTLOADER_START_ADDR, flashSize - CONFIG_SIZE);
 #endif
       break;
 
@@ -248,6 +250,7 @@ __ramfunc __noreturn void commandlineLoop(void)
       XMODEM_download(USER_PAGE_START_ADDR, USER_PAGE_END_ADDR);
       break;
 
+#if 0
     case 'p':                                   // Write to lock bits.
 #if defined( CoreDebug )        // In core_cmX.h.
       DEBUGLOCK_startDebugInterface();
@@ -262,11 +265,13 @@ __ramfunc __noreturn void commandlineLoop(void)
 #endif
       XMODEM_download(LOCK_PAGE_START_ADDR, LOCK_PAGE_END_ADDR);
       break;
+#endif
 
     case 'b':                                   // Boot into new program.
       BOOT_boot();
       break;
 
+#if 0
     case 'l':                                   // Debug lock.
 #if !defined(NDEBUG) && defined( CoreDebug )
       // We check if there is a debug session active in DHCSR. If there is we
@@ -296,13 +301,14 @@ __ramfunc __noreturn void commandlineLoop(void)
       }
 #endif
       break;
+#endif
 
     case 'v':             // Verify content by calculating CRC of entire flash.
       verify(0, flashSize);
       break;
 
     case 'c':             // Verify content by calculating CRC of application area.
-      verify(APPLICATION_START_ADDR, flashSize);
+      verify(APPLICATION_START_ADDR, flashSize - CONFIG_SIZE);
       break;
 
     case 'n':             // Verify content by calculating CRC of user page.
