@@ -19,7 +19,7 @@ DEBUG_FLAGS += -g -gdwarf-2
 CFLAGS += $(DEBUG_FLAGS)
 CFLAGS += $(TARGET_ARCH)
 CFLAGS += -std=c99 -DNDEBUG=1 -DEFM32HG222F64=1
-CFLAGS += -Os -Wall -Wno-main -fmessage-length=0 -ffunction-sections -fdata-sections
+CFLAGS += -Os -Wall -Wno-main -Wno-unknown-pragmas -fmessage-length=0 -ffunction-sections -fdata-sections
 ASFLAGS := -c -x assembler-with-cpp -D__STARTUP_CLEAR_BSS
 
 BOOTLOADER_DEFINES := -DBOOTLOADER_VERSION_STRING=\"0.0.1\" -DNDEBUG -D_EFM32_HAPPY_FAMILY=1

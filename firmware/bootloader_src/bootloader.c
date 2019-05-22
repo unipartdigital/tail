@@ -19,7 +19,7 @@
 #include "xmodem.h"
 #include "boot.h"
 #include "debuglock.h"
-#include "autobaud.h"
+//#include "autobaud.h"
 #include "crc.h"
 #include "config.h"
 #include "flash.h"
@@ -124,6 +124,10 @@ void RTC_INT_HANDLER(void)
   }
 }
 
+#define BOOTLOADER_MAGIC 0xB007BAB1
+uint32_t bootloader_magic __attribute__((section("bootloadermagic")));
+
+
 /**************************************************************************//**
  * @brief
  *   This function is an infinite loop. It actively waits for one of the
@@ -141,11 +145,6 @@ void RTC_INT_HANDLER(void)
  *****************************************************************************/
 static void waitForBootOrUSART(void)
 {
-  uint32_t SWDpins;
-#ifndef NDEBUG
-  uint32_t oldPins = 0xf;
-#endif
-
   // Initialize RTC/RTCC.
   RTC_INT_CLEAR();                    // Clear interrupt flags.
   RTC_COMPSET((PIN_LOOP_INTERVAL * LFRCO_FREQ) / 1000); // 250 ms wakeup time.
@@ -160,20 +159,10 @@ static void waitForBootOrUSART(void)
     // SWCLK (F0) has an internal pull-down and should be pulled high
     // to enter bootloader mode.
 
-    // Check input pins.
-    SWDpins = GPIO->P[5].DIN & 0x1;
-
-#ifndef NDEBUG
-    if (oldPins != SWDpins)
-    {
-      oldPins = SWDpins;
-      printf("New pin: %x \r\n", SWDpins);
-    }
-#endif
-
     // Check if pins are not asserted AND firmware is valid.
-    if ((SWDpins != 0x1) && (BOOT_checkFirmwareIsValid()))
+    if ((bootloader_magic == BOOTLOADER_MAGIC) && (BOOT_checkFirmwareIsValid()))
     {
+      bootloader_magic = 0;
       // Boot application.
 #ifndef NDEBUG
       printf("Booting application \r\n");
@@ -183,13 +172,14 @@ static void waitForBootOrUSART(void)
 
     // SWCLK (F0) is pulled high and SWDIO (F1) is pulled low.
     // Enter bootloader mode.
-    if (SWDpins == 0x1)
+    if (1)
     {
       // Increase timeout to 30 seconds.
       RTC_COMPSET(AUTOBAUD_TIMEOUT * LFRCO_FREQ);
       // If this timeout occurs the EFM32 is rebooted. This is
       // done so that the bootloader cannot get stuck in autobaud sequence.
       resetEFM32onRTCTimeout = true;
+      bootloader_magic = BOOTLOADER_MAGIC;
 #ifndef NDEBUG
       printf("Starting autobaud sequence\r\n");
 #endif
@@ -340,20 +330,24 @@ __ramfunc __noreturn void commandlineLoop(void)
   }
 }
 
+extern void exit(int);
 /**************************************************************************//**
  * @brief  Create a new vector table in RAM.
  *         We generate it here to conserve space in flash.
  *****************************************************************************/
 static void generateVectorTable(void)
 {
+    for (int i = 0; i < (sizeof(vectorTable)/sizeof(vectorTable[0])); i++)
+        vectorTable[i] = (uint32_t) exit;
+
 #if defined(_SILICON_LABS_32B_SERIES_1)
   vectorTable[RTC_IRQ + 16]             = (uint32_t)RTC_INT_HANDLER;
 
 #else
-  vectorTable[AUTOBAUD_TIMER_IRQn + 16] = (uint32_t) TIMER_IRQHandler;
+//  vectorTable[AUTOBAUD_TIMER_IRQn + 16] = (uint32_t) TIMER_IRQHandler;
   vectorTable[RTC_IRQ + 16]             = (uint32_t)RTC_INT_HANDLER;
 #ifdef USART_OVERLAPS_WITH_BOOTLOADER
-  vectorTable[GPIO_EVEN_IRQn + 16]      = (uint32_t) GPIO_IRQHandler;
+//  vectorTable[GPIO_EVEN_IRQn + 16]      = (uint32_t) GPIO_IRQHandler;
 #endif
 #endif
   SCB->VTOR                             = (uint32_t)vectorTable;
@@ -397,6 +391,7 @@ __noreturn void main(void)
   CMU->LFECLKEN0 = CMU_LFECLKEN0_RTCC;
   CMU->OSCENCMD  = CMU_OSCENCMD_LFRCOEN;
 #else
+#if 0
   CMU->HFPERCLKDIV = CMU_HFPERCLKDIV_HFPERCLKEN;
   CMU->HFPERCLKEN0 = CMU_HFPERCLKEN0_GPIO | BOOTLOADER_USART_CLOCKEN |
                      AUTOBAUD_TIMER_CLOCK ;
@@ -410,6 +405,15 @@ __noreturn void main(void)
   CMU->LFCLKSEL = CMU_LFCLKSEL_LFA_LFRCO | CMU_LFCLKSEL_LFB_HFCORECLKLEDIV2;
   // Enable RTC.
   CMU->LFACLKEN0 = CMU_LFACLKEN0_RTC;
+#else
+  // Tail configuration here
+  CMU->HFPERCLKDIV = CMU_HFPERCLKDIV_HFPERCLKEN;
+  CMU->HFPERCLKEN0 = CMU_HFPERCLKEN0_GPIO | BOOTLOADER_USART_CLOCKEN;
+  CMU->HFCORECLKEN0 = CMU_HFCORECLKEN0_LE | CMU_HFCORECLKEN0_DMA;
+  CMU->OSCENCMD = CMU_OSCENCMD_LFXOEN;
+  CMU->LFCLKSEL = CMU_LFCLKSEL_LFA_LFXO | CMU_LFCLKSEL_LFB_LFXO;
+  CMU->LFACLKEN0 = CMU_LFACLKEN0_RTC;
+#endif
 #endif
 
   // Find the size of the flash. DEVINFO->MSIZE is the size in KB,
@@ -475,7 +479,9 @@ __noreturn void main(void)
 
 #else
   // AUTOBAUD_sync() returns a value in 24.8 fixed point format.
-  periodTime24_8 = AUTOBAUD_sync();
+//  periodTime24_8 = AUTOBAUD_sync();
+  periodTime24_8 = 1744; /* 9600 baud, in theory */
+//
 #ifndef NDEBUG
   printf("Measured periodtime (24.8): %d.%d\r\n", periodTime24_8 >> 8, periodTime24_8 & 0xFF);
 #endif
