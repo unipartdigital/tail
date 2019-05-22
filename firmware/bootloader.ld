@@ -11,7 +11,7 @@
 
 MEMORY
 {
-	FLASH (rx) : ORIGIN = 0x800, LENGTH = 0xf000 /* 62k */
+	FLASH (rx) : ORIGIN = 0x0, LENGTH = 0x0800
 	RAM (rwx) : ORIGIN = 0x20000000, LENGTH = 0x2000 /* 8k */
 }
 
@@ -62,7 +62,7 @@ SECTIONS
     *(.text*)
 
     KEEP(*(.init))
-    KEEP(*(.fini))
+    KEEP(*(.fini)) 
 
     /* .ctors */
     *crtbegin.o(.ctors)
@@ -129,12 +129,21 @@ SECTIONS
   } > FLASH
   */
 
+    . = ALIGN(4);
+
   __etext = .;
+
+  vtable (NOLOAD) :
+  {
+    . = ALIGN (256);
+    *(vtable)
+    *(bootloadercrc)
+    . = ALIGN (4);
+  } > RAM
 
   .data : AT (__etext)
   {
     __data_start__ = .;
-    *(vtable)
     *(.data*)
     . = ALIGN (4);
     *(.ram)
