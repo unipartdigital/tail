@@ -1,7 +1,7 @@
 *.swp
-Tail*.axf
-Tail*.bin
-Tail*.hex
-Tail*.map
-Tail*.s37
+*.axf
+*.bin
+*.hex
+*.map
+*.s37
 .build

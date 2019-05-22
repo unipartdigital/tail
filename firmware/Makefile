@@ -110,8 +110,9 @@ Tail-combined.bin: Tail-combined.hex
 # TODO: make this more defensive
 clean:
 	rm -rf $(DEPDIR) $(BUILDDIR)
-	rm -f Tail*.axf Tail*.hex Tail*.bin Tail*.s37
-	rm -f bootloader*.axf bootloader*.hex bootloader*.bin bootlader*.s37
+	rm -f Tail.axf Tail.hex Tail.bin Tail.s37 Tail.map
+	rm -f bootloader.axf bootloader.hex bootloader.bin bootloader.s37 bootloader.map
+	rm -f Tail-combined.hex Tail-combined.bin
 
 .PHONY: all clean combined
 
