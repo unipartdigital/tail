@@ -137,7 +137,7 @@ void uart_init(void)
 //	CMU_ClockDivSet(cmuClock_LEUART0, cmuClockDiv_1); // XXX
 	CMU_ClockEnable(cmuClock_CORELE, true);
 	GPIO_PinModeSet(gpioPortD, 4, gpioModePushPull, 1);
-	GPIO_PinModeSet(gpioPortD, 5, gpioModeInput, 0);
+	GPIO_PinModeSet(gpioPortD, 5, gpioModeInputPull, 1);
 	LEUART_Init_TypeDef leuart_init = LEUART_INIT_DEFAULT;
 	LEUART_Init(LEUART0, &leuart_init);
 	LEUART0->ROUTE = LEUART_ROUTE_RXPEN | LEUART_ROUTE_TXPEN;
