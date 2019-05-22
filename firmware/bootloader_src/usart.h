@@ -23,6 +23,7 @@
 __ramfunc void USART_printHex(uint32_t integer);
 __ramfunc void USART_txByte(uint8_t data);
 __ramfunc uint8_t USART_rxByte(void);
+__ramfunc uint8_t USART_rxByteNoDelay(void);
 __ramfunc void USART_printString(uint8_t *string);
 void USART_init(uint32_t clkdiv);
 

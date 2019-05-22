@@ -60,6 +60,13 @@ __ramfunc uint8_t USART_rxByte(void)
   }
 }
 
+__ramfunc uint8_t USART_rxByteNoDelay(void)
+{
+  if (BOOTLOADER_USART->STATUS & LEUART_STATUS_RXDATAV)
+	return ((uint8_t)(BOOTLOADER_USART->RXDATA & 0xFF));
+  else
+    return 0;
+}
 
 /**************************************************************************//**
  * @brief Transmit single byte to BOOTLOADER_USART

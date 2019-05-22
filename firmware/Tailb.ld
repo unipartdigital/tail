@@ -138,7 +138,6 @@ SECTIONS
     . = ALIGN (256);
     *(vtable)
     *(bootloadercrc)
-    *(bootloadermagic)
     . = ALIGN (4);
   } > RAM
 

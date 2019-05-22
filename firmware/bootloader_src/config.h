@@ -23,6 +23,7 @@
  ** Frequency of the LF clock                                                 *
  ******************************************************************************/
 #define LFRCO_FREQ           (32768)
+#define LFXO_FREQ            (32768)
 
 /******************************************************************************
  * Number of seconds before autobaud times out and restarts the bootloader    *
@@ -30,10 +31,19 @@
 #define AUTOBAUD_TIMEOUT     (30)
 
 /******************************************************************************
- * Number of milliseconds between each consecutive polling of the SWD pins    *
+ * Number of milliseconds between each consecutive polling of the UART        *
  ******************************************************************************/
 #define PIN_LOOP_INTERVAL    (250)
 
+/******************************************************************************
+ * Number of times to poll the UART                                           *
+ ******************************************************************************/
+#define PIN_LOOP_COUNT       (4)
+
+/******************************************************************************
+ * Character to listen to in order to enter the bootloader                    *
+ ******************************************************************************/
+#define BOOTLOADER_ENTERCHAR (0x03)
 /******************************************************************************
  * Misc. constants.                                                           *
  ******************************************************************************/
@@ -218,6 +228,13 @@ __STATIC_INLINE void CONFIG_DebugGpioSetup(void)
   GPIO->P[3].MODEL = GPIO_P_MODEL_MODE7_PUSHPULL | GPIO_P_MODEL_MODE6_INPUT;
 }
 #endif
+
+__STATIC_INLINE void CONFIG_UsartGpioSetupRxOnly(void)
+{
+  // LEUART0, location 0:
+  // TX: D4, RX: D5
+  GPIO->P[3].MODEL = GPIO_P_MODEL_MODE5_INPUT | GPIO_P_MODEL_MODE5_INPUT;
+}
 
 __STATIC_INLINE void CONFIG_UsartGpioSetup(void)
 {

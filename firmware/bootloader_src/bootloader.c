@@ -124,10 +124,6 @@ void RTC_INT_HANDLER(void)
   }
 }
 
-#define BOOTLOADER_MAGIC 0xB007BAB1
-uint32_t bootloader_magic __attribute__((section("bootloadermagic")));
-
-
 /**************************************************************************//**
  * @brief
  *   This function is an infinite loop. It actively waits for one of the
@@ -147,48 +143,23 @@ static void waitForBootOrUSART(void)
 {
   // Initialize RTC/RTCC.
   RTC_INT_CLEAR();                    // Clear interrupt flags.
-  RTC_COMPSET((PIN_LOOP_INTERVAL * LFRCO_FREQ) / 1000); // 250 ms wakeup time.
+  RTC_COMPSET((PIN_LOOP_INTERVAL * LFXO_FREQ) / 1000); // 250 ms wakeup time.
   RTC_INT_ENABLE();                   // Enable interrupt on compare channel.
   NVIC_EnableIRQ(RTC_IRQ);            // Enable RTC interrupt.
   RTC_START();                        // Start RTC.
 
-  while (1)
+  for (int i = 0; i < PIN_LOOP_COUNT; i++)
   {
-    // The SWCLK signal is used to determine if the application
-    // Should be booted or if the bootloader should be started
-    // SWCLK (F0) has an internal pull-down and should be pulled high
-    // to enter bootloader mode.
+	  // Go to EM2 and wait for RTC wakeup.
+	  SCB->SCR |= SCB_SCR_SLEEPDEEP_Msk;
+	  __WFI();
 
-    // Check if pins are not asserted AND firmware is valid.
-    if ((bootloader_magic == BOOTLOADER_MAGIC) && (BOOT_checkFirmwareIsValid()))
-    {
-      bootloader_magic = 0;
-      // Boot application.
-#ifndef NDEBUG
-      printf("Booting application \r\n");
-#endif
-      BOOT_boot();
-    }
+      if (USART_rxByteNoDelay() == BOOTLOADER_ENTERCHAR)
+  		  return;
 
-    // SWCLK (F0) is pulled high and SWDIO (F1) is pulled low.
-    // Enter bootloader mode.
-    if (1)
-    {
-      // Increase timeout to 30 seconds.
-      RTC_COMPSET(AUTOBAUD_TIMEOUT * LFRCO_FREQ);
-      // If this timeout occurs the EFM32 is rebooted. This is
-      // done so that the bootloader cannot get stuck in autobaud sequence.
-      resetEFM32onRTCTimeout = true;
-      bootloader_magic = BOOTLOADER_MAGIC;
-#ifndef NDEBUG
-      printf("Starting autobaud sequence\r\n");
-#endif
-      return;
-    }
-    // Go to EM2 and wait for RTC wakeup.
-    SCB->SCR |= SCB_SCR_SLEEPDEEP_Msk;
-    __WFI();
   }
+  if (BOOT_checkFirmwareIsValid())
+      BOOT_boot();
 }
 
 /**************************************************************************//**
@@ -433,15 +404,20 @@ __noreturn void main(void)
   printf("\r\n\r\n *** Debug output enabled. ***\r\n\r\n");
 #endif
 
+  CONFIG_UsartGpioSetupRxOnly();
+
+  // Enable LEUART.
+  CMU->LFBCLKEN0 = BOOTLOADER_LEUART_CLOCKEN;
+
+  periodTime24_8 = 1744; /* 9600 baud, in theory */
+  clkdiv = (periodTime24_8 >> 1) - 256;
+
+  // Initialize the UART.
+  USART_init(clkdiv);
+
   // Wait for a boot operation.
   waitForBootOrUSART();
 
-#if defined( BOOTLOADER_LEUART_CLOCKEN )
-  // Enable LEUART.
-  CMU->LFBCLKEN0 = BOOTLOADER_LEUART_CLOCKEN;
-#endif
-
-#if defined(_SILICON_LABS_32B_SERIES_0)
 #if defined (_DEVINFO_HFRCOCAL1_BAND28_MASK)
   // Change to 28MHz internal oscillator to increase speed of
   // bootloader.
@@ -469,61 +445,13 @@ __noreturn void main(void)
 #else
 #error "Can not make correct clock selection."
 #endif
-#endif
 
   // Setup pins for USART.
   CONFIG_UsartGpioSetup();
 
-#if defined(_SILICON_LABS_32B_SERIES_1)
-  CMU->HFPERCLKEN0 |= BOOTLOADER_USART_CLOCKEN;
-  USART_init(USART_CLKDIV_AUTOBAUDEN);
-  // Wait for autobaud completion.
-  while (BOOTLOADER_USART->CLKDIV == USART_CLKDIV_AUTOBAUDEN);
-#ifndef NDEBUG
-  clkdiv = BOOTLOADER_USART->CLKDIV & ~USART_CLKDIV_AUTOBAUDEN;
-#endif
-
-#else
-  // AUTOBAUD_sync() returns a value in 24.8 fixed point format.
-//  periodTime24_8 = AUTOBAUD_sync();
-  periodTime24_8 = 1744; /* 9600 baud, in theory */
-//
-#ifndef NDEBUG
-  printf("Measured periodtime (24.8): %d.%d\r\n", periodTime24_8 >> 8, periodTime24_8 & 0xFF);
-#endif
-#endif
-#ifndef NDEBUG
-  printf("Autobaud complete.\r\n");
-#endif
-
   // When autobaud has completed, we can be fairly certain that
   // the entry into the bootloader is intentional so we can disable the timeout.
   NVIC_DisableIRQ(RTC_IRQ);
-
-#if defined( BOOTLOADER_LEUART_CLOCKEN )
-  clkdiv = (periodTime24_8 >> 1) - 256;
-#elif !defined(_SILICON_LABS_32B_SERIES_1)
-  // To go from the period to the necessary clkdiv we need to use
-  // Equation 16.2 in the reference manual. Note that
-  // periodTime = HFperclk / baudrate.
-  clkdiv = (periodTime24_8 - (16 << 8)) >> 4;
-
-  // Check if the clock division is too small, if it is, we change
-  // to an oversampling rate of 4x and calculate a new clkdiv.
-  if (clkdiv < 3000)
-  {
-    clkdiv = (periodTime24_8 - (4 << 8)) >> 2;
-    BOOTLOADER_USART->CTRL |= USART_CTRL_OVS_X4;
-  }
-#endif
-#ifndef NDEBUG
-  printf("BOOTLOADER_USART clkdiv = %d\r\n", clkdiv);
-#endif
-
-#if !defined(_SILICON_LABS_32B_SERIES_1)
-  // Initialize the UART.
-  USART_init(clkdiv);
-#endif
 
   // Print a message to show that we are in bootloader mode.
   USART_printString((uint8_t *)"\r\n\r\n" BOOTLOADER_VERSION_STRING  " ChipID: ");
