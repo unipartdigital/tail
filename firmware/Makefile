@@ -77,8 +77,6 @@ $(BUILDDIR)/%.o : %.c $(DEPDIR)/%.d
 $(DEPDIR)/%.d: ;
 .PRECIOUS: $(DEPDIR)/%.d
 
-include $(wildcard $(patsubst %,$(DEPDIR)/%.d,$(basename $(SRCS))))
-
 CMSIS_OBJECTS = $(BUILDDIR)/CMSIS/EFM32HG/startup_gcc_efm32hg.o \
                 $(BUILDDIR)/CMSIS/EFM32HG/system_efm32hg.o
 
@@ -124,3 +122,6 @@ clean:
 	rm -f bootloader*.axf bootloader*.hex bootloader*.bin bootlader*.s37
 
 .PHONY: all clean
+
+include $(wildcard $(patsubst $(BUILDDIR)/%,$(DEPDIR)/%.d,$(basename $(TAIL_OBJECTS))))
+include $(wildcard $(patsubst $(BUILDDIR)/%,$(DEPDIR)/%.d,$(basename $(BOOTLOADER_OBJECTS))))
