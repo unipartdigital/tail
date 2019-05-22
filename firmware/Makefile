@@ -106,8 +106,6 @@ BOOTLOADER_OBJECTS := $(patsubst %.c,$(BUILDDIR)/%.o,$(BOOTLOADER_SRCS))
 BOOTLOADER_OBJECTS += $(BUILDDIR)/$(BOOTLOADER_SRC_DIRNAME)/startup_gcc_efm32hg.o
 bootloader.axf: LDFLAGS := -T "Tailb.ld" -Xlinker --gc-sections -Xlinker -Map="Tailb.map" --specs=nano.specs -nostartfiles
 bootloader.axf: $(BOOTLOADER_OBJECTS)
-	#$(warning $(BOOTLOADER_OBJECTS))
-	#$(warning $(TAIL_OBJECTS))
 	$(CC) $(DEBUG_FLAGS) $(TARGET_ARCH) $(LDFLAGS) -o bootloader.axf $(BOOTLOADER_OBJECTS) $(SYSLIBS)
 
 	arm-none-eabi-objcopy -O ihex "bootloader.axf" "bootloader.hex"
