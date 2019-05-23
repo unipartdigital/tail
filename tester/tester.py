@@ -501,8 +501,8 @@ relays = Relays(
         ('neg_isense-',      19),
         ('neg_batsw',        16),
         ('neg_ground',       26),
-        ('jtag',             20),
-        ('uart',             21),
+        ('jtag',             21),
+        ('uart',             20),
     ])
 
 if __name__ == '__main__':
