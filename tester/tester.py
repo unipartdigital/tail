@@ -754,6 +754,7 @@ class Test(threading.Thread):
                 'frequency' : f
             }})
         self.xtal = xtal
+        ppm = 1000000 * ((f - f_target) / f_target)
         self.output = output + " {}: {:.02f} ppm".format(xtal, ppm)
         self.firmware_cmd('rgpio 0 1 0 0')
         if not self.firmware_cmd('config xtal ' + str(xtal)):
