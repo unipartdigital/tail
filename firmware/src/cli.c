@@ -16,6 +16,7 @@
 #include "battery.h"
 
 #include "em_msc.h"
+#include "em_system.h"
 
 /* 127 bytes for the tx command should fit in this */
 #define CLI_MAXLEN 400
@@ -639,6 +640,43 @@ void fn_battery(void)
     write_string("\r\n");
 }
 
+void fn_rawbattery(void)
+{
+    uint16_t volts = proto_battery_volts();
+    int mv = battery_mv(volts);
+    write_int(mv);
+    write_string("\r\n");
+}
+
+void fn_rgpio(void)
+{
+    int pin;
+    int mode;
+    int dir;
+    int value;
+    if ((!token_int(&pin, 0)) ||
+        (!token_int(&mode, 0)) ||
+        (!token_int(&dir, 0)) ||
+        (!token_int(&value, 0))) {
+        write_string("Usage: rgpio <pin> <mode> <dir> <value>\r\n");
+        return;
+	}
+    radio_gpio(pin, mode, dir, value);
+    return;
+}
+
+void fn_xtal(void)
+{
+    int xtal;
+
+    if (!token_int(&xtal, 0)) {
+        write_string("Usage: xtal <trim>\r\n");
+        return;
+    }
+
+    radio_xtal_trim(xtal);
+}
+
 void fn_help_config(void)
 {
 	write_string("Recognised config variables:\r\n");
@@ -663,11 +701,18 @@ void fn_wake(void)
 	radio_wakeup();
 }
 
+void fn_prepare(void)
+{
+    proto_prepare_immediate();
+}
+
 void write_int3(int n)
 {
 	int i = n / 1000;
 	int d = n % 1000;
 	int z = 0;
+	if (d < 0)
+		d = -d;
 	if (d < 100)
 		z++;
 	if (d < 10)
@@ -678,9 +723,16 @@ void write_int3(int n)
 		write_string("0");
 	write_int(d);
 }
+
 void fn_volts(void)
 {
 	write_int3(proto_volts());
+	write_string("\r\n");
+}
+
+void fn_rawvolts(void)
+{
+	write_int(proto_rawvolts());
 	write_string("\r\n");
 }
 
@@ -688,6 +740,22 @@ void fn_temp(void)
 {
 	write_int3(proto_temp());
 	write_string("\r\n");
+}
+
+void fn_rawtemp(void)
+{
+	write_int(proto_rawtemp());
+	write_string("\r\n");
+}
+
+void fn_chipid(void)
+{
+    uint64_t id = SYSTEM_GetUnique();
+    for (int i = 0; i < 16; i++) {
+        write_hexdigit(id >> 60);
+        id <<= 4;
+    }
+    write_string("\r\n");
 }
 
 typedef struct {
@@ -721,13 +789,20 @@ static command command_table[] = {
 		{"aread", &fn_aread},
 		{"awrite", &fn_awrite},
 		{"volts", &fn_volts},
+		{"rawvolts", &fn_rawvolts},
 		{"temp", &fn_temp},
+		{"rawtemp", &fn_rawtemp},
 		{"power", &fn_power},
 		{"smartpower", &fn_smartpower},
 		{"turnaround_delay", &fn_turnaround_delay},
 		{"rxtimeout", &fn_rxtimeout},
 		{"accel", &fn_accel},
-		{"battery", &fn_battery}
+		{"battery", &fn_battery},
+		{"rawbattery", &fn_rawbattery},
+		{"rgpio", &fn_rgpio},
+		{"xtal", &fn_xtal},
+		{"prepare", &fn_prepare},
+		{"chipid", &fn_chipid},
 };
 
 void fn_help(void)

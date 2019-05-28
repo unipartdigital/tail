@@ -114,6 +114,7 @@ void radio_wakeup_action(void);
 void radio_cswakeup_action(void);
 void radio_leds(bool on, int time);
 void radio_leds_restore(void);
+void radio_gpio(int pin, int mode, int dir, int value);
 void radio_wakeup_adc_readings(uint8_t *voltage, uint8_t *temperature);
 void radio_read_adc_cal(uint8_t *voltage, uint8_t *temperature);
 void delay(int ms); /* XXX */

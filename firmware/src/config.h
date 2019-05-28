@@ -43,7 +43,9 @@
 	X(tag_max_anchors,   0x0022) \
 	X(tag_min_responses, 0x0023) \
 	X(allow_flat_battery, 0x0024) \
-	X(radio_leds,        0x0025)
+	X(radio_leds,        0x0025) \
+	X(xtal_volts,        0x0026) \
+	X(xtal_temp,         0x0027)
 
 #define CONFIG_KEY_INVALID 0x0000
 

@@ -700,10 +700,20 @@ int proto_volts(void)
 	return 1000 * (v - device.radio_volts_cal) / 173 + 3300;
 }
 
+int proto_rawvolts(void)
+{
+    return device.radio_volts;
+}
+
 int proto_temp(void)
 {
 	int t = device.radio_temp;
 	return 1140 * (t - device.radio_temp_cal) + 23000;
+}
+
+int proto_rawtemp(void)
+{
+    return device.radio_temp;
 }
 
 void set_antenna_delay_tx(uint16_t delay)

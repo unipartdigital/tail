@@ -52,6 +52,13 @@ void write_int(uint32_t n)
     write_string(s+i+1);
 }
 
+void write_hexdigit(int n)
+{
+    char c = (n<10) ? ('0' + n) : ('A' + n - 10);
+    while (!uart_tx(c))
+        ;
+}
+
 void write_hex(uint32_t n)
 {
 	char s[S_LEN+1];
@@ -94,7 +101,6 @@ void write_int64(uint64_t n)
 
     write_string(s+i+1);
 }
-
 
 void LEUART0_IRQHandler(void)
 {

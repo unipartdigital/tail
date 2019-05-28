@@ -40,6 +40,7 @@ uint16_t battery_read(void)
 #define EMPTY READING_FOR_MV(3600)
 
 #define READING_FOR_MV(x) ((32768 * (x)) / FULL_SCALE)
+#define MV_FOR_READING(x) (((x) * FULL_SCALE) / 32768)
 
 /* Returns 0-255 for battery state, or -1 if no info */
 int battery_state(uint16_t voltage)
@@ -54,6 +55,11 @@ int battery_state(uint16_t voltage)
      * updated after discharge curve measurements.
      */
     return ((255 * (voltage - EMPTY)) / (FULL - EMPTY));
+}
+
+int battery_mv(uint16_t voltage)
+{
+    return MV_FOR_READING((int) voltage);
 }
 
 bool battery_flat(uint16_t voltage)

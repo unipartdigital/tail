@@ -992,12 +992,33 @@ void radio_leds_restore(void)
     radio_write32(RREG(GPIO_MODE), FIELDS(GPIO_MODE, MSGP0, on, MSGP1, on, MSGP2, on, MSGP3, on));
     radio_write32(RREG(PMSC_LEDC), FIELDS(PMSC_LEDC, BLNKEN, on, BLINK_TIM, time));
 }
+
 /* Some of these bits aren't preserved over sleep, so it's best to call this again after wakeup */
 void radio_leds(bool on, int time)
 {
 	radio_ledstate = on;
 	radio_ledtime = time;
 	radio_leds_restore();
+}
+
+void radio_gpio(int pin, int mode, int dir, int value)
+{
+    if ((pin < 0) || (pin > 8))
+        return;
+    int modepin = (pin + 3) * 2;
+
+    uint32_t reg = radio_read32(RREG(GPIO_MODE));
+    reg = reg & ~(3 << modepin);
+    reg = reg | (mode << modepin);
+    radio_write32(RREG(GPIO_MODE), reg);
+
+    int dirpin = pin;
+    if (pin > 3)
+        dirpin++;
+    if (pin > 7)
+        dirpin++;
+    radio_write32(RREG(GPIO_DIR), (dir << dirpin) | (1 << (dirpin + 4)));
+    radio_write32(RREG(GPIO_DOUT), (value << dirpin) | (1 << (dirpin + 4)));
 }
 
 void radio_wakeup_adc_readings(uint8_t *voltage, uint8_t *temperature)
