@@ -6,6 +6,7 @@ sudo -H pip3 install cython
 sudo -H pip3 install kivy
 sudo -H pip3 install InstrumentKit
 sudo -H pip3 install gpiozero
+sudo -H pip3 install netaddr
 
 sudo apt isntall libsdl1.2-dev
 
