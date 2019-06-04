@@ -17,7 +17,7 @@ config data_rate 1
 config rxtimeout 0 0x10
 config antenna_delay_rx 0x20 0x40
 config antenna_delay_tx 0x20 0x40
-config tx_power 0x91 0x91 0x91 0x91
+config tx_power 0xd1 0xd1 0xd1 0xd1
 config tag_transition_time 10
 config tag_max_anchors 8
 config tag_min_responses 0
