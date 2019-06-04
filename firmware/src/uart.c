@@ -168,7 +168,9 @@ bool uart_tx(uint8_t data)
 {
     GPIO_PinModeSet(gpioPortD, 4, gpioModePushPull, 1);
     if (tx_active) {
-        return buf_put(&txbuf, data);
+        bool buf_put_res = buf_put(&txbuf, data);
+        //uart_idle();
+        return buf_put_res;
     } else {
 	    tx_active = true;
     	LEUART_IntEnable(LEUART0, LEUART_IEN_TXBL);
@@ -176,8 +178,10 @@ bool uart_tx(uint8_t data)
     	/* If there's still space in the buffer, we're unlikely to get
     	 * a Tx interrupt.
     	 */
-    	if (LEUART_StatusGet(LEUART0) & LEUART_STATUS_TXBL)
-    		tx_active = false;
+        if (LEUART_StatusGet(LEUART0) & LEUART_STATUS_TXBL) {
+            tx_active = false;
+            uart_idle();
+        }
     	return true;
     }
 }
