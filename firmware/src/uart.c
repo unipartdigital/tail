@@ -166,7 +166,8 @@ void uart_start_tx(void)
 
 bool uart_tx(uint8_t data)
 {
-    GPIO_PinModeSet(gpioPortD, 4, gpioModePushPull, 1);
+    if (GPIO_PinModeGet(gpioPortD, 4) != gpioModePushPull)
+        GPIO_PinModeSet(gpioPortD, 4, gpioModePushPull, 1);
     if (tx_active) {
         bool buf_put_res = buf_put(&txbuf, data);
         //uart_idle();
