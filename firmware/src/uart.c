@@ -161,8 +161,8 @@ void uart_idle(void)
 {
     while (tx_active)
         ;
-    //GPIO_PinModeSet(gpioPortD, 4, gpioModeInput, 1);
-    GPIO_PinModeSet(gpioPortD, 4, gpioModeWiredAndPullUp, 1);
+    GPIO_PinModeSet(gpioPortD, 4, gpioModeInput, 1);
+    //GPIO_PinModeSet(gpioPortD, 4, gpioModeWiredAndPullUp, 1);
 }
 
 void uart_start_tx(void)
