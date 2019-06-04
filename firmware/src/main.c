@@ -141,6 +141,7 @@ int main(void)
 	  write_string("No accelerometer detected\r\n");
 
   cli_init();
+  uart_idle();
 
   uint8_t sniff_sensitivity = 2;
   uint8_t sniff_exponent = 0;

@@ -154,6 +154,11 @@ void uart_init(void)
     LEUART_IntEnable(LEUART0, LEUART_IEN_RXDATAV);
 }
 
+void uart_idle(void)
+{
+    GPIO_PinModeSet(gpioPortD, 4, gpioModeInput, 1);
+}
+
 void uart_start_tx(void)
 {
 	tx_active = true;
@@ -161,6 +166,7 @@ void uart_start_tx(void)
 
 bool uart_tx(uint8_t data)
 {
+    GPIO_PinModeSet(gpioPortD, 4, gpioModePushPull, 1);
     if (tx_active) {
         return buf_put(&txbuf, data);
     } else {
