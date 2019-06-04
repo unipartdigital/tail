@@ -115,7 +115,10 @@ void LEUART0_IRQHandler(void)
 
     while (LEUART_StatusGet(LEUART0) & LEUART_STATUS_TXBL) {
     	if (buf_get(&txbuf, &data)) {
+            if (GPIO_PinModeGet(gpioPortD, 4) != gpioModePushPull)
+                GPIO_PinModeSet(gpioPortD, 4, gpioModePushPull, 1);
             LEUART_Tx(LEUART0, data);
+            uart_idle();
     	} else {
         	LEUART_IntDisable(LEUART0, LEUART_IEN_TXBL);
     		tx_active = false;
@@ -170,7 +173,7 @@ bool uart_tx(uint8_t data)
         GPIO_PinModeSet(gpioPortD, 4, gpioModePushPull, 1);
     if (tx_active) {
         bool buf_put_res = buf_put(&txbuf, data);
-        //uart_idle();
+        uart_idle();
         return buf_put_res;
     } else {
 	    tx_active = true;
