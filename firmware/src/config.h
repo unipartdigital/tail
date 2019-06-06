@@ -45,7 +45,8 @@
 	X(allow_flat_battery, 0x0024) \
 	X(radio_leds,        0x0025) \
 	X(xtal_volts,        0x0026) \
-	X(xtal_temp,         0x0027)
+	X(xtal_temp,         0x0027) \
+	X(uart_drive,        0x0028)
 
 #define CONFIG_KEY_INVALID 0x0000
 

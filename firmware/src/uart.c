@@ -124,7 +124,7 @@ void LEUART0_IRQHandler(void)
     }
 }
 
-void uart_init(void)
+void uart_init(bool drive)
 {
 	buf_init(&rxbuf, rxbufdata, RXBUFSIZE);
 	buf_init(&txbuf, txbufdata, TXBUFSIZE);
@@ -146,6 +146,8 @@ void uart_init(void)
 	GPIO_PinModeSet(gpioPortD, 5, gpioModeInputPull, 1);
 	LEUART_Init_TypeDef leuart_init = LEUART_INIT_DEFAULT;
 	LEUART_Init(LEUART0, &leuart_init);
+    if (!drive)
+        LEUART0->CTRL = LEUART_CTRL_AUTOTRI;
 	LEUART0->ROUTE = LEUART_ROUTE_RXPEN | LEUART_ROUTE_TXPEN;
 
 	NVIC_ClearPendingIRQ(LEUART0_IRQn);

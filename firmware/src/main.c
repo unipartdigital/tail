@@ -93,7 +93,7 @@ int main(void)
   /* Defer uart_init() until the latest possible time, because it will wait
    * for the LFXO to be stable.
    */
-  uart_init();
+  uart_init(config_get8(config_key_uart_drive));
 
   uint32_t reset_cause = RMU_ResetCauseGet();
   RMU_ResetCauseClear();

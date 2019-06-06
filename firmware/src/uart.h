@@ -11,7 +11,7 @@ void write_int(uint32_t n);
 void write_int64(uint64_t n);
 void write_hex(uint32_t n);
 void write_hexdigit(int n);
-void uart_init(void);
+void uart_init(bool drive);
 bool uart_tx(uint8_t data);
 bool uart_rx(uint8_t *data);
 bool uart_prepare_sleep(void);
