@@ -33,6 +33,8 @@ INCDIRS += $(INCDIR_BASE)/device/EFM32HG/Include
 INCDIRS += $(INCDIR_BASE)/cmsis/Include
 CFLAGS += $(patsubst %,-I%,$(INCDIRS))
 
+CFLAGS += -DTAIL_VERSION=\"$(shell git describe --tags --always --abbrev=1 --match "v*")\"
+
 MODULES := emlib src CMSIS/EFM32HG bootloader_src
 SRCS :=
 include $(patsubst %,%/module.mk,$(MODULES))
