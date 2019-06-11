@@ -1,0 +1,41 @@
+#!/bin/bash
+
+FILE="$1"
+CHIP=${CHIP:-24c64}
+SIZE=$(stat -c'%s' "$1")
+READ=$(tempfile)
+
+I2C_BUS=${I2C_BUS:-0}
+I2C_ADDR=${I2C_ADDR:-50}
+
+SYS=/sys/class/i2c-adapter/i2c-${I2C_BUS}
+DEV=${SYS}/${I2C_BUS}-00${I2C_ADDR}
+
+error() { echo "*** ERROR: $*"; exit 1; }
+
+#modprobe i2c_dev  || error "modprobe i2c_dev failed"
+#modprobe at24 write_timeout=250  || error "modprobe at24 failed"
+
+test -f ${FILE}   || error "File ${FILE} does not exist"
+test -d ${SYS}    || error "Directory ${SYS} does not exist"
+
+if [ ! -d ${DEV} ]
+then
+    echo "${CHIP} 0x${I2C_ADDR}" > ${SYS}/new_device
+fi
+
+test -d ${DEV}    || error "Directory ${DEV} does not exist"
+
+dd if="${FILE}" of=${DEV}/eeprom oflag=sync status=none || error "dd to eeprom failed"
+dd of="${READ}" if=${DEV}/eeprom bs=1k status=none || error "dd from eeprom failed"
+
+echo "0x${I2C_ADDR}" > ${SYS}/delete_device
+
+cmp -n ${SIZE} -s ${FILE} ${READ} ; OK=$?
+
+rm -f ${READ}
+
+#rmmod at24
+#rmmod i2c_dev
+
+exit ${OK}

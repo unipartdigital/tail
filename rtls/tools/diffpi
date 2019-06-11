@@ -1,0 +1,11 @@
+#!/bin/bash
+
+BLUEDIR='/nfs/home/pi/tail/rtls'
+
+
+find . -type f -name '*.py' -o -name '*.sh' | while read NAME
+do
+	FILE=${NAME##./}
+	diff -u "${BLUEDIR}/${FILE}" "${FILE}"
+done
+

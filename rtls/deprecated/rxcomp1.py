@@ -21,17 +21,17 @@ DAI = lambda m,fc,pt:    pt - 20*np.log10(m*fc*1e6*Cl)
 ADI = lambda dBm,fc,pt:  10**((pt-dBm)/20) / (fc*1e6*Cl)
 
 
-def DistComp(dist,txpwr,rxpwr,prf,bw):
+def DistComp(dist,txpwr,rxpwr,ch,prf):
     P = [ 0, 0, 0 ]
     if prf == 64:
-        if bw == 900:
+        if ch in (4,7):
             if rxpwr < -90:
                 P = [ 0.0183970957, 4.44641309, 227.515172 ]
             elif rxpwr < -70:
                 P = [ 0.0444305694, 8.90189810, 417.601424 ]
             else:
                 P = [ -0.03358327, -2.46361584,  4.70575174 ]
-        if bw == 500:
+        else:
             if rxpwr < -95:
                 P = [ 0.00167748918, 0.480519481, 21.9312229 ]
             elif rxpwr < -85:
@@ -44,6 +44,11 @@ def DistComp(dist,txpwr,rxpwr,prf,bw):
                 P = [ -0.00483682984, -0.315687646, 9.83479021 ]
     C = np.polyval(P,rxpwr) / 100
     return dist + C
+
+
+def DistCompLin(dist,txpwr,rxpwr,ch,prf):
+    pass
+
 
 
 RxCorrData = (
@@ -131,18 +136,22 @@ D4 = 0.0 - D[:,4]
 
 ## 900MHz/PRF64
 
+XL40 = np.linspace(-120,-40,100)
 XL41 = np.linspace(-120,-85,50)
 XL42 = np.linspace(-90,-70,50)
 XL43 = np.linspace(-70,-40,50)
 
+PC40 = np.polyfit(XD[24:], D4[24:], 1)
 PC41 = np.polyfit(XD[ 1:20], D4[ 1:20], 2)
 PC42 = np.polyfit(XD[12:25], D4[12:25], 2)
 PC43 = np.polyfit(XD[20:38], D4[20:38], 2)
 
+CL40 = np.polyval(PC40,XL40)
 CL41 = np.polyval(PC41,XL41)
 CL42 = np.polyval(PC42,XL42)
 CL43 = np.polyval(PC43,XL43)
 
+print('#4: {}'.format(PC40))
 print('#4 -120..-85: {}'.format(PC41))
 print('#4  -90..-70: {}'.format(PC42))
 print('#4  -70..-40: {}'.format(PC43))
@@ -158,7 +167,7 @@ for i in range(len(XL)):
     else:
         CL4[i] = np.polyval(PC43,XL[i])
     
-    CT4[i] = DistComp(0,0,XL[i],64,900) * 100
+    CT4[i] = DistComp(0,0,XL[i],7,64) * 100
 
 SC4 = interp.LSQUnivariateSpline(XL,CL4,[-105,-95,-85,-75,-65,-55])
 CS4 = SC4(XL)
@@ -191,6 +200,7 @@ ax.grid(which='major', alpha=0.5)
 
 #ax.plot(XC,C4,'.')
 ax.plot(XD,D4,'.')
+ax.plot(XL40,CL40)
 ax.plot(XL41,CL41)
 ax.plot(XL42,CL42)
 ax.plot(XL43,CL43)
@@ -205,6 +215,7 @@ ax.plot(XL,CT4)
 
 ## 500MHz/PRF64
 
+XL20 = np.linspace(-120,-40,100)
 # ..-95
 XL21 = np.linspace(-120,-95,50)
 # -95..-85
@@ -216,17 +227,21 @@ XL24 = np.linspace(-75,-65,50)
 # -65..
 XL25 = np.linspace(-65,-40,50)
 
+PC20 = np.polyfit(XD[24:], D2[24:], 1)
 PC21 = np.polyfit(XD[3:12], D2[3:12], 2)
 PC22 = np.polyfit(XD[10:17], D2[10:17], 2)
 PC23 = np.polyfit(XD[15:22], D2[15:22], 2)
 PC24 = np.polyfit(XD[20:26], D2[20:26], 2)
 PC25 = np.polyfit(XD[25:36], D2[25:36], 2)
 
+CL20 = np.polyval(PC20,XL20)
 CL21 = np.polyval(PC21,XL21)
 CL22 = np.polyval(PC22,XL22)
 CL23 = np.polyval(PC23,XL23)
 CL24 = np.polyval(PC24,XL24)
 CL25 = np.polyval(PC25,XL25)
+
+print('#2: {}'.format(PC20))
 
 print('#2 -120..-95: {}'.format(PC21))
 print('#2  -95..-85: {}'.format(PC22))
@@ -248,7 +263,7 @@ for i in range(len(XL)):
     else:
         CL2[i] = np.polyval(PC25,XL[i])
     
-    CT2[i] = DistComp(0,0,XL[i],64,500) * 100
+    CT2[i] = DistComp(0,0,XL[i],5,64) * 100
 
 SC2 = interp.LSQUnivariateSpline(XL,CL2,[-105,-95,-85,-75,-65,-55])
 CS2 = SC2(XL)
@@ -282,6 +297,7 @@ ax.grid(which='major', alpha=0.5)
 
 #ax.plot(XC,C2,'.')
 ax.plot(XD,D2,'.')
+ax.plot(XL20,CL20)
 ax.plot(XL21,CL21)
 ax.plot(XL22,CL22)
 ax.plot(XL23,CL23)

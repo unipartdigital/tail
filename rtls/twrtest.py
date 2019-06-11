@@ -115,8 +115,8 @@ def DECA_TWR(blk, tmr, remote, delay, power=None, rawts=False):
     eui2 = rem2.eui
 
     if power is not None:
-        rem1.SetAttr('tx_power', power)
-        rem2.SetAttr('tx_power', power)
+        rem1.SetDWAttr('tx_power', power)
+        rem2.SetDWAttr('tx_power', power)
     
     Tm = tmr.sync()
     i1 = blk.Blink(adr1,Tm)

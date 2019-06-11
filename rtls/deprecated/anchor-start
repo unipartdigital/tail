@@ -1,0 +1,15 @@
+#!/bin/bash
+
+COUNT=40
+
+N=1
+
+while [ $N -lt ${COUNT} ]
+do
+    XX=$(printf '%02X' $N)
+    let N+=1
+    ip -6 neigh replace fe80::72b3:d5b1:e000:00${XX} lladdr 70:b3:d5:b1:e0:00:00:${XX} dev lowpan0
+done
+
+exec /sbin/anchor4 "$@"
+

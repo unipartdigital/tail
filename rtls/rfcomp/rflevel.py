@@ -100,10 +100,10 @@ ax[0,0].set_xlabel('[dBm]')
 ax[0,0].set_ylabel('[dBm]')
 ax[0,0].grid(True)
 
-ax[0,0].plot(X,X)
-ax[0,0].plot(X,Y1,'.-')
-ax[0,0].plot(X,Y2,'.-')
-ax[0,0].plot(X,Y3,'.-')
+ax[0,0].plot(X-105,X-105)
+ax[0,0].plot(X-105,Y1-105,'.-')
+ax[0,0].plot(X-105,Y2-105,'.-')
+ax[0,0].plot(X-105,Y3-105,'.-')
 
 
 ax[0,1].set_title('RF Power Conversion PRF16')

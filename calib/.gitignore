@@ -1,0 +1,7 @@
+# Ignore all eeprom files
+70b3d5b1e*
+
+# Ignore all measurement files
+*.csv
+*.nrm
+
