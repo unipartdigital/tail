@@ -5,7 +5,6 @@
 
 #include "cli.h"
 #include "uart.h"
-#include "version.h"
 #include "config.h"
 #include "flash.h"
 #include "time.h"
@@ -47,7 +46,7 @@ static bool txrx_rxactive = false;
 void cli_init(void)
 {
 	bufp = 0;
-	write_string("Tail cli v" VERSION "\r\nReady for action\r\n" PROMPT);
+	write_string("Tail cli: " TAIL_VERSION "\r\nReady for action\r\n" PROMPT);
 	echo = true;
 	cli_pending = false;
 }
@@ -758,6 +757,11 @@ void fn_chipid(void)
     write_string("\r\n");
 }
 
+void fn_version(void)
+{
+    write_string("Tail version: " TAIL_VERSION "\r\n");
+}
+
 typedef struct {
 	const char *command;
 	void (*fn)(void);
@@ -803,6 +807,7 @@ static command command_table[] = {
 		{"xtal", &fn_xtal},
 		{"prepare", &fn_prepare},
 		{"chipid", &fn_chipid},
+		{"version", &fn_version},
 };
 
 void fn_help(void)
