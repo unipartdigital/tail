@@ -76,6 +76,7 @@ typedef struct {
 	uint32_t rxwindow;
 	uint64_t rxstarttime;
 	uint64_t rxendtime;
+	uint32_t uptime_blinks;
 } device_t;
 
 device_t device = {
@@ -100,7 +101,8 @@ device_t device = {
 		.reset_requested = false,
 		.rxwindow = false,
 		.rxstarttime = 0,
-		.rxendtime = 0
+		.rxendtime = 0,
+		.uptime_blinks = 0
 };
 
 #define MAX_ANCHORS 8
@@ -128,6 +130,10 @@ typedef struct {
 	int responses_sent;
 	bool idle;
 	bool ranging_aborted;
+	bool tx_temperature;
+	bool tx_battery_voltage;
+	bool tx_radio_voltage;
+	bool tx_uptime_blinks;
 } tag_data_t;
 
 #define DEFAULT_TARGET_ADDR {.type = ADDR_SHORT, .pan = PAN_BROADCAST, .a.s = 0xffff}
@@ -206,6 +212,10 @@ tag_data_t tag_data = {
 #define TAIL_FLAGS_SALT                     0x10
 
 #define TAIL_IE_BATTERY                     0x00
+#define TAIL_IE_RADIO_VOLTAGE               0x01
+#define TAIL_IE_TEMPERATURE                 0x02
+#define TAIL_IE_BATTERY_VOLTAGE             0x40
+#define TAIL_IE_UPTIME_BLINKS               0x80
 #define TAIL_IE_DEBUG                       0xff
 
 #define TAIL_CONFIG_WRITE_SUCCESS			0x00
@@ -284,7 +294,6 @@ typedef struct packet {
         (array)[1] = (i >> 24) & 0xff; \
         (array)[0] = (i >> 32) & 0xff; \
     } while (0)
-
 
 int proto_dest(uint8_t *buf, address_t *a);
 int proto_source(uint8_t *buf, int offset);
@@ -563,6 +572,32 @@ void tag_start(void)
         iecount++;
     }
 
+    if (tag_data.tx_battery_voltage) {
+        txbuf[offset++] = TAIL_IE_BATTERY_VOLTAGE;
+        txbuf[offset++] = volts & 0xff;
+        txbuf[offset++] = volts >> 8;
+        iecount++;
+    }
+    if (tag_data.tx_radio_voltage) {
+        txbuf[offset++] = TAIL_IE_RADIO_VOLTAGE;
+        txbuf[offset++] = device.radio_volts - device.radio_volts_cal;
+        iecount++;
+    }
+    if (tag_data.tx_temperature) {
+        txbuf[offset++] = TAIL_IE_TEMPERATURE;
+        txbuf[offset++] = temperature - device.radio_temp_cal;
+        iecount++;
+    }
+    if (tag_data.tx_uptime_blinks) {
+        txbuf[offset++] = TAIL_IE_UPTIME_BLINKS;
+        txbuf[offset++] = device.uptime_blinks & 0xff;
+        txbuf[offset++] = (device.uptime_blinks >> 8) & 0xff;
+        txbuf[offset++] = (device.uptime_blinks >> 16) & 0xff;
+        txbuf[offset++] = device.uptime_blinks >> 24;
+        device.uptime_blinks++;
+        iecount++;
+    }
+
     txbuf[offset++] = TAIL_IE_DEBUG;
     txbuf[offset++] = 6; /* Length of debug field */
     txbuf[offset++] = voltage; /* Battery state */
@@ -608,6 +643,11 @@ void tag_with_period(int period, int period_idle, int transition_time)
 	tag_data.period_active = period;
 	tag_data.period_idle = period_idle;
 	tag_data.transition_time = transition_time;
+
+	tag_data.tx_battery_voltage = config_get8(config_key_tx_battery_voltage);
+	tag_data.tx_radio_voltage = config_get8(config_key_tx_radio_voltage);
+	tag_data.tx_temperature = config_get8(config_key_tx_temperature);
+	tag_data.tx_uptime_blinks = config_get8(config_key_tx_uptime_blinks);
 
 	device.receive_after_transmit = (tag_data.max_anchors > 0);
 
