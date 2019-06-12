@@ -46,7 +46,11 @@
 	X(radio_leds,        0x0025) \
 	X(xtal_volts,        0x0026) \
 	X(xtal_temp,         0x0027) \
-	X(uart_drive,        0x0028)
+	X(uart_drive,        0x0028) \
+	X(tx_battery_voltage,0x0029) \
+	X(tx_radio_voltage,  0x002a) \
+	X(tx_temperature,    0x002b) \
+	X(tx_uptime_blinks,  0x002c)
 
 #define CONFIG_KEY_INVALID 0x0000
 
