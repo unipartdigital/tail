@@ -131,7 +131,9 @@ typedef struct {
 	int period_active;
 	int period_idle;
 	int transition_time;
+	int listen_period;
 	uint32_t last_event;
+	uint32_t last_receive_window;
 	bool active;
 	uint64_t tx_stamp;
 	uint64_t last_stamp;
@@ -156,6 +158,7 @@ tag_data_t tag_data = {
         .period_active = TIME_FROM_SECONDS(1),
 		.period_idle = TIME_FROM_SECONDS(100),
 		.transition_time = TIME_FROM_SECONDS(10),
+		.listen_period = 0,
 		.active = false,
 		.tx_stamp = 0,
 		.anchors_heard = 0,
@@ -586,6 +589,16 @@ void tag_start(void)
     if (proto_battery_flat())
     	return;
 
+    device.receive_after_transmit = (tag_data.max_anchors > 0);
+    if (tag_data.listen_period != 0) {
+        uint32_t next_listen = time_add(tag_data.last_receive_window, tag_data.listen_period);
+        if (time_ge(tag_data.last_event, next_listen))
+            device.receive_after_transmit = true;
+    }
+
+    if (device.receive_after_transmit)
+        tag_data.last_receive_window = tag_data.last_event;
+
     proto_header(txbuf);
     offset = proto_dest(txbuf, &tag_data.target_mac_addr);
     offset = proto_source(txbuf, offset);
@@ -691,6 +704,11 @@ void tag_with_period(int period, int period_idle, int transition_time)
 	tag_data.period_active = period;
 	tag_data.period_idle = period_idle;
 	tag_data.transition_time = transition_time;
+
+    uint32_t listen_period = 0;
+    config_get(config_key_tag_listen_period, (uint8_t *)&listen_period, sizeof(uint32_t));
+    tag_data.listen_period = TIME_FROM_SECONDS((uint64_t)listen_period);
+    tag_data.last_receive_window = time_now();
 
 	tag_data.tx_battery_voltage = config_get8(config_key_tx_battery_voltage);
 	tag_data.tx_radio_voltage = config_get8(config_key_tx_radio_voltage);
