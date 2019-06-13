@@ -199,12 +199,15 @@ int main(void)
 
     word = 0;
     if (config_get(config_key_turnaround_delay, (uint8_t *)&word, 4) > 0)
-    	proto_turnaround_delay(word);
+        proto_turnaround_delay(word);
 
     word = 0;
     if (config_get(config_key_rxtimeout, (uint8_t *)&word, 4) > 0)
     	proto_rx_timeout(word);
 
+    word = 0;
+    if (config_get(config_key_rxdelay, (uint8_t *)&word, 4) > 0)
+        proto_rx_delay(word);
 
     proto_init();
 

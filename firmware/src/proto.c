@@ -29,9 +29,15 @@
 #define MICROSECONDS_TO_DWTIME(x) ((x)*((uint64_t)128*4992)/10)
 
 #define DWTIME_SUB(x, y) (((x) - (y)) & 0xffffffffff)
+#define DWTIME_ADD(x, y) (((x) + (y)) & 0xffffffffff)
+
+#define RADIO_ALIGN(x) ((x) & ~0x1ff)
 
 /* This is the default value */
 #define TURNAROUND_DELAY MICROSECONDS_TO_DWTIME(700)
+
+#define RX_TIMEOUT 10000
+#define RX_DELAY 700
 
 #define SPEED_OF_LIGHT 299792458
 
@@ -72,10 +78,13 @@ typedef struct {
 	uint32_t adc_volts;
 	uint64_t turnaround_delay;
 	uint32_t rxtimeout;
+	uint64_t rxdelay;
 	bool reset_requested;
-	uint32_t rxwindow;
 	uint64_t rxstarttime;
 	uint64_t rxendtime;
+	uint32_t rxnumerator;
+	uint64_t rxdenominator;
+	uint16_t rxtimer;
 	uint32_t uptime_blinks;
 } device_t;
 
@@ -97,11 +106,14 @@ device_t device = {
 		.radio_temp_cal = 0,
 		.adc_volts = 0,
 		.turnaround_delay = TURNAROUND_DELAY,
-		.rxtimeout = 10000,
+		.rxtimeout = RX_TIMEOUT,
+		.rxdelay = RX_DELAY,
 		.reset_requested = false,
-		.rxwindow = false,
 		.rxstarttime = 0,
 		.rxendtime = 0,
+		.rxnumerator = 0,
+		.rxdenominator = 0,
+		.rxtimer = 0,
 		.uptime_blinks = 0
 };
 
@@ -368,32 +380,62 @@ void proto_init(void)
         tag();
 }
 
-void proto_update_window(void)
+void proto_init_window(void)
 {
-	uint32_t frequency = timer_frequency();
+    uint32_t frequency = timer_frequency();
 
-	if (device.rxwindow == 0) {
-		uint64_t window = (((uint64_t)device.rxtimeout*512) * frequency) / DWCLOCK;
-		device.rxwindow = window;
-	} else {
-		uint64_t delta = DWTIME_SUB(device.rxendtime, device.rxstarttime);
-		device.rxwindow = (uint64_t)device.rxwindow * device.rxtimeout*512*128 / delta;
-	}
+    device.rxnumerator = frequency;
+    device.rxdenominator = (uint64_t)DWCLOCK*128;
 }
 
-void start_rx(void)
+void proto_update_window(void)
 {
-	uint8_t time[5];
+    uint64_t dwduration = DWTIME_SUB(device.rxendtime, device.rxstarttime);
+
+    device.rxnumerator = device.rxtimer;
+    device.rxdenominator = dwduration;
+}
+
+void proto_set_timer(uint64_t endtime)
+{
+    uint8_t now[5];
+    /* We can take a slightly more accurate reading by starting the
+     * timer running now and updating the timeout once we've done the
+     * maths.
+     */
+    timer_set(0xffff);
+    timer_start();
+    radio_gettime(now);
+    device.rxstarttime = TIMESTAMP_READ(now);
+    uint64_t duration = DWTIME_SUB(endtime, device.rxstarttime);
+    device.rxtimer = duration * device.rxnumerator / device.rxdenominator;
+    timer_set(device.rxtimer);
+}
+
+void start_rx(bool delayed)
+{
+	uint64_t rxendtime;
+	uint64_t rxtime;
 
 	device.radio_active = true;
 	radio_autoreceive(true);
     radio_setrxtimeout(0); // device.rxtimeout
-    timer_set(device.rxwindow);
-	radio_rxstart(false);
-	timer_start();
 
-	radio_gettime(time);
-	device.rxstarttime = TIMESTAMP_READ(time);
+    if (delayed) {
+        uint64_t txtime = tag_data.last_stamp;
+        rxtime = DWTIME_ADD(txtime, (uint64_t)device.rxdelay << 16);
+        rxtime = RADIO_ALIGN(rxtime);
+    } else {
+        uint8_t now[5];
+        radio_gettime(now);
+        rxtime = TIMESTAMP_READ(now);
+    }
+    rxendtime = DWTIME_ADD(rxtime, (uint64_t)device.rxtimeout << 16);
+
+    proto_set_timer(rxendtime);
+    if (delayed)
+        radio_setstarttime(rxtime >> 8);
+	radio_rxstart(delayed);
 }
 
 void proto_txdone(void)
@@ -415,7 +457,7 @@ void proto_txdone(void)
 		device.radio_active = false;
 	else {
 		if (device.receive_after_transmit && (tag_data.responses_sent == 0))
-			start_rx();
+			start_rx(true);
 		else
 			tail_finish_ranging(); /* clears radio_active if done */
 	}
@@ -473,7 +515,7 @@ void proto_rxtimer(void)
 void proto_rxerror(void)
 {
 	debug.in_rxerror = true;
-   	start_rx();
+   	start_rx(false);
 	debug.in_rxerror = false;
 }
 
@@ -486,6 +528,12 @@ void proto_turnaround_delay(uint32_t us)
 void proto_rx_timeout(uint32_t time)
 {
 	device.rxtimeout = time;
+}
+
+/* same units as proto_rx_timeout() */
+void proto_rx_delay(uint32_t time)
+{
+    device.rxdelay = time;
 }
 
 void tag_set_event(uint32_t now)
@@ -651,8 +699,7 @@ void tag_with_period(int period, int period_idle, int transition_time)
 
 	device.receive_after_transmit = (tag_data.max_anchors > 0);
 
-	device.rxwindow = 0;
-    proto_update_window();
+    proto_init_window();
 
 	tag_start();
 }
@@ -868,7 +915,7 @@ void tail_finish_ranging(void)
 	}
 
 	uint64_t ttx = tag_data.last_stamp + device.turnaround_delay;
-	ttx = ttx & ~0x1ff;
+    ttx = RADIO_ALIGN(ttx);
 
 	uint64_t td_tx = ttx - tag_data.tx_stamp + device.antenna_delay_tx;
 
@@ -929,7 +976,7 @@ void tail_finish_ranging(void)
 
 bool tail_timing(packet_t *p)
 {
-	if (tag_data.anchors_heard < tag_data.max_anchors) {
+    if (tag_data.anchors_heard < tag_data.max_anchors) {
 		tag_data.anchors[tag_data.anchors_heard].address = p->source;
 		tag_data.anchors[tag_data.anchors_heard].rx_stamp = p->timestamp;
 		tag_data.anchors_heard++;

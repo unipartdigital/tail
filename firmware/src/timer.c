@@ -72,6 +72,11 @@ void timer_set(uint32_t delay)
         TIMER_TopSet(TIMER0, delay);
 }
 
+uint32_t timer_get(void)
+{
+    return TIMER_CounterGet(TIMER0);
+}
+
 void timer_start(void)
 {
 	running = true;
@@ -82,6 +87,7 @@ void timer_stop(void)
 {
         TIMER_Enable(TIMER0, false);
         running = false;
+        TIMER_CounterSet(TIMER0, 0);
 }
 
 bool timer_prepare_sleep(void)

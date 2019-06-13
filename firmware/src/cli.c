@@ -397,6 +397,19 @@ void fn_rxtimeout(void)
 	proto_rx_timeout(time);
 }
 
+void fn_rxdelay(void)
+{
+	uint32_t time;
+
+	if (!token_uint32(&time, 0)) {
+		write_string("Usage: rxdelay <time>\r\n");
+		write_string("time is in units of 1.0256 us (512/499.2MHz)\r\n");
+	    return;
+    }
+
+	proto_rx_delay(time);
+}
+
 /* We pass in the buffer because this is called from fn_config which has already allocated
  * a large enough buffer. We don't want to allocate it twice on the stack.
  */
@@ -800,6 +813,7 @@ static command command_table[] = {
 		{"smartpower", &fn_smartpower},
 		{"turnaround_delay", &fn_turnaround_delay},
 		{"rxtimeout", &fn_rxtimeout},
+		{"rxdelay", &fn_rxdelay},
 		{"accel", &fn_accel},
 		{"battery", &fn_battery},
 		{"rawbattery", &fn_rawbattery},

@@ -34,9 +34,10 @@ typedef uint8_t ipv6_addr_t[16];
 
 
 void proto_init(void);
-void start_rx(void);
+void start_rx(bool delayed);
 void proto_turnaround_delay(uint32_t us);
 void proto_rx_timeout(uint32_t time);
+void proto_rx_delay(uint32_t time);
 void tag_with_period(int period, int period_idle, int transition_time);
 void tag(void);
 void stop(void);

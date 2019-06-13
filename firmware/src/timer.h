@@ -13,6 +13,7 @@ void timer_sethandler(void (*fn)(void));
 void timer_deinit(void);
 uint32_t timer_frequency(void);
 void timer_set(uint32_t delay);
+uint32_t timer_get(void);
 void timer_start(void);
 void timer_stop(void);
 bool timer_prepare_sleep(void);

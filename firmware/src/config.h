@@ -50,7 +50,8 @@
 	X(tx_battery_voltage,0x0029) \
 	X(tx_radio_voltage,  0x002a) \
 	X(tx_temperature,    0x002b) \
-	X(tx_uptime_blinks,  0x002c)
+	X(tx_uptime_blinks,  0x002c) \
+	X(rxdelay,           0x002d)
 
 #define CONFIG_KEY_INVALID 0x0000
 
