@@ -1204,6 +1204,9 @@ bool tag_rx(packet_t *p)
 #if 0
     if (encrypted)
     	crypto_decrypt(...);
+#else
+    if (encrypted)
+        return false;
 #endif
 
 	/* Decode tail packet and despatch */
