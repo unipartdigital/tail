@@ -660,6 +660,10 @@ void tag_start(void)
         iecount++;
     }
 
+#if 0
+    /* We're now making most of this available through other
+     * IEs, so there's not much point in also sending it here.
+     */
     txbuf[offset++] = TAIL_IE_DEBUG;
     txbuf[offset++] = 6; /* Length of debug field */
     txbuf[offset++] = voltage; /* Battery state */
@@ -669,6 +673,7 @@ void tag_start(void)
     txbuf[offset++] = volts & 0xff;
     txbuf[offset++] = volts >> 8;
     iecount++;
+#endif
 
     if (iecount > 0)
     	txbuf[ftoffset] = frame_type | TAIL_FRAME_BLINK_IE;
