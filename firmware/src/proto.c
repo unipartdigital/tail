@@ -795,7 +795,7 @@ int proto_rawvolts(void)
 int proto_temp(void)
 {
 	int t = device.radio_temp;
-	return 1140 * (t - device.radio_temp_cal) + 23000;
+	return 1000000 * (t - device.radio_temp_cal) / 1140 + 23000;
 }
 
 int proto_rawtemp(void)
