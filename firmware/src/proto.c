@@ -543,15 +543,16 @@ void tag_set_event(uint32_t now)
 {
 	int period;
 
-	/* XXX there's a very occasional wraparound problem here. */
-	int time_diff = time_sub(now, accel_last_activity());
-	if ((time_diff >= 0) && (time_diff < tag_data.transition_time)) {
-		period = tag_data.period_active;
-		tag_data.idle = false;
-	} else {
-		period = tag_data.period_idle;
-		tag_data.idle = true;
+	if (!tag_data.idle) {
+	    int target_time = time_sub(now, tag_data.transition_time);
+        if (time_ge(target_time, accel_last_activity()))
+            tag_data.idle = true;
 	}
+
+	if (tag_data.idle)
+	    period = tag_data.period_idle;
+	else
+	    period = tag_data.period_active;
 
 	if (proto_battery_flat()) {
 		if (period < PERIOD_BATTERY_FLAT)
@@ -755,8 +756,10 @@ void proto_poll()
 #if 0
     	write_string("Movement\r\n");
 #endif
-    	if (tag_data.active)
-    	    tag_set_event(time_now());
+        if (tag_data.active) {
+            tag_data.idle = false;
+            tag_set_event(time_now());
+        }
     }
     if (!device.radio_active && !device.radio_sleeping) {
     	if (time_to_next_event() >= PROTO_PREPARETIME) {
