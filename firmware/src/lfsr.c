@@ -4,7 +4,7 @@
 
 int32_t lfsr_state = 0;
 
-void seed_lfsr(int32_t seed)
+void lfsr_seed(int32_t seed)
 {
     lfsr_state = seed;
 }

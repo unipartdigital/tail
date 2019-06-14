@@ -54,8 +54,8 @@
 	X(rxdelay,           0x002d) \
 	X(tag_listen_period, 0x002e) \
 	X(xtal_ppm,          0x002f) \
-	X(max_active_jitter, 0x0030) \
-	X(max_idle_jitter,   0x0031)
+	X(tag_jitter,        0x0030) \
+	X(tag_jitter_idle,   0x0031)
 
 #define CONFIG_KEY_INVALID 0x0000
 

@@ -149,8 +149,8 @@ typedef struct {
 	bool tx_battery_voltage;
 	bool tx_radio_voltage;
 	bool tx_uptime_blinks;
-	uint16_t max_active_jitter;
-	uint16_t max_idle_jitter;
+	uint16_t jitter_active;
+	uint16_t jitter_idle;
 } tag_data_t;
 
 #define DEFAULT_TARGET_ADDR {.type = ADDR_SHORT, .pan = PAN_BROADCAST, .a.s = 0xffff}
@@ -360,8 +360,10 @@ void proto_init(void)
 {
 	bool configured = false;
     device.eui = 0;
-    if (config_get(config_key_eui, (uint8_t *)&device.eui, sizeof(device.eui)))
+    if (config_get(config_key_eui, (uint8_t *)&device.eui, sizeof(device.eui))) {
     	configured = true;
+        lfsr_seed((device.eui & 0xffffffff) ^ (device.eui >> 32));
+    }
 
     device.associated = (config_get8(config_key_associated) != 0);
     device.short_addr = config_get16(config_key_short_addr);
@@ -543,20 +545,24 @@ void proto_rx_delay(uint32_t time)
 }
 
 /* All values are in ticks */
-int32_t period_with_jitter(int period, int32_t raw_jitter, int32_t max_jitter) {
-	int32_t jitter = ((raw_jitter * 1.0) / UINT32_MAX) * max_jitter * 2;
+int32_t period_with_jitter(int period, int32_t jitter) {
+	int32_t cur_jitter;
 
-	/* Avoid underflow, or jitter that would more than double the period */
-	if (time_ge((uint32_t) jitter, (uint32_t) period)) {
+	if (jitter == 0)
 		return period;
-	}
-	return period + jitter;
+
+	cur_jitter = (lfsr() % (jitter+1)) - (jitter / 2);
+	period += cur_jitter;
+	write_int(period);
+	write_string(" ");
+	write_int(cur_jitter);
+	write_string("\r\n");
+	return (period < 0) ? 0 : period;
 }
 
 void tag_set_event(uint32_t now)
 {
-	int32_t period, raw_jitter;
-	write_string("tag_set_event called\r\n");
+	int32_t period;
 
 	if (!tag_data.idle) {
 	    int target_time = time_sub(now, tag_data.transition_time);
@@ -564,13 +570,12 @@ void tag_set_event(uint32_t now)
             tag_data.idle = true;
 	}
 
-	raw_jitter = lfsr();
 	if (tag_data.idle) {
-	    period = period_with_jitter(tag_data.period_idle, raw_jitter,
-                                    tag_data.max_idle_jitter);
+	    period = period_with_jitter(tag_data.period_idle,
+                                    tag_data.jitter_idle);
 	} else {
-	    period = period_with_jitter(tag_data.period_active, raw_jitter,
-                                    tag_data.max_active_jitter);
+	    period = period_with_jitter(tag_data.period_active,
+                                    tag_data.jitter_active);
 	}
 
 	if (proto_battery_flat()) {
@@ -740,9 +745,8 @@ void tag_with_period(int period, int period_idle, int transition_time)
 	tag_data.tx_temperature = config_get8(config_key_tx_temperature);
 	tag_data.tx_uptime_blinks = config_get8(config_key_tx_uptime_blinks);
 
-	tag_data.max_active_jitter = TIME_FROM_MS(config_get8(config_key_max_active_jitter));
-	tag_data.max_idle_jitter = TIME_FROM_MS(config_get8(config_key_max_idle_jitter));
-	seed_lfsr((device.eui & 0xffffffff) ^ (device.eui >> 32));
+	tag_data.jitter_active = TIME_FROM_MS(config_get8(config_key_tag_jitter));
+	tag_data.jitter_idle = TIME_FROM_MS(config_get8(config_key_tag_jitter_idle));
 
 	device.receive_after_transmit = (tag_data.max_anchors > 0);
 
