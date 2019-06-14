@@ -8,6 +8,7 @@
 #include "accel.h"
 #include "battery.h"
 #include "timer.h"
+#include "lfsr.h"
 
 #include "em_gpio.h"
 
@@ -148,6 +149,8 @@ typedef struct {
 	bool tx_battery_voltage;
 	bool tx_radio_voltage;
 	bool tx_uptime_blinks;
+	uint16_t max_active_jitter;
+	uint16_t max_idle_jitter;
 } tag_data_t;
 
 #define DEFAULT_TARGET_ADDR {.type = ADDR_SHORT, .pan = PAN_BROADCAST, .a.s = 0xffff}
@@ -438,7 +441,7 @@ void start_rx(bool delayed)
     proto_set_timer(rxendtime);
     if (delayed)
         radio_setstarttime(rxtime >> 8);
-	radio_rxstart(delayed);
+    radio_rxstart(delayed);
 }
 
 void proto_txdone(void)
@@ -539,9 +542,21 @@ void proto_rx_delay(uint32_t time)
     device.rxdelay = time;
 }
 
+/* All values are in ticks */
+int32_t period_with_jitter(int period, int32_t raw_jitter, int32_t max_jitter) {
+	int32_t jitter = ((raw_jitter * 1.0) / UINT32_MAX) * max_jitter * 2;
+
+	/* Avoid underflow, or jitter that would more than double the period */
+	if (time_ge((uint32_t) jitter, (uint32_t) period)) {
+		return period;
+	}
+	return period + jitter;
+}
+
 void tag_set_event(uint32_t now)
 {
-	int period;
+	int32_t period, raw_jitter;
+	write_string("tag_set_event called\r\n");
 
 	if (!tag_data.idle) {
 	    int target_time = time_sub(now, tag_data.transition_time);
@@ -549,10 +564,14 @@ void tag_set_event(uint32_t now)
             tag_data.idle = true;
 	}
 
-	if (tag_data.idle)
-	    period = tag_data.period_idle;
-	else
-	    period = tag_data.period_active;
+	raw_jitter = lfsr();
+	if (tag_data.idle) {
+	    period = period_with_jitter(tag_data.period_idle, raw_jitter,
+                                    tag_data.max_idle_jitter);
+	} else {
+	    period = period_with_jitter(tag_data.period_active, raw_jitter,
+                                    tag_data.max_active_jitter);
+	}
 
 	if (proto_battery_flat()) {
 		if (period < PERIOD_BATTERY_FLAT)
@@ -720,6 +739,10 @@ void tag_with_period(int period, int period_idle, int transition_time)
 	tag_data.tx_radio_voltage = config_get8(config_key_tx_radio_voltage);
 	tag_data.tx_temperature = config_get8(config_key_tx_temperature);
 	tag_data.tx_uptime_blinks = config_get8(config_key_tx_uptime_blinks);
+
+	tag_data.max_active_jitter = TIME_FROM_MS(config_get8(config_key_max_active_jitter));
+	tag_data.max_idle_jitter = TIME_FROM_MS(config_get8(config_key_max_idle_jitter));
+	seed_lfsr((device.eui & 0xffffffff) ^ (device.eui >> 32));
 
 	device.receive_after_transmit = (tag_data.max_anchors > 0);
 
