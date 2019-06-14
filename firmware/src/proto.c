@@ -362,10 +362,8 @@ void proto_init(void)
     device.eui = 0;
     if (config_get(config_key_eui, (uint8_t *)&device.eui, sizeof(device.eui))) {
     	configured = true;
-        lfsr_seed((device.eui & 0xffffffff) ^ (device.eui >> 32));
-    } else {
-        lfsr_seed(0); // Value to make lfsr_seed choose its own seed.
     }
+    lfsr_seed((device.eui & 0xffffffff) ^ (device.eui >> 32));
 
     device.associated = (config_get8(config_key_associated) != 0);
     device.short_addr = config_get16(config_key_short_addr);
