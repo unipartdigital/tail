@@ -1,3 +1,5 @@
+/* lfsr.c */
+
 #include "lfsr.h"
 
 #define LFSR_POLYNOMIAL 0x80200003
