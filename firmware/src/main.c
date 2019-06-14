@@ -133,7 +133,6 @@ int main(void)
 	  write_string("Brownout in analogue domain 0\r\n");
   if (reset_cause & RMU_RSTCAUSE_BODAVDD1)
 	  write_string("Brownout in analogue domain 1\r\n");
-  write_hex(reset_cause);
 
   if (accel_present)
       write_string("Accelerometer detected\r\n");
