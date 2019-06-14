@@ -359,10 +359,14 @@ bool proto_battery_flat(void)
 void proto_init(void)
 {
 	bool configured = false;
+    bool seed_val;
     device.eui = 0;
     if (config_get(config_key_eui, (uint8_t *)&device.eui, sizeof(device.eui))) {
     	configured = true;
-        lfsr_seed((device.eui & 0xffffffff) ^ (device.eui >> 32));
+        seed_val = (device.eui & 0xffffffff) ^ (device.eui >> 32);
+        seed_val = seed_val ? seed_val : 4; // Chosen by random XKCD reference
+        // Seed value must never be zero.
+        lfsr_seed(seed_val);
     }
 
     device.associated = (config_get8(config_key_associated) != 0);
@@ -745,8 +749,8 @@ void tag_with_period(int period, int period_idle, int transition_time)
 	tag_data.tx_temperature = config_get8(config_key_tx_temperature);
 	tag_data.tx_uptime_blinks = config_get8(config_key_tx_uptime_blinks);
 
-	tag_data.jitter_active = TIME_FROM_MS(config_get8(config_key_tag_jitter));
-	tag_data.jitter_idle = TIME_FROM_MS(config_get8(config_key_tag_jitter_idle));
+	tag_data.jitter_active = TIME_FROM_MS(config_get32(config_key_tag_jitter));
+	tag_data.jitter_idle = TIME_FROM_MS(config_get32(config_key_tag_jitter_idle));
 
 	device.receive_after_transmit = (tag_data.max_anchors > 0);
 

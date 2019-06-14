@@ -2,14 +2,14 @@
 
 #define LFSR_POLYNOMIAL 0x80200003
 
-int32_t lfsr_state = 0;
+uint32_t lfsr_state;
 
-void lfsr_seed(int32_t seed)
+void lfsr_seed(uint32_t seed)
 {
     lfsr_state = seed;
 }
 
-int32_t lfsr(void)
+uint32_t lfsr(void)
 {
     bool lsb = lfsr_state & 1;
     lfsr_state >>= 1;

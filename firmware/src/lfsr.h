@@ -5,6 +5,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-void lfsr_seed(int32_t seed);
-int32_t lfsr(void);
+void lfsr_seed(uint32_t seed);
+uint32_t lfsr(void);
 #endif /* _LFSR_H */
