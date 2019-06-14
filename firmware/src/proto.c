@@ -359,14 +359,12 @@ bool proto_battery_flat(void)
 void proto_init(void)
 {
 	bool configured = false;
-    bool seed_val;
     device.eui = 0;
     if (config_get(config_key_eui, (uint8_t *)&device.eui, sizeof(device.eui))) {
     	configured = true;
-        seed_val = (device.eui & 0xffffffff) ^ (device.eui >> 32);
-        seed_val = seed_val ? seed_val : 4; // Chosen by random XKCD reference
-        // Seed value must never be zero.
-        lfsr_seed(seed_val);
+        lfsr_seed((device.eui & 0xffffffff) ^ (device.eui >> 32));
+    } else {
+        lfsr_seed(0); // Value to make lfsr_seed choose its own seed.
     }
 
     device.associated = (config_get8(config_key_associated) != 0);

@@ -6,7 +6,8 @@ uint32_t lfsr_state;
 
 void lfsr_seed(uint32_t seed)
 {
-    lfsr_state = seed;
+    // Default chosen by random XKCD reference. Seed value must never be zero.
+    lfsr_state = seed ? seed : 4;
 }
 
 uint32_t lfsr(void)
