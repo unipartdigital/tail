@@ -52,7 +52,8 @@
 	X(tx_temperature,    0x002b) \
 	X(tx_uptime_blinks,  0x002c) \
 	X(rxdelay,           0x002d) \
-	X(tag_listen_period, 0x002e)
+	X(tag_listen_period, 0x002e) \
+	X(xtal_ppm,          0x002f)
 
 #define CONFIG_KEY_INVALID 0x0000
 
