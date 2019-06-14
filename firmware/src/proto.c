@@ -547,19 +547,16 @@ void proto_rx_delay(uint32_t time)
 }
 
 /* All values are in ticks */
-int32_t period_with_jitter(int period, int32_t jitter) {
-	int32_t cur_jitter;
+int32_t add_jitter(int period, int32_t jitter) {
+    /* Make jitter an even number to stay centered around period */
+    if (jitter & 1)
+        jitter -= 1;
 
-	if (jitter == 0)
-		return period;
+    if (jitter <= 0)
+        return period;
 
-	cur_jitter = (lfsr() % (jitter+1)) - (jitter / 2);
-	period += cur_jitter;
-	write_int(period);
-	write_string(" ");
-	write_int(cur_jitter);
-	write_string("\r\n");
-	return (period < 0) ? 0 : period;
+    period += (lfsr() % (jitter+1)) - (jitter / 2);
+    return (period < 0) ? 0 : period;
 }
 
 void tag_set_event(uint32_t now)
@@ -573,11 +570,9 @@ void tag_set_event(uint32_t now)
 	}
 
 	if (tag_data.idle) {
-	    period = period_with_jitter(tag_data.period_idle,
-                                    tag_data.jitter_idle);
+	    period = add_jitter(tag_data.period_idle, tag_data.jitter_idle);
 	} else {
-	    period = period_with_jitter(tag_data.period_active,
-                                    tag_data.jitter_active);
+	    period = add_jitter(tag_data.period_active, tag_data.jitter_active);
 	}
 
 	if (proto_battery_flat()) {
