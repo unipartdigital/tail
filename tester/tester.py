@@ -764,6 +764,28 @@ class Test(threading.Thread):
             return False
         return True
 
+    def xtal_sweep(self):
+        output = self.output
+        self.firmware_cmd('stop')
+        self.firmware_cmd('wake')
+        self.firmware_cmd('rgpio 0 2 0 0')
+        self.frequency_setup()
+        f_target = 62.4 * 1000 * 1000
+        sweep = []
+        for xtal in range(32):
+            self.firmware_cmd('xtal ' + str(xtal))
+            f = self.frequency()
+            ppm = 1000000 * ((f - f_target) / f_target)
+            self.output = output + " {}: {:.02f} ppm".format(xtal, ppm)
+            sweep.append(f)
+
+        self.firmware_cmd('xtal ' + str(self.xtal))
+        self.record({
+            'xtal_sweep' : sweep
+            })
+        self.firmware_cmd('rgpio 0 1 0 0')
+        return True
+
     def read_chip_id(self):
         id = self.firmware_cmd('chipid')
         if not id:
@@ -905,6 +927,7 @@ class Test(threading.Thread):
                 test_battery_adc,
                 test_radio_adc,
                 xtal_trim,
+                xtal_sweep,
                 read_chip_id,
                 test_leds,
                 test_sleep_current,
