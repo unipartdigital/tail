@@ -30,7 +30,7 @@ config = configparser.ConfigParser()
 config.read('tester.ini')
 
 real_hardware = config.getboolean('Tester', 'RealHardware', fallback=True)
-firmware_directory = expanduser(config.get('Tester', 'FirwareDirectory', fallback='~/firmware'))
+firmware_directory = expanduser(config.get('Tester', 'FirmwareDirectory', fallback='~/firmware'))
 production_firmware = config.get('Tester', 'ProductionFirmware', fallback='production.hex')
 flash_command = config.get('Tester', 'FlashCommand', fallback='./flash.sh')
 
