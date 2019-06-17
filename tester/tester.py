@@ -755,9 +755,12 @@ class Test(threading.Thread):
             }})
         self.xtal = xtal
         ppm = 1000000 * ((f - f_target) / f_target)
+        xtal_ppm = round(ppm * 100) % 65536
         self.output = output + " {}: {:.02f} ppm".format(xtal, ppm)
         self.firmware_cmd('rgpio 0 1 0 0')
-        if not self.firmware_cmd('config xtal ' + str(xtal)):
+        if self.firmware_cmd('config xtal_trim ' + str(xtal)) != []:
+            return False
+        if self.firmware_cmd('config xtal_ppm ' + str(xtal_ppm % 256) + ' ' + str(int(xtal_ppm / 256))) != []:
             return False
         return True
 
