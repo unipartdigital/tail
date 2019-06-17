@@ -24,3 +24,5 @@ config tag_max_anchors 8
 config tag_min_responses 0
 config tag_period_idle 0xa0 0x86 0x1
 config tag_period 0xE8 0x03
+config tag_jitter 200
+config tag_jitter_idle 200
