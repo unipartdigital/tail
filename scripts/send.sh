@@ -65,7 +65,7 @@ then
 fi
 
 (
-  stty 9600 cs8 -cstopb -parenb clocal raw
+  stty 9600 cs8 -cstopb -parenb -echo clocal raw
   # If we're in the firmware, this should speed things along a bit
   printf '\3\3'
   sleep 1
@@ -113,6 +113,8 @@ fi
               ;;
       esac
   done
+
+  echo "Invoking sx" >&2
 
   # Perform upload
   sx -b "$filename"
