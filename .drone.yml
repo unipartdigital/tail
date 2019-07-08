@@ -1,6 +1,15 @@
 pipeline:
-  firmware:
-    image: unipartdigital/firmware-tester
-    pull: true
-    commands:
-      - make -C firmware
+
+  build:
+    image: plugins/docker
+    registry: registry:5000
+    repo: registry:5000/test
+    insecure: true
+
+  test:
+    image: registry:5000/test
+
+services:
+
+  registry:
+    image: registry
