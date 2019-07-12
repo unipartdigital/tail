@@ -2,14 +2,10 @@ pipeline:
 
   build:
     image: plugins/docker
-    registry: registry:5000
-    repo: registry:5000/test
-    insecure: true
+    mirror: https://docker-mirror.mb1.unipart.io
+    registry: drone-registry.mb1.unipart.io
+    repo: drone-registry.mb1.unipart.io/${DRONE_REPO}
+    tags: ${DRONE_COMMIT}
 
   test:
-    image: registry:5000/test
-
-services:
-
-  registry:
-    image: registry
+    image: drone-registry.mb1.unipart.io/${DRONE_REPO}:${DRONE_COMMIT}
