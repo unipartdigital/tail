@@ -1,5 +1,6 @@
 /* proto.c */
 
+#include "entropy.h"
 #include "radio.h"
 #include "uart.h"
 #include "time.h"
@@ -455,6 +456,7 @@ void proto_txdone(void)
 	radio_readtxtimestamp(txtime);
 	uint64_t timestamp = TIMESTAMP_READ(txtime);
 	tag_data.last_stamp = timestamp;
+    entropy_register(timestamp);
 
 	if (device.txtime_ptr) {
 		*device.txtime_ptr = timestamp;
@@ -600,7 +602,10 @@ void tag_start(void)
 {
     int offset, ftoffset, iecount, iecountoffset;
     uint8_t voltage, temperature;
+    uint8_t now[5];
 
+    radio_gettime(now);
+    entropy_starttime(TIMESTAMP_READ(now));
     tag_data.active = true;
 
     tag_data.last_event = time_now();
