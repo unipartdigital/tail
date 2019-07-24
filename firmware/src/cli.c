@@ -13,6 +13,7 @@
 #include "proto.h"
 #include "accel.h"
 #include "battery.h"
+#include "event.h"
 
 #include "em_msc.h"
 #include "em_system.h"
@@ -775,6 +776,19 @@ void fn_version(void)
     write_string("Tail version: " TAIL_VERSION "\r\n");
 }
 
+void fn_events(void)
+{
+    uint32_t events = event_get();
+    event_clear();
+    write_hex(events);
+    write_string("\r\n");
+}
+
+void fn_time(void)
+{
+    time_dump();
+}
+
 typedef struct {
 	const char *command;
 	void (*fn)(void);
@@ -822,6 +836,8 @@ static command command_table[] = {
 		{"prepare", &fn_prepare},
 		{"chipid", &fn_chipid},
 		{"version", &fn_version},
+		{"events", &fn_events},
+		{"time", &fn_time},
 };
 
 void fn_help(void)

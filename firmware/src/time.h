@@ -58,6 +58,7 @@ void time_event_schedule_at(time_event_id index, uint32_t time);
 void time_event_schedule_in(time_event_id index, uint32_t time);
 void time_early_wakeup(time_event_fn function, uint32_t time);
 uint32_t time_to_next_event(void);
+void time_dump(void);
 
 #define time_event_at(event, time) time_event_schedule_at(time_event_id_##event, time)
 #define time_event_in(event, time) time_event_schedule_in(time_event_id_##event, time)

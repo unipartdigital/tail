@@ -9,6 +9,7 @@
 #include "battery.h"
 #include "timer.h"
 #include "lfsr.h"
+#include "event.h"
 
 #include "em_gpio.h"
 
@@ -72,6 +73,7 @@ typedef struct {
 	bool receive_after_transmit;
 	volatile bool radio_active;
 	bool radio_sleeping;
+	bool just_woken;
 	uint8_t radio_volts;
 	uint8_t radio_temp;
 	uint8_t radio_volts_cal;
@@ -101,6 +103,7 @@ device_t device = {
 		.receive_after_transmit = false,
 		.radio_active = false,
 		.radio_sleeping = false,
+		.just_woken = false,
 		.radio_volts = 0,
 		.radio_temp = 0,
 		.radio_volts_cal = 0,
@@ -574,11 +577,14 @@ void tag_set_event(uint32_t now)
 	}
 
 	if (proto_battery_flat()) {
+		event_log(EVENT_BATTERY_FLAT);
 		if (period < PERIOD_BATTERY_FLAT)
 			period = PERIOD_BATTERY_FLAT;
 	}
 
     uint32_t time = time_add(tag_data.last_event, period);
+    if (time_ge(now, time))
+        time = now;
     time_event_at(tag_start, time);
 }
 
@@ -601,6 +607,10 @@ void tag_start(void)
     int offset, ftoffset, iecount, iecountoffset;
     uint8_t voltage, temperature;
 
+    if (device.radio_active && !device.just_woken)
+        event_log(EVENT_ALREADY_ACTIVE);
+
+    device.just_woken = false;
     tag_data.active = true;
 
     tag_data.last_event = time_now();
@@ -810,6 +820,7 @@ void proto_prepare(void)
     device.radio_sleeping = false;
     /* Keep the radio awake until it is used */
     device.radio_active = true;
+    device.just_woken = true;
     radio_wakeup();
     radio_wakeup_adc_readings(&device.radio_volts, &device.radio_temp);
 }

@@ -17,6 +17,7 @@
 #include "config.h"
 #include "proto.h"
 #include "timer.h"
+#include "event.h"
 
 #define CLOCK_DEBUG 0
 
@@ -81,6 +82,7 @@ int main(void)
   GPIO_PinModeSet(gpioPortD, 7, gpioModePushPull, 0);
 
   delay(100);
+  event_clear();
   time_init();
   config_init();
   radio_init(true);

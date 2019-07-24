@@ -3,6 +3,8 @@
 #include "common.h"
 
 #include "time.h"
+#include "event.h"
+#include "uart.h"
 #include "em_rtc.h"
 #include "em_cmu.h"
 
@@ -81,6 +83,12 @@ uint32_t time_sub(uint32_t a, uint32_t b)
 	return (a - b) & 0xffffff;
 }
 
+bool time_too_old(uint32_t now, uint32_t event)
+{
+    uint32_t some_time_ago = time_sub(now, TIME_FROM_SECONDS(1));
+    return time_ge(some_time_ago, event);
+}
+
 /* Set the next early wakeup event that is no earlier than now */
 void time_early_wakeup_set_next(uint32_t now)
 {
@@ -135,6 +143,14 @@ void time_event_poll(void)
 
 	if (early_wakeup_fn && TIME_VALID(early_wakeup_time)) {
 		if (time_ge(now, early_wakeup_time)) {
+            if (time_too_old(now, early_wakeup_time)) {
+                event_log(EVENT_TIME_TOO_OLD);
+                write_string("Late early wakeup: ");
+                write_int(now);
+                write_string(" : ");
+                write_int(early_wakeup_time);
+                write_string("\r\n");
+            }
 			time_early_wakeup_set_next(now+1);
 		    early_wakeup_fn();
 		}
@@ -145,6 +161,14 @@ void time_event_poll(void)
 		if (!TIME_VALID(event_time))
 			continue;
 		if (time_ge(now, event_time)) {
+            if (time_too_old(now, event_time)) {
+                event_log(EVENT_TIME_TOO_OLD);
+                write_string("Late event: ");
+                write_int(now);
+                write_string(" : ");
+                write_int(event_time);
+                write_string("\r\n");
+                }
 			time_event_time[i] = TIME_INVALID;
 			time_event_fns[i]();
 		}
@@ -208,4 +232,34 @@ bool time_prepare_sleep(void)
 	RTC_CompareSet(0, wake_time);
 
 	return true;
+}
+
+void time_dump(void)
+{
+    uint32_t now = time_now();
+    write_string("now: ");
+    write_int(now);
+    write_string("\r\n");
+    write_string("advance: ");
+    write_int(early_wakeup_advance);
+    write_string("\r\n");
+    for (int i = -1; i < (int)ARRAY_SIZE(time_event_time); i++) {
+        uint32_t event_time;
+        int32_t delta;
+        if (i < 0)
+            event_time = early_wakeup_time;
+        else
+            event_time = time_event_time[i];
+        write_int(i);
+        write_string(": ");
+        if (TIME_VALID(event_time)) {
+            if (time_ge(now, event_time))
+                delta = -time_sub(now, event_time);
+            else
+                delta = time_sub(event_time, now);
+            write_int(delta);
+        } else
+            write_string("<invalid>");
+        write_string("\r\n");
+    }
 }
