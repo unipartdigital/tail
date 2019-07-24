@@ -17,6 +17,7 @@
 #include "config.h"
 #include "proto.h"
 #include "timer.h"
+#include "entropy.h"
 
 #define CLOCK_DEBUG 0
 

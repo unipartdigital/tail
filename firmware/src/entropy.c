@@ -29,13 +29,10 @@
 */
 #define ENTROPY_FAILURE_DETECT_SAMPLES 1024
 
-#define DWTIME_SUB(x, y) (((x) - (y)) & 0xffffffffff)
-
 typedef struct {
-    uint64_t tagstarttime;
-    uint64_t entropy_sample;
-    uint64_t entropy_previous_sample;
-    uint64_t entropy_adaptive_sample;
+    uint32_t entropy_sample;
+    uint32_t entropy_previous_sample;
+    uint32_t entropy_adaptive_sample;
     uint16_t entropy_failures;
     uint8_t entropy_adaptive_seen;
     uint8_t entropy_adaptive_sample_count;
@@ -44,7 +41,6 @@ typedef struct {
 } entropy_t;
 
 entropy_t entropy = {
-        .tagstarttime = 0,
         .entropy_sample = 0,
         .entropy_previous_sample = 0,
         .entropy_adaptive_sample = 0,
@@ -63,12 +59,8 @@ int32_t entropy_failure_detect_samples(void) {
     return ENTROPY_FAILURE_DETECT_SAMPLES;
 }
 
-void entropy_starttime(uint64_t start_time) {
-    entropy.tagstarttime = start_time;
-}
-
-void entropy_register(uint64_t txdone_timestamp) {
-    entropy.entropy_sample = DWTIME_SUB(txdone_timestamp, entropy.tagstarttime);
+void entropy_register(uint32_t entropy_sample) {
+    entropy.entropy_sample = entropy_sample;
     entropy.entropy_available = 1;
 }
 
