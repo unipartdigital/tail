@@ -1,0 +1,6 @@
+pipeline:
+  firmware:
+    image: unipartdigital/firmware-tester
+    pull: true
+    commands:
+      - make -C firmware
