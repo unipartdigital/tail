@@ -134,6 +134,12 @@ xmodem_transfer:
       *(((uint8_t *) pkt) + byte) = USART_rxByte();
     }
 
+    if (baseAddress + sequenceNumber * XMODEM_DATA_SIZE >= endAddress) {
+      USART_txByte(XMODEM_CAN);
+      USART_txByte(XMODEM_CAN);
+      return;
+    }
+
     if (XMODEM_verifyPacketChecksum(pkt, sequenceNumber) != 0)
     {
       // On a malformed packet, we send a NAK, and start over.
