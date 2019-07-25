@@ -79,6 +79,7 @@ typedef struct {
 	uint8_t radio_volts_cal;
 	uint8_t radio_temp_cal;
 	uint32_t adc_volts;
+	uint32_t adc_validity_counter;
 	uint64_t turnaround_delay;
 	uint32_t rxtimeout;
 	uint64_t rxdelay;
@@ -109,6 +110,7 @@ device_t device = {
 		.radio_volts_cal = 0,
 		.radio_temp_cal = 0,
 		.adc_volts = 0,
+		.adc_validity_counter = 0,
 		.turnaround_delay = TURNAROUND_DELAY,
 		.rxtimeout = RX_TIMEOUT,
 		.rxdelay = RX_DELAY,
@@ -338,6 +340,7 @@ radio_callbacks proto_callbacks = {
 };
 
 #define BATTERY_FILTER 4
+#define BATTERY_BLINKS_VALID 10
 
 void proto_update_battery(void)
 {
@@ -347,11 +350,21 @@ void proto_update_battery(void)
     else {
     	device.adc_volts = device.adc_volts - (device.adc_volts >> BATTERY_FILTER) + volts;
     }
+    device.adc_validity_counter = BATTERY_BLINKS_VALID + 1;
+}
+
+void proto_battery_blink(void)
+{
+    if (device.adc_validity_counter)
+        device.adc_validity_counter--;
 }
 
 uint16_t proto_battery_volts(void)
 {
-	return device.adc_volts >> BATTERY_FILTER;
+    if (device.adc_validity_counter)
+        return device.adc_volts >> BATTERY_FILTER;
+    else
+        return 0;
 }
 
 bool proto_battery_flat(void)
@@ -657,6 +670,7 @@ void tag_start(void)
 
     radio_wakeup_adc_readings(&voltage, &temperature);
 
+    proto_battery_blink();
     uint16_t volts = proto_battery_volts();
 
     iecountoffset = offset;
