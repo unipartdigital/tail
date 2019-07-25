@@ -22,7 +22,9 @@ CFLAGS += -std=c99 -DNDEBUG=1 -DEFM32HG222F64=1
 CFLAGS += -Os -Wall -Wno-main -Wno-unknown-pragmas -fmessage-length=0 -ffunction-sections -fdata-sections
 ASFLAGS := -c -x assembler-with-cpp -D__STARTUP_CLEAR_BSS
 
-BOOTLOADER_DEFINES := -DBOOTLOADER_VERSION_STRING=\"0.0.1\" -DNDEBUG -D_EFM32_HAPPY_FAMILY=1
+VERSION=$(shell git describe --tags --always --abbrev=1 --match "v*")
+
+BOOTLOADER_DEFINES := -DBOOTLOADER_VERSION_STRING=\"$(VERSION)\" -DNDEBUG -D_EFM32_HAPPY_FAMILY=1
 CFLAGS += $(BOOTLOADER_DEFINES)
 
 SYSLIBS = -Wl,--start-group -lgcc -lc -lnosys -Wl,--end-group # TODO rename?
@@ -33,7 +35,7 @@ INCDIRS += $(INCDIR_BASE)/device/EFM32HG/Include
 INCDIRS += $(INCDIR_BASE)/cmsis/Include
 CFLAGS += $(patsubst %,-I%,$(INCDIRS))
 
-CFLAGS += -DTAIL_VERSION=\"$(shell git describe --tags --always --abbrev=1 --match "v*")\"
+CFLAGS += -DTAIL_VERSION=\"$(VERSION)\"
 
 MODULES := emlib src CMSIS/EFM32HG bootloader_src
 SRCS :=
