@@ -18,6 +18,7 @@
 #include "proto.h"
 #include "timer.h"
 #include "event.h"
+#include "entropy.h"
 
 #define CLOCK_DEBUG 0
 
@@ -217,6 +218,7 @@ int main(void)
         cli_poll();
         proto_poll();
         accel_poll();
+        entropy_poll();
         if (!cli_prepare_sleep())
         	continue;
         if (!uart_prepare_sleep())
