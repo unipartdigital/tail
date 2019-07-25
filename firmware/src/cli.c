@@ -789,6 +789,12 @@ void fn_time(void)
     time_dump();
 }
 
+void fn_blinks(void)
+{
+    write_int(proto_uptime_blinks());
+    write_string("\r\n");
+}
+
 typedef struct {
 	const char *command;
 	void (*fn)(void);
@@ -838,6 +844,7 @@ static command command_table[] = {
 		{"version", &fn_version},
 		{"events", &fn_events},
 		{"time", &fn_time},
+		{"blinks", &fn_blinks},
 };
 
 void fn_help(void)

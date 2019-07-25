@@ -48,6 +48,7 @@ int proto_volts(void);
 int proto_temp(void);
 int proto_rawvolts(void);
 int proto_rawtemp(void);
+uint32_t proto_uptime_blinks(void);
 void proto_prepare_immediate(void);
 uint16_t proto_battery_volts(void);
 

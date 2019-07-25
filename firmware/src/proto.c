@@ -685,9 +685,10 @@ void tag_start(void)
         txbuf[offset++] = (device.uptime_blinks >> 8) & 0xff;
         txbuf[offset++] = (device.uptime_blinks >> 16) & 0xff;
         txbuf[offset++] = device.uptime_blinks >> 24;
-        device.uptime_blinks++;
         iecount++;
     }
+
+    device.uptime_blinks++;
 
 #if 0
     /* We're now making most of this available through other
@@ -860,6 +861,11 @@ int proto_temp(void)
 int proto_rawtemp(void)
 {
     return device.radio_temp;
+}
+
+uint32_t proto_uptime_blinks(void)
+{
+    return device.uptime_blinks;
 }
 
 void set_antenna_delay_tx(uint16_t delay)
