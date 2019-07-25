@@ -607,14 +607,21 @@ void tag_start(void)
     int offset, ftoffset, iecount, iecountoffset;
     uint8_t voltage, temperature;
 
-    if (device.radio_active && !device.just_woken)
+    tag_data.last_event = time_now();
+    tag_set_event(tag_data.last_event);
+
+    if (device.radio_sleeping) {
+        event_log(EVENT_RADIO_SLEEPING);
+        return;
+    }
+
+    if (device.radio_active && !device.just_woken) {
         event_log(EVENT_ALREADY_ACTIVE);
+        return;
+    }
 
     device.just_woken = false;
     tag_data.active = true;
-
-    tag_data.last_event = time_now();
-    tag_set_event(tag_data.last_event);
 
     if (proto_battery_flat())
     	return;
