@@ -532,7 +532,6 @@ void fn_echo(void)
 void txrx_txdone(void)
 {
 	radio_readtxtimestamp(txrx_txtime);
-
 	txrx_txcomplete = true;
 	if (txrx_rxactive)
 		radio_rxstart(false);
