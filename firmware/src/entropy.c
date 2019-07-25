@@ -1,6 +1,5 @@
 /* entropy.c */
 
-/* This file consists of placeholder stubs until entropy gathering is implemented. */
 #include "drbg.h"
 #include "entropy.h"
 #include "event.h"
@@ -57,8 +56,12 @@ int32_t entropy_per_sample(void) {
     return ENTROPY_PER_SAMPLE;
 }
 
-int32_t entropy_failure_detect_samples(void) {
-    return ENTROPY_FAILURE_DETECT_SAMPLES;
+/* The magical numbers other than entropy_per_sample are fairly arbitrary.
+   The return value of this is "enough" entropy samples. */
+int32_t entropy_samples_til_ready(void) {
+    int32_t eps = 512 / ENTROPY_PER_SAMPLE;
+    int32_t efds = ENTROPY_FAILURE_DETECT_SAMPLES;
+    return eps > efds ? eps : efds;
 }
 
 void entropy_register(uint32_t entropy_sample) {

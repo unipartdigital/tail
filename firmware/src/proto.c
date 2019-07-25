@@ -123,7 +123,7 @@ device_t device = {
 		.rxdenominator = 0,
 		.rxtimer = 0,
 		.uptime_blinks = 0,
-        .radio_starttime = 0
+		.radio_starttime = 0
 };
 
 #define MAX_ANCHORS 8
@@ -642,7 +642,8 @@ void tag_start(void)
     tag_data.active = true;
 
     radio_gettime(now);
-    /* The bottom 9 bits are always 0. Once discarded, the result is 31 bit. */
+    /* The bottom 9 bits are constant, so are useless as an entropy source.
+       Once discarded, the result is 31 bit. */
     device.radio_starttime = (uint32_t) (TIMESTAMP_READ(now) >> 9);
 
     if (proto_battery_flat())

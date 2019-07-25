@@ -22,9 +22,7 @@ int32_t drbg_samples;
 int32_t drbg_samples_required;
 
 void drbg_init(void) {
-    int32_t eps = 512 / entropy_per_sample();
-    int32_t efds = entropy_failure_detect_samples();
-    drbg_samples_required = eps > efds ? eps : efds;
+    drbg_samples_required = entropy_samples_til_ready();
 }
 
 /* Note that this is intentionally ignoring a difference in byte order
@@ -34,7 +32,6 @@ void drbg_init(void) {
 */
 void increase_vector(uint8_t *vector) {
     uint64_t * vector_lens = (uint64_t *) vector;
-
     *(vector_lens + 1) = (int64_t) (*(vector_lens + 1) + 1);
 }
 
@@ -47,6 +44,7 @@ void drbg_update(uint32_t entropy_sample) {
     increase_vector(drbg_vector);
     aes_init();
     AES_ECB128((uint8_t *)new_key, drbg_vector, 1, drbg_key, 1);
+    /* Xor with the lowest chunk of the key the size of the entropy sample */
     new_key[3] ^= entropy_sample;
 
     increase_vector(drbg_vector);
