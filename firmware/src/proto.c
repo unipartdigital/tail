@@ -1,5 +1,6 @@
 /* proto.c */
 
+#include "entropy.h"
 #include "radio.h"
 #include "uart.h"
 #include "time.h"
@@ -95,6 +96,7 @@ typedef struct {
 	uint64_t rxdenominator;
 	uint16_t rxtimer;
 	uint32_t uptime_blinks;
+	uint32_t radio_starttime;
     uint32_t supervisor_state;
     uint32_t supervisor_count;
 } device_t;
@@ -128,6 +130,7 @@ device_t device = {
 		.rxdenominator = 0,
 		.rxtimer = 0,
 		.uptime_blinks = 0,
+		.radio_starttime = 0,
 		.supervisor_state = 0,
 		.supervisor_count = 0
 };
@@ -479,8 +482,9 @@ void proto_txdone(void)
 
 	uint8_t txtime[5];
 	radio_readtxtimestamp(txtime);
-	uint64_t timestamp = TIMESTAMP_READ(txtime);
+	uint32_t timestamp = (uint32_t) (TIMESTAMP_READ(txtime) >> 9);
 	tag_data.last_stamp = timestamp;
+	entropy_register(timestamp - device.radio_starttime);
 
 	if (device.txtime_ptr) {
 		*device.txtime_ptr = timestamp;
@@ -646,6 +650,7 @@ void tag_start(void)
 {
     int offset, ftoffset, iecount, iecountoffset;
     uint8_t voltage, temperature;
+    uint8_t now[5];
 
     tag_data.last_event = time_now();
     tag_set_event(tag_data.last_event);
@@ -662,6 +667,11 @@ void tag_start(void)
 
     device.just_woken = false;
     tag_data.active = true;
+
+    radio_gettime(now);
+    /* The bottom 9 bits are constant, so are useless as an entropy source.
+       Once discarded, the result is 31 bit. */
+    device.radio_starttime = (uint32_t) (TIMESTAMP_READ(now) >> 9);
 
     if (proto_battery_flat())
     	return;
