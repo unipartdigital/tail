@@ -102,7 +102,7 @@ void time_early_wakeup_set_next(uint32_t now)
 		early = time_sub(event_time, early_wakeup_advance);
 		if (!time_ge(early, now))
 			continue;
-		if (time_ge(wakeup_time, early))
+		if (!TIME_VALID(wakeup_time) || time_ge(wakeup_time, early))
 			wakeup_time = early;
 	}
 	early_wakeup_time = wakeup_time;
@@ -124,8 +124,9 @@ void time_event_schedule_at(time_event_id index, uint32_t time)
 	        } else
 	    	    early_wakeup_time = early;
 	    } else {
-		    if (time_add(early_wakeup_time, early_wakeup_advance) == orig_time)
+		    if (time_add(early_wakeup_time, early_wakeup_advance) == orig_time) {
 		        time_early_wakeup_set_next(early_wakeup_time);
+            }
 	    }
 	}
 }
@@ -143,14 +144,8 @@ void time_event_poll(void)
 
 	if (early_wakeup_fn && TIME_VALID(early_wakeup_time)) {
 		if (time_ge(now, early_wakeup_time)) {
-            if (time_too_old(now, early_wakeup_time)) {
+            if (time_too_old(now, early_wakeup_time))
                 event_log(EVENT_TIME_TOO_OLD);
-                write_string("Late early wakeup: ");
-                write_int(now);
-                write_string(" : ");
-                write_int(early_wakeup_time);
-                write_string("\r\n");
-            }
 			time_early_wakeup_set_next(now+1);
 		    early_wakeup_fn();
 		}
@@ -161,14 +156,8 @@ void time_event_poll(void)
 		if (!TIME_VALID(event_time))
 			continue;
 		if (time_ge(now, event_time)) {
-            if (time_too_old(now, event_time)) {
+            if (time_too_old(now, event_time))
                 event_log(EVENT_TIME_TOO_OLD);
-                write_string("Late event: ");
-                write_int(now);
-                write_string(" : ");
-                write_int(event_time);
-                write_string("\r\n");
-                }
 			time_event_time[i] = TIME_INVALID;
 			time_event_fns[i]();
 		}

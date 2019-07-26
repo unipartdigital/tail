@@ -1038,4 +1038,9 @@ void radio_read_adc_cal(uint8_t *voltage, uint8_t *temperature)
 		*temperature = radio_otp_read16(OTP_TEMPERATURE_CAL) & 0xff;
 }
 
+uint32_t radio_state(void)
+{
+    return radio_read32(RREG(SYS_STATE));
+}
+
 #endif

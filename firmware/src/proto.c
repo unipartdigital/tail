@@ -50,6 +50,11 @@
 #define PERIOD_DEFAULT_IDLE  100000
 #define PERIOD_BATTERY_FLAT  600000
 
+/* If the radio has remained active for over 100ms, we should
+ * assume something has gone horribly wrong and shut it down
+ */
+#define SUPERVISORY_TIMEOUT  TIME_FROM_MS(100)
+
 
 struct {
 	volatile bool in_rxdone;
@@ -90,6 +95,8 @@ typedef struct {
 	uint64_t rxdenominator;
 	uint16_t rxtimer;
 	uint32_t uptime_blinks;
+    uint32_t supervisor_state;
+    uint32_t supervisor_count;
 } device_t;
 
 device_t device = {
@@ -120,7 +127,9 @@ device_t device = {
 		.rxnumerator = 0,
 		.rxdenominator = 0,
 		.rxtimer = 0,
-		.uptime_blinks = 0
+		.uptime_blinks = 0,
+		.supervisor_state = 0,
+		.supervisor_count = 0
 };
 
 #define MAX_ANCHORS 8
@@ -239,6 +248,7 @@ tag_data_t tag_data = {
 #define TAIL_IE_TEMPERATURE                 0x02
 #define TAIL_IE_BATTERY_VOLTAGE             0x40
 #define TAIL_IE_UPTIME_BLINKS               0x80
+#define TAIL_IE_SUPERVISOR                  0xc0
 #define TAIL_IE_DEBUG                       0xff
 
 #define TAIL_CONFIG_WRITE_SUCCESS			0x00
@@ -573,6 +583,23 @@ int32_t add_jitter(int period, int32_t jitter) {
     return (period < 0) ? 0 : period;
 }
 
+void tag_supervisor(void)
+{
+    if (!device.radio_active)
+        return;
+    device.supervisor_state = radio_state();
+    device.supervisor_count++;
+    timer_stop();
+	radio_txrxoff();
+    device.radio_active = false;
+}
+
+uint32_t proto_supervisor_status(uint32_t *state)
+{
+    *state = device.supervisor_state;
+    return device.supervisor_count;
+}
+
 void tag_set_event(uint32_t now)
 {
 	int32_t period;
@@ -638,6 +665,9 @@ void tag_start(void)
 
     if (proto_battery_flat())
     	return;
+
+    uint32_t time = time_add(tag_data.last_event, SUPERVISORY_TIMEOUT);
+    time_event_at(tag_supervisor, time);
 
     device.receive_after_transmit = (tag_data.max_anchors > 0);
     if (tag_data.listen_period != 0) {
@@ -710,6 +740,20 @@ void tag_start(void)
     }
 
     device.uptime_blinks++;
+
+    if (device.supervisor_count) {
+        txbuf[offset++] = TAIL_IE_SUPERVISOR;
+        txbuf[offset++] = 8; /* Length */
+        txbuf[offset++] = device.supervisor_count & 0xff;
+        txbuf[offset++] = (device.supervisor_count >> 8) & 0xff;
+        txbuf[offset++] = (device.supervisor_count >> 16) & 0xff;
+        txbuf[offset++] = device.supervisor_count >> 24;
+        txbuf[offset++] = device.supervisor_state & 0xff;
+        txbuf[offset++] = (device.supervisor_state >> 8) & 0xff;
+        txbuf[offset++] = (device.supervisor_state >> 16) & 0xff;
+        txbuf[offset++] = device.supervisor_state >> 24;
+        iecount++;
+    }
 
 #if 0
     /* We're now making most of this available through other
@@ -821,6 +865,7 @@ void proto_poll()
         }
     }
     if (!device.radio_active && !device.radio_sleeping) {
+        time_event_clear(tag_supervisor);
     	if (time_to_next_event() >= PROTO_PREPARETIME) {
     	    device.radio_sleeping = true;
     	    radio_configsleep(RADIO_SLEEP_CONFIG | RADIO_SLEEP_TANDV, RADIO_SLEEP_WAKE_WAKEUP | RADIO_SLEEP_ENABLE);

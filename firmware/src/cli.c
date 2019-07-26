@@ -795,6 +795,16 @@ void fn_blinks(void)
     write_string("\r\n");
 }
 
+void fn_supervisor(void)
+{
+    uint32_t state;
+    uint32_t count = proto_supervisor_status(&state);
+    write_int(count);
+    write_string("\r\n");
+    write_hex(state);
+    write_string("\r\n");
+}
+
 typedef struct {
 	const char *command;
 	void (*fn)(void);
@@ -845,6 +855,7 @@ static command command_table[] = {
 		{"events", &fn_events},
 		{"time", &fn_time},
 		{"blinks", &fn_blinks},
+		{"supervisor", &fn_supervisor},
 };
 
 void fn_help(void)

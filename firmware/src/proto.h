@@ -51,5 +51,6 @@ int proto_rawtemp(void);
 uint32_t proto_uptime_blinks(void);
 void proto_prepare_immediate(void);
 uint16_t proto_battery_volts(void);
+uint32_t proto_supervisor_status(uint32_t *state);
 
 #endif

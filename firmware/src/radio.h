@@ -121,5 +121,6 @@ void delay(int ms); /* XXX */
 void radio_autoreceive(bool enable);
 bool radio_overflow(void);
 void radio_doublebuffer(bool enable);
+uint32_t radio_state(void);
 
 #endif /* _RADIO_H */
