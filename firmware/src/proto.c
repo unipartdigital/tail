@@ -482,9 +482,9 @@ void proto_txdone(void)
 
 	uint8_t txtime[5];
 	radio_readtxtimestamp(txtime);
-	uint32_t timestamp = (uint32_t) (TIMESTAMP_READ(txtime) >> 9);
+	uint64_t timestamp = TIMESTAMP_READ(txtime);
 	tag_data.last_stamp = timestamp;
-	entropy_register(timestamp - device.radio_starttime);
+	entropy_register((timestamp >> 9) - device.radio_starttime);
 
 	if (device.txtime_ptr) {
 		*device.txtime_ptr = timestamp;
