@@ -57,6 +57,23 @@ typedef struct
 #define RADIO_SLEEP_WAKE_WAKEUP 0x02
 #define RADIO_SLEEP_ENABLE      0x01
 
+
+/* To be used in the argument of radio_setclocks
+ * Borrowed from decawave driver
+ * but with different numbers
+ */
+#define RADIO_FORCE_SYS_XTI   0
+#define RADIO_ENABLE_ALL_SEQ  1
+#define RADIO_FORCE_SYS_PLL   2
+#define RADIO_READ_ACC_ON     3
+#define RADIO_READ_ACC_OFF    4
+#define RADIO_FORCE_OTP_ON    5
+#define RADIO_FORCE_OTP_OFF   6
+#define RADIO_FORCE_TX_PLL    7
+#define RADIO_FORCE_RX_PLL    8
+#define RADIO_FORCE_TXRX_PLL  9
+#define RADIO_FORCE_LDE      10
+
 typedef void (*radio_callback)(void);
 
 typedef struct radio_callbacks {

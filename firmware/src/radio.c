@@ -6,17 +6,6 @@
 #include "em_gpio.h"
 #include "radio.h"
 
-/* Borrowed from decawave driver */
-#define FORCE_SYS_XTI  0
-#define ENABLE_ALL_SEQ 1
-#define FORCE_SYS_PLL  2
-#define READ_ACC_ON    7
-#define READ_ACC_OFF   8
-#define FORCE_OTP_ON   11
-#define FORCE_OTP_OFF  12
-#define FORCE_TX_PLL   13
-#define FORCE_LDE      14
-
 #define STATUS_RX_DONE          0x00002000
 #define STATUS_RX_TIMEOUT       0x00020000
 #define STATUS_RX_ERROR         0x04259000
@@ -294,7 +283,7 @@ void radio_init(bool loadlde)
 
 	radio_softreset();
 	/* Reading OTP reliably requires this clock configuration */
-	radio_setclocks(FORCE_SYS_XTI);
+	radio_setclocks(RADIO_FORCE_SYS_XTI);
 
     radio_write8(RREGO(EC_CTRL, 0), FIELDS(EC_CTRL, PLLLDT, 1));
 
@@ -330,7 +319,7 @@ void radio_init(bool loadlde)
         radio_write32(RREG(PMSC_CTRL1), reg);
     }
 
-    radio_setclocks(ENABLE_ALL_SEQ);
+    radio_setclocks(RADIO_ENABLE_ALL_SEQ);
 
     radio_write8(RREGO(AON_CFG1, 0), 0x00);
 
@@ -367,10 +356,10 @@ uint32_t radio_deviceid(void)
 
 void radio_loadlde(void)
 {
-    radio_setclocks(FORCE_LDE);
+    radio_setclocks(RADIO_FORCE_LDE);
 	radio_write16(RREG(OTP_CTRL), FIELDS(OTP_CTRL, LDELOAD, 1));
 	delay(1);
-    radio_setclocks(ENABLE_ALL_SEQ);
+    radio_setclocks(RADIO_ENABLE_ALL_SEQ);
 }
 
 
@@ -789,7 +778,7 @@ void radio_rxreset(void)
 
 void radio_disablesequencing(void)
 {
-    radio_setclocks(FORCE_SYS_XTI);
+    radio_setclocks(RADIO_FORCE_SYS_XTI);
     radio_write16(RREG(PMSC_CTRL1), 0x0000);
 }
 
@@ -838,47 +827,57 @@ void radio_setclocks(int clocks)
     reg = radio_read16(RREG(PMSC_CTRL0));
     switch(clocks)
     {
-        case ENABLE_ALL_SEQ:
+        case RADIO_ENABLE_ALL_SEQ:
         {
         	FIELDS_EDIT(reg, PMSC_CTRL0, SYSCLKS, 0, RXCLKS, 0, TXCLKS, 0, FACE, 0, LDE, 0);
         }
         break;
-        case FORCE_SYS_XTI:
+        case RADIO_FORCE_SYS_XTI:
         {
             FIELDS_EDIT(reg, PMSC_CTRL0, SYSCLKS, 1);
         }
         break;
-        case FORCE_SYS_PLL:
+        case RADIO_FORCE_SYS_PLL:
         {
             FIELDS_EDIT(reg, PMSC_CTRL0, SYSCLKS, 2);
         }
         break;
-        case READ_ACC_ON:
+        case RADIO_READ_ACC_ON:
         {
         	FIELDS_EDIT(reg, PMSC_CTRL0, AMCE, 1, FACE, 1, RXCLKS, 2);
         }
         break;
-        case READ_ACC_OFF:
+        case RADIO_READ_ACC_OFF:
         {
             FIELDS_EDIT(reg, PMSC_CTRL0, AMCE, 0, FACE, 0, RXCLKS, 0);
         }
         break;
-        case FORCE_OTP_ON:
+        case RADIO_FORCE_OTP_ON:
         {
             FIELDS_EDIT(reg, PMSC_CTRL0, OTP, 1);
         }
         break;
-        case FORCE_OTP_OFF:
+        case RADIO_FORCE_OTP_OFF:
         {
             FIELDS_EDIT(reg, PMSC_CTRL0, OTP, 0);
         }
         break;
-        case FORCE_TX_PLL:
+        case RADIO_FORCE_TX_PLL:
         {
             FIELDS_EDIT(reg, PMSC_CTRL0, TXCLKS, 2);
         }
         break;
-        case FORCE_LDE:
+        case RADIO_FORCE_RX_PLL:
+        {
+            FIELDS_EDIT(reg, PMSC_CTRL0, RXCLKS, 2);
+        }
+        break;
+        case RADIO_FORCE_TXRX_PLL:
+        {
+            FIELDS_EDIT(reg, PMSC_CTRL0, TXCLKS, 2, RXCLKS, 2);
+        }
+        break;
+        case RADIO_FORCE_LDE:
         {
             reg = FIELDS(PMSC_CTRL0, OTP, 1, LDE, 1, SYSCLKS, 1);
         }
@@ -895,7 +894,7 @@ void radio_setclocks(int clocks)
 
 void radio_otp_read(uint32_t address, uint32_t *array, uint8_t length)
 {
-    radio_setclocks(FORCE_SYS_XTI);
+    radio_setclocks(RADIO_FORCE_SYS_XTI);
 
     for (int i=0; i < length; i++) {
         radio_write16(RREG(OTP_ADDR), address+i);
@@ -904,7 +903,7 @@ void radio_otp_read(uint32_t address, uint32_t *array, uint8_t length)
         array[i] = radio_read32(RREG(OTP_RDAT));
     }
 
-    radio_setclocks(ENABLE_ALL_SEQ);
+    radio_setclocks(RADIO_ENABLE_ALL_SEQ);
 }
 
 uint32_t radio_otp_read32(uint32_t address)
