@@ -794,6 +794,7 @@ void tag_start(void)
     tag_data.ranging_aborted = false;
 	device.radio_active = true;
 
+    radio_setclocks(RADIO_FORCE_TXRX_PLL);
 	radio_txstart(false);
 }
 
@@ -878,6 +879,7 @@ void proto_poll()
         time_event_clear(tag_supervisor);
     	if (time_to_next_event() >= PROTO_PREPARETIME) {
     	    device.radio_sleeping = true;
+            radio_setclocks(RADIO_ENABLE_ALL_SEQ);
     	    radio_configsleep(RADIO_SLEEP_CONFIG | RADIO_SLEEP_TANDV, RADIO_SLEEP_WAKE_WAKEUP | RADIO_SLEEP_ENABLE);
     	    radio_entersleep();
     	}
