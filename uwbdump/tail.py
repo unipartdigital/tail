@@ -31,6 +31,77 @@ class pr():
 
 
 ##
+## TCP/UDP connection for transferring json messages
+##
+
+class TailPipe:
+
+    def __init__(self):
+        self.inet = None
+        self.addr = None
+        self.port = None
+        self.sock = None
+        self.buff = b''
+        
+    def connect(self, addr, port, ipv6=False):
+        self.buff = b''
+        self.addr = addr
+        self.port = port
+        if ipv6:
+            self.inet = socket.AF_INET6
+        else:
+            self.inet = socket.AF_INET
+        self.sock = socket.socket(self.inet, socket.SOCK_STREAM)
+        self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        self.sock.connect(socket.getaddrinfo(self.addr,self.port,self.inet)[0][4])
+
+    def accept(self, socket):
+        (csock,caddr) = socket.accept()
+        self.sock = csock
+        self.addr = caddr[0]
+        self.port = caddr[1]
+
+    def close(self):
+        if self.sock is not None:
+            self.sock.close()
+            self.sock = None
+        self.buff = b''
+
+    def recv(self):
+        data = self.sock.recv(4096)
+        if len(data) < 1:
+            raise ConnectionResetError
+        return data
+
+    def recvmsg(self):
+        while not self.hasmsg():
+            self.fillmsg()
+        return self.getmsg()
+
+    def fillmsg(self):
+        self.buff += self.recv()
+
+    def hasmsg(self):
+        return (self.buff.find(31) > 0)
+
+    def getmsg(self):
+        eom = self.buff.find(31)
+        if eom > 0:
+            msg = self.buff[0:eom]
+            self.buff = self.buff[eom+1:]
+            return msg.decode()
+        elif eom == 0:
+            self.buff = self.buff[1:]
+        return None
+
+    def send(self,data):
+        self.sock.sendall(data)
+
+    def sendmsg(self,data):
+        self.send(data.encode() + b'\x1f')
+
+
+##
 ## DW1000 attributes
 ##
 
@@ -49,6 +120,18 @@ def GetDWAttr(attr):
 ##
 ## Kernel interface data structures
 ##
+
+ATTR_KEY_LEN = 24
+
+def fattr(key,val,ind=0,col=ATTR_KEY_LEN):
+    return ind*' ' + key.ljust(col-ind) + ': ' + str(val).replace('\n', '\n'+ind*' ').replace(ind*' '+':',':')
+
+def fattrnl(key,val,ind=0,col=ATTR_KEY_LEN):
+    return fattr(key,val,ind,col) + '\n'
+
+def fnlattr(key,val,ind=0,col=ATTR_KEY_LEN):
+    return '\n' + fattr(key,val,ind,col)
+
 
 class Timespec(Structure):
 
@@ -113,9 +196,9 @@ class TimestampInfo(Structure):
         return ((x[0], getattr(self,x[0])) for x in self._fields_)
 
     def __str__(self):
-        ret  = 'TimestampInfo'
-        for (a,b) in self:
-            ret += '\n  {}: {}'.format(a,str(b).replace('\n','\n  '))
+        ret  = '[TimestampInfo]'
+        for (key,val) in self:
+            ret += fnlattr(key,val, 2)
         return ret
 
 class Timestamp(Structure):
@@ -132,10 +215,13 @@ class Timestamp(Structure):
         return ((x[0], getattr(self,x[0])) for x in self._fields_)
 
     def __str__(self):
-        ret = 'Timestamp:'
-        for (a,b) in self:
-            ret += '\n  {}: {}'.format(a,str(b).replace('\n','\n  '))
+        ret = '[Timestamp]'
+        ret += fnlattr('sw', self.sw, 2)
+        ret += fnlattr('hw', self.hw, 2)
+        ret += fnlattr('hr', self.hires, 2)
+        ret += fnlattr('ts', self.tsinfo, 2)
         return ret
+
 
 ##
 ## Support functions
@@ -379,22 +465,22 @@ class WPANFrame:
     def __str__(self):
         ret = 'WPAN Frame\n'
         if self.timestamp is not None:
-            ret += '  {}\n'.format(str(self.timestamp).replace('\n','\n  '))
-        ret += '  Length         : {:d}\n'.format(self.frame_len)
-        ret += '  Control        : 0x{:04x}\n'.format(self.frame_control)
-        ret += '    Type         : {}\n'.format(self.frame_type)
-        ret += '    Version      : {}\n'.format(self.frame_version)
-        ret += '    Security     : {}\n'.format(self.security)
-        ret += '    Pending      : {}\n'.format(self.pending)
-        ret += '    Ack.Req.     : {}\n'.format(self.ack_req)
-        ret += '    Dst mode     : {}\n'.format(self.dst_mode)
-        ret += '    Src mode     : {}\n'.format(self.src_mode)
-        ret += '    PanID comp   : {}\n'.format(self.panid_comp)
-        ret += '  SequenceNr     : {}\n'.format(self.frame_seqnum)
-        ret += '  Src Addr       : {}\n'.format(self.src_addr.hex())
-        ret += '  Src PanID      : {:04x}\n'.format(self.src_panid)
-        ret += '  Dst Addr       : {}\n'.format(self.dst_addr.hex())
-        ret += '  Dst PanID      : {:04x}\n'.format(self.dst_panid)
+            ret += fattrnl('Timestamp', self.timestamp, 2)
+        ret += fattrnl('Length', self.frame_len, 2)
+        ret += fattrnl('Control', '0x{:04x}'.format(self.frame_control), 2)
+        ret += fattrnl('Type', self.frame_type, 4)
+        ret += fattrnl('Version', self.frame_version, 4)
+        ret += fattrnl('Security', self.security, 4)
+        ret += fattrnl('Pending', self.pending, 4)
+        ret += fattrnl('Ack.Req.', self.ack_req, 4)
+        ret += fattrnl('Dst mode', self.dst_mode, 4)
+        ret += fattrnl('Src mode', self.src_mode, 4)
+        ret += fattrnl('PanID comp', self.panid_comp, 4)
+        ret += fattrnl('SequenceNr', self.frame_seqnum, 2)
+        ret += fattrnl('Src Addr', self.src_addr.hex(), 2)
+        ret += fattrnl('Src PanID', '{:04x}'.format(self.src_panid), 2)
+        ret += fattrnl('Dst Addr', self.dst_addr.hex(), 2)
+        ret += fattrnl('Dst PanID', '{:04x}'.format(self.dst_panid), 2)
         return ret
            
 
@@ -434,6 +520,8 @@ class TailFrame(WPANFrame):
         0x40 : lambda x: round(x*5/32768, 3),
     }
 
+    USE_TAG_RXINFO = False
+
     def __init__(self, data=None, ancl=None, protocol=0):
         WPANFrame.__init__(self)
         self.tail_protocol  = protocol
@@ -445,6 +533,7 @@ class TailFrame(WPANFrame):
         self.tail_frmtype   = None
         self.tail_subtype   = None
         self.tail_txtime    = None
+        self.tail_rxtime    = None
         self.tail_rxtimes   = None
         self.tail_cookie    = None
         self.tail_flags     = None
@@ -452,6 +541,8 @@ class TailFrame(WPANFrame):
         self.tail_test      = None
         self.tail_ies       = None
         self.tail_eies      = None
+        self.tail_extra     = None
+        self.tail_extras    = {}
         self.tail_config    = {}
         
         if data is not None:
@@ -461,10 +552,12 @@ class TailFrame(WPANFrame):
             self.decode_ancl(ancl)
             
     def tsdecode(data):
-        return struct.unpack_from('<Q', data.ljust(8, b'\0'))[0]
-    
-    def tsencode(data):
-        return struct.pack('<Q', data)[0:4]
+        times = struct.unpack_from('<Q', data.ljust(8, b'\0'))[0]
+        return times
+
+    def tsencode(times):
+        data = struct.pack('<Q',times)[0:5]
+        return data
 
     def decode(self,data):
         ptr = WPANFrame.decode(self,data)
@@ -529,27 +622,37 @@ class TailFrame(WPANFrame):
                 ## TBD
             elif self.tail_frmtype == 3:
                 self.tail_owr = testbit(self.tail_subtype,3)
-                self.tail_txtime = TailFrame.tsdecode(data[ptr:ptr+5])
+                (txtime,) = struct.unpack_from('5s',data,ptr)
                 ptr += 5
+                self.tail_txtime = TailFrame.tsdecode(txtime)
                 if not self.tail_owr:
                     (cnt,) = struct.unpack_from('<B',data,ptr)
                     ptr += 1
-                    mask = 0
+                    bits = 0
                     self.tail_rxtimes = {}
                     for i in range(0,cnt,8):
                         (val,) = struct.unpack_from('<B',data,ptr)
                         ptr += 1
-                        mask |= val << i
+                        bits |= val << i
                     for i in range(cnt):
-                        if mask & 1:
+                        if testbit(bits,i):
                             (addr,) = struct.unpack_from('8s',data,ptr)
                             ptr += 8
                         else:
                             (addr,) = struct.unpack_from('2s',data,ptr)
                             ptr += 2
-                        mask >>= 1
-                        self.tail_rxtimes[byteswap(addr)] = TailFrame.tsdecode(data[ptr:ptr+5])
+                        timestamp = TailFrame.tsdecode(data[ptr:ptr+5])
                         ptr += 5
+                        self.tail_rxtimes[byteswap(addr)] = timestamp
+                        if TailFrame.USE_TAG_RXINFO:
+                            extras = struct.unpack_from('<HHHHHH',data)
+                            ptr += 12
+                        else:
+                            extras = [ 0, 0, 0, 0, 0, 0, ]
+                        self.tail_extras[byteswap(addr)] = extras
+                        if WPANFrame.match_if(byteswap(addr)):
+                            self.tail_rxtime = timestamp
+                            self.tail_extra = extras
             elif self.tail_frmtype == 4:
                 if self.tail_subtype == 0:
                     (magic,) = struct.unpack_from('<H',data,ptr)
@@ -667,7 +770,18 @@ class TailFrame(WPANFrame):
                 if self.tail_cookie is not None:
                     data += struct.pack('16s',self.tail_cookie)
                 if self.tail_ies is not None:
-                    raise NotImplementedError('encode IEs')
+                    data += struct.pack('<B',len(self.tail_ies))
+                    for (id,val) in self.tail_ies.items():
+                        data += struct.pack('<B', id)
+                        idf = getbits(id,6,2)
+                        if idf == 0:
+                            data += struct.pack('<B', val)
+                        elif idf == 1:
+                            data += struct.pack('<H', val)
+                        elif idf == 2:
+                            data += struct.pack('<I', val)
+                        else:
+                            data += struct.pack('<p', val)
                 if self.tail_eies is not None:
                     raise NotImplementedError('encode EIEs')
             elif self.tail_frmtype == 1:
@@ -686,19 +800,21 @@ class TailFrame(WPANFrame):
                 data += struct.pack('<B',frame)
                 data += TailFrame.tsencode(self.tail_txtime)
                 if not self.tail_owr:
-                    size = len(self.tail_rxtimes)
-                    data += struct.pack('<B', size)
+                    cnt = len(self.tail_rxtimes)
+                    data += struct.pack('<B', cnt)
                     mask = 1
                     bits = 0
                     for addr in self.tail_rxtimes:
                         if len(addr) == 8:
                             bits |= mask
                         mask <<= 1
-                    for i in range(0,size,8):
-                        data += struct.pack('<B', (bits & 0xff))
-                        bits >>= 8
+                    for i in range(0,cnt,8):
+                        data += struct.pack('<B', ((bits>>i) & 0xff))
                     for (addr,time) in self.tail_rxtimes:
-                        data += struct.pack('s', byteswap(addr))
+                        if len(addr) == 8:
+                            data += struct.pack('8s', byteswap(addr))
+                        else:
+                            data += struct.pack('2s', byteswap(addr))
                         data += TailFrame.tsencode(time)
             elif self.tail_frmtype == 4:
                 if self.tail_subtype == 0:
@@ -759,97 +875,97 @@ class TailFrame(WPANFrame):
     def __str__(self):
         str = WPANFrame.__str__(self)
         if self.tail_protocol == 1:
-            str += '  Tail Proto     : 0x37\n'
+            str += fattrnl('Tail Proto', '0x37',2)
             if self.tail_frmtype == 0:
-                str += '    Frame type   : Tag Blink {}:{}\n'.format(self.tail_frmtype,self.tail_subtype)
-                str += '      EIEs       : {}\n'.format(self.tail_eies_present)
-                str += '      IEs        : {}\n'.format(self.tail_ies_present)
-                str += '      Cookie     : {}\n'.format(self.tail_cookie_present)
-                str += '    Flags        : 0x{:02x}\n'.format(self.tail_flags)
-                str += '      Listen     : {}\n'.format(self.tail_listen)
-                str += '      Accel      : {}\n'.format(self.tail_accel)
-                str += '      DCin       : {}\n'.format(self.tail_dcin)
-                str += '      Salt       : {}\n'.format(self.tail_salt)
-                if self.tail_cookie_present:
-                    str += '    Cookie       : {}\n'.format(self.tail_cookie.hex())
-                if self.tail_ies_present:
-                    str += '    IEs          : {}\n'.format(len(self.tail_ies))
+                str += fattrnl('Frame type', 'Tag Blink {}:{}'.format(self.tail_frmtype,self.tail_subtype), 4)
+                str += fattrnl('EIEs', testbit(self.tail_subtype,1), 4)
+                str += fattrnl('IEs', testbit(self.tail_subtype,2), 4)
+                str += fattrnl('Cookie', testbit(self.tail_subtype,3), 4)
+                str += fattrnl('Flags', '0x{:02x}'.format(self.tail_flags), 4)
+                str += fattrnl('Listen', testbit(self.tail_flags,7), 6)
+                str += fattrnl('Accel', testbit(self.tail_flags,6), 6)
+                str += fattrnl('DCin', testbit(self.tail_flags,5), 6)
+                str += fattrnl('Salt', testbit(self.tail_flags,4), 6)
+                if self.tail_cookie is not None:
+                    str += fattrnl('Cookie', self.tail_cookie.hex(), 4)
+                if self.tail_ies is not None:
+                    str += fattrnl('IEs', len(self.tail_ies), 4)
                     for (key,val) in self.tail_ies.items():
-                        str += '      {:11s}: {}\n'.format(key,val)
+                        str += fattrnl(key,val,6)
             elif self.tail_frmtype == 1:
-                str += '    Frame type   : Anchor Beacon {}:{}\n'.format(self.tail_frmtype,self.tail_subtype)
-                str += '    Flags        : 0x{:02x}\n'.format(self.tail_flags)
+                str += fattrnl('Frame type', 'Anchor Beacon {}:{}'.format(self.tail_frmtype,self.tail_subtype), 4)
+                str += fattrnl('Flags', '0x{:02x}'.format(self.tail_flags), 4)
             elif self.tail_frmtype == 2:
-                str += '    Frame type   : Ranging Request {}:{}\n'.format(self.tail_frmtype,self.tail_subtype)
+                str += fattrnl('Frame type', 'Ranging Request {}:{}'.format(self.tail_frmtype,self.tail_subtype), 4)
             elif self.tail_frmtype == 3:
-                str += '    Frame type   : Ranging Response {}:{}\n'.format(self.tail_frmtype,self.tail_subtype)
-                str += '      OWR        : {}\n'.format(self.tail_owr)
-                str += '    TxTime       : {}\n'.format(self.tail_txtime)
+                str += fattrnl('Frame type', 'Ranging Response {}:{}'.format(self.tail_frmtype,self.tail_subtype), 4)
+                str += fattrnl('OWR', self.tail_owr, 6)
+                str += fattrnl('TxTime', self.tail_txtime, 4)
                 if not self.tail_owr:
-                    str += '    RxTimes      : {}\n'.format(len(self.tail_rxtimes))
+                    str += fattrnl('RxTimes', len(self.tail_rxtimes), 4)
                     for (addr,time) in self.tail_rxtimes.items():
-                        str += '      {}: {}\n'.format(addr.hex(),time)
+                        str += fattrnl(addr.hex(),time,6)
             elif self.tail_frmtype == 4:
-                str += '    Frame type   : Config Request {}:{}\n'.format(self.tail_frmtype,self.tail_subtype)
+                str += fattrnl('Frame type', 'Config Request {}:{}\n'.format(self.tail_frmtype,self.tail_subtype), 4)
                 if self_tail_subtype == 0:
-                    str += '    Config Req   : RESET\n'
-                    str += '      Magic      : {}\n'.format(self.tail_reset_magic)
+                    str += fattrnl('Config Req', 'RESET', 4)
+                    str += fattrnl('Magic', self.tail_reset_magic, 6)
                 elif self_tail_subtype == 1:
-                    str += '    Config Req   : ENUMERATE\n'
-                    str += '      Iterator   : {}\n'.format(self.tail_iterator)
+                    str += fattrnl('Config Req', 'ENUMERATE', 4)
+                    str += fattrnl('Iterator', self.tail_iterator, 6)
                 elif self_tail_subtype == 2:
-                    str += '    Config Req   : READ\n'
-                    str += '      Keys       :\n'
+                    str += fattrnl('Config Req', 'READ', 4)
+                    str += fattrnl('Keys', '', 6)
                     for key in tail_config:
-                        str += '        {}\n'.format(key)
+                        str += fattrnl(key,'',8)
                 elif self_tail_subtype == 3:
-                    str += '    Config Req   : WRITE\n'
-                    str += '      Keys       :\n'
+                    str += fattrnl('Config Req', 'WRITE', 4)
+                    str += fattrnl('Keys', '', 6)
                     for (key,val) in tail_config.items():
-                        str += '        {}   : {}\n'.format(key,val)
+                        str += fattrnl(key,val,8)
                 elif self_tail_subtype == 4:
-                    str += '    Config Req   : DELETE\n'
-                    str += '      Keys       :\n'
+                    str += fattrnl('Config Req', 'DELETE', 4)
+                    str += fattrnl('Keys', '', 6)
                     for key in tail_config:
-                        str += '        {}\n'.format(key)
+                        str += fattrnl(key,'',8)
                 elif self_tail_subtype == 5:
-                    str += '    Config Req   : SALT\n'
-                    str += '      Salt       : {}'.format(self.tail_salt)
+                    str += fattrnl('Config Req', 'SALT', 4)
+                    str += fattrnl('Salt', self.tail_salt, 6)
                 elif self_tail_subtype == 15:
-                    str += '    Config Req   : TEST\n'
-                    str += '      Test       : {}'.format(self.tail_test)
+                    str += fattrnl('Config Req', 'TEST', 4)
+                    str += fattrnl('Test', self.tail_test, 6)
             elif self.tail_frmtype == 5:
-                str += '    Frame type   : Config Response {}:{}\n'.format(self.tail_frmtype,self.tail_subtype)
+                str += fattrnl('Frame type', 'Config Response {}:{}'.format(self.tail_frmtype,self.tail_subtype), 4)
                 if self_tail_subtype == 0:
-                    str += '    Config Resp: RESET\n'
-                    str += '      Magic      : {}\n'.format(self.tail_reset_magic)
+                    str += fattrnl('Config Resp', 'RESET', 4)
+                    str += fattrnl('Magic', self.tail_reset_magic, 6)
                 elif self_tail_subtype == 1:
-                    str += '    Config Resp: ENUMERATE\n'
-                    str += '      Iterator   : {}\n'.format(self.tail_iterator)
+                    str += fattrnl('Config Resp', 'ENUMERATE', 4)
+                    str += fattrnl('Iterator', self.tail_iterator, 6)
                     for key in tail_config:
-                        str += '        {}\n'.format(key)
+                        str += fattrnl(key,'',8)
                 elif self_tail_subtype == 2:
-                    str += '    Config Resp: READ\n'
-                    str += '      Keys       :\n'
+                    str += fattrnl('Config Resp', 'READ', 4)
+                    str += fattrnl('Keys', '', 6)
                     for (key,val) in tail_config.items():
-                        str += '        {}   : {}\n'.format(key,val)
+                        str += fattrnl(key,val,8)
                 elif self_tail_subtype == 3:
-                    str += '    Config Resp: WRITE\n'
-                    str += '      Code       : {}\n'.format(self.tail_code)
+                    str += fattrnl('Config Resp', 'WRITE', 4)
+                    str += fattrnl('Code', self.tail_code, 6)
                 elif self_tail_subtype == 4:
-                    str += '    Config Resp: DELETE\n'
-                    str += '      Code       : {}\n'.format(self.tail_code)
+                    str += fattrnl('Config Resp', 'DELETE', 4)
+                    str += fattrnl('Code', self.tail_code, 6)
                 elif self_tail_subtype == 5:
-                    str += '    Config Resp: SALT\n'
-                    str += '      Salt       : {}'.format(self.tail_salt)
+                    str += fattrnl('Config Resp', 'SALT', 4)
+                    str += fattrnl('Salt', self.tail_salt, 6)
                 elif self_tail_subtype == 15:
-                    str += '    Config Resp: TEST\n'
-                    str += '      Test       : {}'.format(self.tail_test)
+                    str += fattrnl('Config Resp', 'TEST', 4)
+                    str += fattrnl('Test', self.tail_test, 6)
         elif self.tail_protocol == 2:
-            str += '  Tail Proto     : 0x38\n'
-            str += '    Payload      : {}\n'.format(self.tail_payload.hex())
+            str += fattrnl('Tail Proto', '0x38', 2)
+            str += fattrnl('Payload', self.tail_payload.hex(), 4)
         elif self.tail_protocol == 0:
-            str += '  Raw Payload    : {}\n'.format(self.tail_payload.hex())
+            str += fattrnl('Raw Payload', tail_payload.hex(), 2)
         return str
 
     

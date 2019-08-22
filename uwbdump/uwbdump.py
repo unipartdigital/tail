@@ -182,7 +182,7 @@ def main():
     cfg.if_eui64 = addrs[0]['addr'].replace(':','')
     cfg.if_addr = bytes.fromhex(cfg.if_eui64)
 
-    WPANFrame.set_ifaddr(cfg.if_addr, b'\xff\xff')
+    WPANFrame.set_ifaddr(cfg.if_addr, 0xffff)
     
     if args.channel is not None:
         cfg.dw1000_channel = args.channel
