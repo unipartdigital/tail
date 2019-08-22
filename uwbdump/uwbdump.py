@@ -12,6 +12,8 @@ import threading
 
 from tail import *
 
+from datetime import datetime
+
 
 class cfg():
 
@@ -28,9 +30,8 @@ class cfg():
     if_short        = None
     if_eui64        = None
     
-    quiet           = 0
+    verbose         = 0
     promisc         = False
-    print_frames    = True
 
     blink_dst       = 'ffff'
     blink_size      = 64
@@ -48,15 +49,19 @@ def SendBlink(rsock):
 def RecvTime(rsock):
     (data,ancl,_,_) = rsock.recvmsg(4096, 1024, socket.MSG_ERRQUEUE)
     frame = TailFrame(data,ancl)
-    if cfg.print_frames:
-        print(frame)
+    if cfg.verbose > 0:
+        print('** {} TX frame:\n{}'.format(datetime.now().time(), frame))
+    else:
+        print('** {} TX frame src:{} dst:{} size:{}'.format(datetime.now().time(), frame.src_addr.hex(), frame.dst_addr.hex(), len(data)))
 
 def RecvBlink(rsock):
     (data,ancl,_,rem) = rsock.recvmsg(4096, 1024, 0)
     frame = TailFrame(data,ancl)
-    if cfg.print_frames:
-        print(frame)
-    
+    if cfg.verbose > 0:
+        print('** {} RX frame:\n{}'.format(datetime.now().time(), frame))
+    else:
+        print('** {} RX frame src:{} dst:{} size:{}'.format(datetime.now().time(), frame.src_addr.hex(), frame.dst_addr.hex(), len(data)))
+
 
 class txThread(threading.Thread):
     def __init__(self,rsock):
@@ -127,8 +132,6 @@ def SocketLoop():
     
     try:
         while True:
-            if cfg.quiet == 1:
-                print('*** TX:{} RX:{}'.format(tx.count, rx.count))
             time.sleep(1)
     
     except KeyboardInterrupt:
@@ -145,30 +148,26 @@ def main():
     parser = argparse.ArgumentParser(description="uTrack Connector daemon")
 
     parser.add_argument('-D', '--debug', action='count', default=0)
+    parser.add_argument('-v', '--verbose', action='count', default=0)
     parser.add_argument('-I', '--interface', type=str, default=cfg.if_name)
     parser.add_argument('-P', '--promiscuous-mode', action='store_true', default=False)
     parser.add_argument('-s', '--size', type=int, default=cfg.blink_size)
     parser.add_argument('-c', '--count', type=int, default=cfg.blink_count)
     parser.add_argument('-i', '--interval', type=float, default=cfg.blink_delay)
-    parser.add_argument('-q', '--quiet', action='count', default=0)
     parser.add_argument('--dest', type=str, default=cfg.blink_dst)
-    parser.add_argument('--channel', type=int, default=None)
-    parser.add_argument('--pcode', type=int, default=None)
-    parser.add_argument('--prf', type=int, default=None)
-    parser.add_argument('--psr', type=int, default=None)
-    parser.add_argument('--txpsr', type=int, default=None)
-    parser.add_argument('--pwr', type=str, default=None)
-    parser.add_argument('--txpwr', type=str, default=None)
-    parser.add_argument('--smart', type=bool, default=None)
-    parser.add_argument('--rate', type=int, default=None)
+    parser.add_argument('--channel', type=int, default=cfg.dw1000_channel)
+    parser.add_argument('--pcode', type=int, default=cfg.dw1000_pcode)
+    parser.add_argument('--prf', type=int, default=cfg.dw1000_prf)
+    parser.add_argument('--rate', type=int, default=cfg.dw1000_rate)
+    parser.add_argument('--txpsr', type=int, default=cfg.dw1000_txpsr)
+    parser.add_argument('--power', type=str, default=cfg.dw1000_power)
     
     args = parser.parse_args()
 
     pr.DEBUG = args.debug
 
-    cfg.quiet = args.quiet
+    cfg.verbose = args.verbose
     cfg.promisc = args.promiscuous_mode
-    cfg.print_frames = (args.quiet == 0)
     
     cfg.blink_dst = bytes.fromhex(args.dest)
     cfg.blink_size = args.size
@@ -184,26 +183,17 @@ def main():
 
     WPANFrame.set_ifaddr(cfg.if_addr, 0xffff)
     
-    if args.channel is not None:
-        cfg.dw1000_channel = args.channel
-    if args.pcode is not None:
-        cfg.dw1000_pcode = args.pcode
-    if args.prf is not None:
-        cfg.dw1000_prf = args.prf
-    if args.psr is not None:
-        cfg.dw1000_txpsr = args.psr
-    if args.txpsr is not None:
-        cfg.dw1000_txpsr = args.txpsr
-    if args.pwr is not None:
-        cfg.dw1000_power = args.pwr
-    if args.txpwr is not None:
-        cfg.dw1000_power = args.txpwr
-    if args.smart is not None:
-        cfg.dw1000_smart = args.smart
-    if args.rate is not None:
-        cfg.dw1000_rate = args.rate
+    cfg.dw1000_channel = args.channel
+    cfg.dw1000_pcode = args.pcode
+    cfg.dw1000_prf = args.prf
+    cfg.dw1000_txpsr = args.txpsr
+    cfg.dw1000_power = args.power
+    cfg.dw1000_rate = args.rate
 
-    if cfg.quiet == 0:
+    if cfg.dw1000_power is not None:
+        cfg.dw1000_smart = bool(cfg.dw1000_power & 0xff000000)
+
+    if cfg.verbose > 1:
         print('UWB dump starting...')
         print('  channel   : {}'.format(cfg.dw1000_channel))
         print('  pcode     : {}'.format(cfg.dw1000_pcode))
