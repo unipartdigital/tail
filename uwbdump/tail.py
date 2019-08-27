@@ -367,7 +367,7 @@ class WPANFrame:
     def decode_ancl(self,ancl):
         for cmsg_level, cmsg_type, cmsg_data in ancl:
             if (cmsg_level == socket.SOL_SOCKET and cmsg_type == socket.SO_TIMESTAMPING):
-                pr.debug('cmsg level={} type={} size={}\n'.format(cmsg_level,cmsg_type,len(cmsg_data)))
+                #pr.debug('cmsg level={} type={} size={}\n'.format(cmsg_level,cmsg_type,len(cmsg_data)))
                 raw = cmsg_data.ljust(sizeof(Timestamp), b'\0')
                 tss = Timestamp.from_buffer_copy(raw)
                 self.timestamp = tss
@@ -520,8 +520,6 @@ class TailFrame(WPANFrame):
         0x40 : lambda x: round(x*5/32768, 3),
     }
 
-    USE_TAG_RXINFO = False
-
     def __init__(self, data=None, ancl=None, protocol=0):
         WPANFrame.__init__(self)
         self.tail_protocol  = protocol
@@ -530,20 +528,21 @@ class TailFrame(WPANFrame):
         self.tail_accel     = False
         self.tail_dcin      = False
         self.tail_salt      = False
+        self.tail_timing    = False
         self.tail_frmtype   = None
         self.tail_subtype   = None
         self.tail_txtime    = None
         self.tail_rxtime    = None
         self.tail_rxtimes   = None
+        self.tail_rxinfo    = None
+        self.tail_rxinfos   = None
         self.tail_cookie    = None
         self.tail_flags     = None
         self.tail_code      = None
         self.tail_test      = None
         self.tail_ies       = None
         self.tail_eies      = None
-        self.tail_extra     = None
-        self.tail_extras    = {}
-        self.tail_config    = {}
+        self.tail_config    = None
         
         if data is not None:
             self.decode(data)
@@ -641,18 +640,12 @@ class TailFrame(WPANFrame):
                         else:
                             (addr,) = struct.unpack_from('2s',data,ptr)
                             ptr += 2
-                        timestamp = TailFrame.tsdecode(data[ptr:ptr+5])
+                        (rxdata,) = struct.unpack_from('5s',data,ptr)
                         ptr += 5
-                        self.tail_rxtimes[byteswap(addr)] = timestamp
-                        if TailFrame.USE_TAG_RXINFO:
-                            extras = struct.unpack_from('<HHHHHH',data)
-                            ptr += 12
-                        else:
-                            extras = [ 0, 0, 0, 0, 0, 0, ]
-                        self.tail_extras[byteswap(addr)] = extras
+                        rxtime = TailFrame.tsdecode(rxdata)
+                        self.tail_rxtimes[byteswap(addr)] = rxtime
                         if WPANFrame.match_if(byteswap(addr)):
-                            self.tail_rxtime = timestamp
-                            self.tail_extra = extras
+                            self.tail_rxtime = rxtime
             elif self.tail_frmtype == 4:
                 if self.tail_subtype == 0:
                     (magic,) = struct.unpack_from('<H',data,ptr)
@@ -665,6 +658,7 @@ class TailFrame(WPANFrame):
                 elif self.tail_subtype == 2:
                     (cnt,) = struct.unpack_from('<B',data,ptr)
                     ptr += 1
+                    self.tail_config = {}
                     for i in range(cnt):
                         (key,) = struct.unpack_from('<H',data,ptr)
                         ptr += 2
@@ -672,6 +666,7 @@ class TailFrame(WPANFrame):
                 elif self.tail_subtype == 3:
                     (cnt,) = struct.unpack_from('<B',data,ptr)
                     ptr += 1
+                    self.tail_config = {}
                     for i in range(cnt):
                         (key,) = struct.unpack_from('<H',data,ptr)
                         ptr += 2
@@ -681,6 +676,7 @@ class TailFrame(WPANFrame):
                 elif self.tail_subtype == 4:
                     (cnt,) = struct.unpack_from('<B',data,ptr)
                     ptr += 1
+                    self.tail_config = {}
                     for i in range(cnt):
                         (key,) = struct.unpack_from('<H',data,ptr)
                         ptr += 2
@@ -703,6 +699,7 @@ class TailFrame(WPANFrame):
                     (iter,cnt,) = struct.unpack_from('<HB',data,ptr)
                     ptr += 3
                     self.tail_iterator = iter
+                    self.tail_config = {}
                     for i in range(cnt):
                         (key,) = struct.unpack_from('<H',data,ptr)
                         ptr += 2
@@ -710,6 +707,7 @@ class TailFrame(WPANFrame):
                 elif self.tail_subtype == 2:
                     (cnt,) = struct.unpack_from('<B',data,ptr)
                     ptr += 1
+                    self.tail_config = {}
                     for i in range(cnt):
                         (key,val,) = struct.unpack_from('<Hs',data,ptr)
                         ptr += len(val) + 3
@@ -732,6 +730,47 @@ class TailFrame(WPANFrame):
                     self.tail_test = test
                 else:
                     raise NotImplementedError('decode config response: {}'.format(self.tail_subtype))
+            elif self.tail_frmtype == 15:
+                self.tail_timing = testbit(self.tail_subtype,3)
+                txtime = testbit(self.tail_subtype,2)
+                rxtime = testbit(self.tail_subtype,1)
+                rxinfo = testbit(self.tail_subtype,0)
+                if txtime:
+                    (tstamp,) = struct.unpack_from('5s',data,ptr)
+                    ptr += 5
+                    self.tail_txtime = TailFrame.tsdecode(tstamp)
+                if rxtime:
+                    self.tail_rxtimes = {}
+                if rxinfo:
+                    self.tail_rxinfos = {}
+                if rxtime or rxinfo:
+                    (cnt,) = struct.unpack_from('<B',data,ptr)
+                    ptr += 1
+                    bits = 0
+                    for i in range(0,cnt,8):
+                        (val,) = struct.unpack_from('<B',data,ptr)
+                        ptr += 1
+                        bits |= val << i
+                    for i in range(cnt):
+                        if testbit(bits,i):
+                            (addr,) = struct.unpack_from('8s',data,ptr)
+                            ptr += 8
+                        else:
+                            (addr,) = struct.unpack_from('2s',data,ptr)
+                            ptr += 2
+                        if rxtime:
+                            (val,) = struct.unpack_from('5s',data,ptr)
+                            ptr += 5
+                            tstamp = TailFrame.tsdecode(val)
+                            self.tail_rxtimes[byteswap(addr)] = tstamp
+                            if WPANFrame.match_if(byteswap(addr)):
+                                self.tail_rxtime = tstamp
+                        if rxinfo:
+                            rxinfo = struct.unpack_from('<4H',data,ptr)
+                            ptr += 8
+                            self.tail_rxinfos[byteswap(addr)] = rxinfo
+                            if WPANFrame.match_if(byteswap(addr)):
+                                self.tail_rxinfo = rxinfo
             else:
                 raise NotImplementedError('decode tail frametype: {}'.format(self.tail_frmtype))
     ## Tail encrypted protocol
@@ -810,7 +849,7 @@ class TailFrame(WPANFrame):
                         mask <<= 1
                     for i in range(0,cnt,8):
                         data += struct.pack('<B', ((bits>>i) & 0xff))
-                    for (addr,time) in self.tail_rxtimes:
+                    for (addr,time) in self.tail_rxtimes.items():
                         if len(addr) == 8:
                             data += struct.pack('8s', byteswap(addr))
                         else:
@@ -861,6 +900,44 @@ class TailFrame(WPANFrame):
                     data += struct.pack('<16s',self.tail_test)
                 else:
                     raise NotImplementedError('encode config response {}'.format(self.tail_subtype))
+            elif self.tail_frmtype == 15:
+                self.tail_subtype = 0
+                if self.tail_timing:
+                    self.tail_subtype |= bit(3)
+                if self.tail_txtime:
+                    self.tail_subtype |= bit(2)
+                if self.tail_rxtimes:
+                    self.tail_subtype |= bit(1)
+                if self.tail_rxinfos:
+                    self.tail_subtype |= bit(0)
+                frame = makebits(self.tail_frmtype,4,4) | makebits(self.tail_subtype,0,4)
+                data += struct.pack('<B',frame)
+                if self.tail_txtime:
+                    data += TailFrame.tsencode(self.tail_txtime)
+                if self.tail_rxtimes:
+                    addrs = self.tail_rxtimes.keys()
+                elif self.tail_rxinfos:
+                    addrs = self.tail_rxinfos.keys()
+                if self.tail_rxtimes or self.tail_rxinfos:
+                    cnt = len(addrs)
+                    data += struct.pack('<B', cnt)
+                    mask = 1
+                    bits = 0
+                    for addr in addrs:
+                        if len(addr) == 8:
+                            bits |= mask
+                        mask <<= 1
+                    for i in range(0,cnt,8):
+                        data += struct.pack('<B', ((bits>>i) & 0xff))
+                    for addr in addrs:
+                        if len(addr) == 8:
+                            data += struct.pack('8s', byteswap(addr))
+                        else:
+                            data += struct.pack('2s', byteswap(addr))
+                        if self.tail_rxtimes:
+                            data += TailFrame.tsencode(self.tail_rxtimes[addr])
+                        if self.tail_rxinfos:
+                            data += struct.pack('<4H', *self.tail_rxinfos[addr])
             else:
                 raise NotImplementedError('encode tail frametype {}'.format(self.tail_frmtype))
         elif self.tail_protocol == 2:
@@ -898,10 +975,10 @@ class TailFrame(WPANFrame):
             elif self.tail_frmtype == 2:
                 str += fattrnl('Frame type', 'Ranging Request {}:{}'.format(self.tail_frmtype,self.tail_subtype), 4)
             elif self.tail_frmtype == 3:
-                str += fattrnl('Frame type', 'Ranging Response {}:{}'.format(self.tail_frmtype,self.tail_subtype), 4)
+                str += fattrnl('Frame type', 'Ranging Response {}'.format(self.tail_frmtype), 4)
                 str += fattrnl('OWR', self.tail_owr, 6)
                 str += fattrnl('TxTime', self.tail_txtime, 4)
-                if not self.tail_owr:
+                if self.tail_rxtimes:
                     str += fattrnl('RxTimes', len(self.tail_rxtimes), 4)
                     for (addr,time) in self.tail_rxtimes.items():
                         str += fattrnl(addr.hex(),time,6)
@@ -961,6 +1038,22 @@ class TailFrame(WPANFrame):
                 elif self_tail_subtype == 15:
                     str += fattrnl('Config Resp', 'TEST', 4)
                     str += fattrnl('Test', self.tail_test, 6)
+            elif self.tail_frmtype == 15:
+                str += fattrnl('Frame type', 'Ranging Resp#2 {}'.format(self.tail_frmtype), 4)
+                str += fattrnl('Timing', bool(self.tail_timing), 6)
+                str += fattrnl('TxTime', bool(self.tail_txtime), 6)
+                str += fattrnl('RxTimes', bool(self.tail_rxtimes), 6)
+                str += fattrnl('RxInfos', bool(self.tail_rxinfos), 6)
+                if self.tail_txtime:
+                    str += fattrnl('TxTime', self.tail_txtime, 4)
+                if self.tail_rxtimes:
+                    str += fattrnl('RxTimes', len(self.tail_rxtimes), 4)
+                    for (addr,time) in self.tail_rxtimes.items():
+                        str += fattrnl(addr.hex(),time,6)
+                if self.tail_rxinfos is not None:
+                    str += fattrnl('RxInfos', len(self.tail_rxinfos), 4)
+                    for (addr,rxinfo) in self.tail_rxinfos.items():
+                        str += fattrnl(addr.hex(),rxinfo,6)
         elif self.tail_protocol == 2:
             str += fattrnl('Tail Proto', '0x38', 2)
             str += fattrnl('Payload', self.tail_payload.hex(), 4)
