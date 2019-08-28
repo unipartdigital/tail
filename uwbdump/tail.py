@@ -283,7 +283,6 @@ class WPANFrame:
 
         if data is not None:
             self.decode(data)
-
         if ancl is not None:
             self.decode_ancl(ancl)
 
@@ -366,8 +365,8 @@ class WPANFrame:
 
     def decode_ancl(self,ancl):
         for cmsg_level, cmsg_type, cmsg_data in ancl:
+            #pr.debug('cmsg level={} type={} size={}\n'.format(cmsg_level,cmsg_type,len(cmsg_data)))
             if (cmsg_level == socket.SOL_SOCKET and cmsg_type == socket.SO_TIMESTAMPING):
-                #pr.debug('cmsg level={} type={} size={}\n'.format(cmsg_level,cmsg_type,len(cmsg_data)))
                 raw = cmsg_data.ljust(sizeof(Timestamp), b'\0')
                 tss = Timestamp.from_buffer_copy(raw)
                 self.timestamp = tss
@@ -537,6 +536,7 @@ class TailFrame(WPANFrame):
         self.tail_rxinfo    = None
         self.tail_rxinfos   = None
         self.tail_cookie    = None
+        self.tail_beacon    = None
         self.tail_flags     = None
         self.tail_code      = None
         self.tail_test      = None
@@ -546,7 +546,6 @@ class TailFrame(WPANFrame):
         
         if data is not None:
             self.decode(data)
-
         if ancl is not None:
             self.decode_ancl(ancl)
             
@@ -612,9 +611,10 @@ class TailFrame(WPANFrame):
                 if self.tail_eies_present:
                     raise NotImplementedError('decode tail EIEs')
             elif self.tail_frmtype == 1:
-                (flags,) = struct.unpack_from('<B',data,ptr)
-                ptr += 1
+                (flags,bid) = struct.unpack_from('<BI',data,ptr)
+                ptr += 5
                 self.tail_flags = flags
+                self.tail_beacon = bid
                 ## TBD
             elif self.tail_frmtype == 2:
                 pass
@@ -826,7 +826,8 @@ class TailFrame(WPANFrame):
             elif self.tail_frmtype == 1:
                 frame = makebits(self.tail_frmtype,4,4) | makebits(self.tail_subtype,0,4)
                 flags = self.tail_flags
-                data += struct.pack('<BB',frame, flags)
+                data += struct.pack('<BB', frame, flags)
+                data += struct.pack('<I', self.tail_beacon)
             elif self.tail_frmtype == 2:
                 frame = makebits(self.tail_frmtype,4,4) | makebits(self.tail_subtype,0,4)
                 flags = self.tail_flags
@@ -972,6 +973,7 @@ class TailFrame(WPANFrame):
             elif self.tail_frmtype == 1:
                 str += fattrnl('Frame type', 'Anchor Beacon {}:{}'.format(self.tail_frmtype,self.tail_subtype), 4)
                 str += fattrnl('Flags', '0x{:02x}'.format(self.tail_flags), 4)
+                str += fattrnl('Beacon', '0x{:08x}'.format(self.tail_beacon), 4)
             elif self.tail_frmtype == 2:
                 str += fattrnl('Frame type', 'Ranging Request {}:{}'.format(self.tail_frmtype,self.tail_subtype), 4)
             elif self.tail_frmtype == 3:
