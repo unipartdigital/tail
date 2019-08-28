@@ -1,0 +1,53 @@
+#!/bin/bash
+
+HOST='bss'
+LIST='1 2 3 4 5 6 7 8'
+EXEC="$@"
+
+DOMAIN=${DOMAIN:-.qs.unipart.io}
+
+IPVER=${IPVER:-6}
+PWAIT=${PWAIT:-1}
+
+alive()
+{
+    ping -${IPVER} -c 3 -i 0.2 -W ${PWAIT} -q ${1} 2>/dev/null >/dev/null
+}
+
+sexec()
+{
+    if alive ${1}
+    then
+	ssh -${IPVER} root@${1} "${EXEC}" |
+	    while read LINE
+	    do
+		echo "${1}: ${LINE}"
+	    done
+    else
+    	echo "${1}: DEAD"
+    fi
+}
+
+
+case ${0##*/bss-} in
+    exec)	EXEC="$@" ;;
+    eui)	EXEC='dmesg | fgrep EUI' ;;
+    dmesg)	EXEC='dmesg | fgrep dw10 | tail -n 1' ;;
+    stop)	EXEC='systemctl stop anchor ; systemctl status anchor | fgrep Active: | cut -c 12-' ;;
+    start)	EXEC='systemctl start anchor ; systemctl status anchor | fgrep Active: | cut -c 12-' ;;
+    status)	EXEC='systemctl status anchor | fgrep Active: | cut -c 12-' ;;
+    time)   	EXEC="date -s \"$(date '+%Y/%m/%d %H:%M:%S')\"" ;;
+    uname)  	EXEC='uname -a' ;;
+    uptime) 	EXEC='uptime' ;;
+    ntp)	EXEC='chronyc tracking | fgrep "System time"' ;;
+    ppm)	EXEC='chronyc tracking | fgrep "Frequency"' ;;
+    df)         EXEC='df -h | fgrep dev/root' ;;
+esac
+
+for X in ${LIST}
+do
+    sexec ${HOST}${X}${DOMAIN} &
+done
+
+wait
+
