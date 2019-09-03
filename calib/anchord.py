@@ -22,14 +22,14 @@ from pprint import pprint
 ## Configuration
 ##
 
-class Config():
+class cfg():
 
-    dw1000_channel  = 3
+    dw1000_channel  = 5
     dw1000_pcode    = 12
     dw1000_prf      = 64
     dw1000_rate     = 850
     dw1000_txpsr    = 1024
-    dw1000_power    = 0x91919191
+    dw1000_power    = 0x88888888
     dw1000_smart    = 0
     dw1000_sysfs    = '/sys/devices/platform/soc/3f204000.spi/spi_master/spi0/spi0.0/dw1000/'
 
@@ -45,7 +45,6 @@ class Config():
     tcp_port      = 61666
     tcp_bind      = None
 
-cfg = Config()
 
 clients = {}
 responses = {}
@@ -679,6 +678,7 @@ def main():
     parser = argparse.ArgumentParser(description="Anchor daemon")
 
     parser.add_argument('-D', '--debug', action='count', default=0)
+    parser.add_argument('-P', '--profile', type=str, default=None)
     parser.add_argument('-i', '--interface', type=str, default=cfg.if_name)
     parser.add_argument('-u', '--udp_port', type=int, default=cfg.udp_port)
     parser.add_argument('-t', '--tcp_port', type=int, default=cfg.tcp_port)
@@ -711,17 +711,20 @@ def main():
 
     eprint('Anchor server starting...')
 
+    SetDWAttr('channel', cfg.dw1000_channel)
+    SetDWAttr('pcode', cfg.dw1000_pcode)
+    SetDWAttr('prf', cfg.dw1000_prf)
+    SetDWAttr('txpsr', cfg.dw1000_txpsr)
+    SetDWAttr('smart_power', cfg.dw1000_smart)
+    SetDWAttr('tx_power', cfg.dw1000_power)
+    SetDWAttr('rate', cfg.dw1000_rate)
+    
+    if args.profile is not None:
+        SetDWAttr('profile', args.profile)
+        
     try:
-        SetDWAttr('channel', cfg.dw1000_channel)
-        SetDWAttr('pcode', cfg.dw1000_pcode)
-        SetDWAttr('prf', cfg.dw1000_prf)
-        SetDWAttr('rate', cfg.dw1000_rate)
-        SetDWAttr('txpsr', cfg.dw1000_txpsr)
-        SetDWAttr('smart_power', cfg.dw1000_smart)
-        SetDWAttr('tx_power', cfg.dw1000_power)
-
         SocketLoop()
-
+        
     except KeyboardInterrupt:
         eprint('Exiting...')
 

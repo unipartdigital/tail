@@ -19,7 +19,7 @@ from tail import *
 from config import *
 
 
-class Config():
+class CFG():
     
     blink_count    = 100
     blink_delay    = 0.010
@@ -27,18 +27,19 @@ class Config():
 
     rawts          = True
 
+    channel        = None
     distance       = 10.0
-
-    rx_power       = -75.0
+    power          = -12.3
+    
+    rx_power       = None
     tx_power       = (None,None)
     
     
-CFG = Config()
-
 Pi = math.pi
-LIGHT_SPEED = 299792458
+CS = 299792458
+CC = 4*Pi/CS
 
-UWB_Ch = ( None, 3494.4E6, 3993.6E6, 4492.8E6, 3993.6E6, 6489.6E6, None, 6489.6E6 )
+CHS = ( None, 3494.4E6, 3993.6E6, 4492.8E6, 3993.6E6, 6489.6E6, None, 6489.6E6 )
 
 DW1000_CALIB_ATTRS = (
     'channel',
@@ -50,12 +51,25 @@ DW1000_CALIB_ATTRS = (
     'tx_power',
     'xtalt',
     'antd',
+    'profile',
 )
 
 
 ##
 ## Functions
 ##
+
+def Dist2Attn(m,freq):
+    return -20*np.log10(m*CC*freq)
+
+def Attn2Dist(dBm,freq):
+    return 10**(dBm/20)/(CC*freq)
+
+def NominalPower(ch,rxdist,rxpower):
+    return rxpower - Dist2Attn(rxdist,CHS[ch])
+
+def Dist2RxPower(ch,dist,level):
+    return level + Dist2Attn(dist,CHS[ch])
 
 def TxPwrPair2Reg(txpwr):
     a = txpwr[0]
@@ -86,7 +100,7 @@ def XTAL_PPM_EST(blk, tmr, dut, refs, delay, count=1, rawts=False):
     Fcnt = 0
 
     devs = refs + [dut,]
-    
+
     for i in range(count):
 
         tm = tmr.sync()
@@ -110,9 +124,10 @@ def XTAL_PPM_EST(blk, tmr, dut, refs, delay, count=1, rawts=False):
                 T42 = T4 - T2
             
                 Err = (T42 - T31) / T42
-                
-                Fcnt += 1
-                PPMs.append(Err)
+
+                if -100 < Err*1E6 < 100:
+                    Fcnt += 1
+                    PPMs.append(Err)
             
             except KeyError as Err:
                 veprints(2,'?')
@@ -143,13 +158,16 @@ def XTALT_CALIB(blk, tmr, dut, refs, delay, offset=0.0, rawts=False):
     
     veprint(1, 'Calibrating {} <{}> XTALT [{}]'.format(dut.host,dut.eui,xtalt))
         
+    best_xtalt = 17
+    best_error = 1000
+    
     for loop in range(10):
 
         dut.SetDWAttr('xtalt', xtalt)
         
         (Pavg,Pstd) = XTAL_PPM_EST(blk,tmr,dut,refs,delay=delay,count=CFG.blink_count,rawts=rawts)
 
-        Pavg -= offset
+        Pavg += offset
         
         if tail.VERBOSE > 2:
             eprint('\rSTATISTICS [{}]                                '.format(loop))
@@ -160,16 +178,20 @@ def XTALT_CALIB(blk, tmr, dut, refs, delay, offset=0.0, rawts=False):
             veprint(1, ' [{}] {} => {:+.3f}ppm '.format(loop,xtalt,Pavg))
 
         if -100 < Pavg < 100 and Pstd < 10:
-        
+
+            if math.fabs(Pavg) < best_error:
+                best_error = math.fabs(Pavg)
+                best_xtalt = xtalt
+            
             if Pavg > 8.0:
                 xtalt -= int(Pavg/4)
-            elif Pavg > 1.6:
+            elif Pavg > 1.0:
                 xtalt -= 1
             elif Pavg < -8.0:
                 xtalt -= int(Pavg/4)
-            elif Pavg < -1.6:
+            elif Pavg < -1.0:
                 xtalt += 1
-            else:
+            elif -1.0 < Pavg < 1.0:
                 break
 
             if xtalt < 1:
@@ -177,7 +199,9 @@ def XTALT_CALIB(blk, tmr, dut, refs, delay, offset=0.0, rawts=False):
             if xtalt > 30:
                 xtalt = 30
 
-    return (xtalt,Pavg)
+    dut.SetDWAttr('xtalt', best_xtalt)
+    
+    return (best_xtalt,Pavg)
 
 
 def TXPWR_EST(blk, tmr, dut, refs, delay, count=1, rawts=False):
@@ -254,13 +278,15 @@ def TXPWR_CALIB(blk, tmr, dut, refs, delay, txpwr=None, rxpwr=None, prf=64, rawt
     rx_pwr = rxpwr
 
     veprint(1, 'Calibrating {} <{}> TxPWR {}'.format(dut.host,dut.eui,tx_pwr))
-        
+
+    best_power = [0,0]
+    best_error = 1000
+
     for loop in range(10):
 
         Pwrs = [ ]
         Fprs = [ ]
         Tmps = [ ]
-        Vlts = [ ]
 
         Tcnt = 0
         
@@ -272,12 +298,7 @@ def TXPWR_CALIB(blk, tmr, dut, refs, delay, txpwr=None, rxpwr=None, prf=64, rawt
 
                 Pwrs.append(Pavg)
                 Fprs.append(Favg)
-                
-                if -10 < Temp < 90:
-                    Tmps.append(Temp)
-                if 2.500 < Volt < 3.500:
-                    Vlts.append(Volt)
-
+                Tmps.append(Temp)
                 Tcnt += 1
 
             except RuntimeError:
@@ -318,28 +339,35 @@ def TXPWR_CALIB(blk, tmr, dut, refs, delay, txpwr=None, rxpwr=None, prf=64, rawt
         ## Adjust Tx Power
         ##
 
-        delta = Plog - rx_pwr
+        error = Plog - rx_pwr
 
-        if -0.3 < delta < 0.3:
+        if math.fabs(error) < best_error:
+            best_error = math.fabs(error)
+            best_power = tx_pwr
+
+        if -0.2 < error < 0.2:
             break
 
-        if tx_pwr[1] > 2 and delta > 3.0:
+        if tx_pwr[1] > 2 and error > 3.0:
             tx_pwr[1] -= 2.0
-        elif tx_pwr[1] > 1 and delta > 1.5:
+        elif tx_pwr[1] > 1 and error > 1.5:
             tx_pwr[1] -= 1.0
-        elif tx_pwr[1] > 0 and delta > 0.25:
+        elif tx_pwr[1] > 0 and error > 0.2:
             tx_pwr[1] -= 0.5
-        elif tx_pwr[1] < 14.0 and delta < -3.0:
+
+        elif tx_pwr[1] < 14.0 and error < -3.0:
             tx_pwr[1] += 2.0
-        elif tx_pwr[1] < 15.0 and delta < -1.5:
+        elif tx_pwr[1] < 15.0 and error < -1.5:
             tx_pwr[1] += 1.0
-        elif tx_pwr[1] < 15.5 and delta < -0.25:
+        elif tx_pwr[1] < 15.5 and error < -0.2:
             tx_pwr[1] += 0.5
         
         if tx_pwr[1] == 0 or tx_pwr[1] == 15.5:
             break
         
-    return (tx_pwr,Plog)
+    dut.SetDWAttr('tx_power', TxPwrPair2Reg(best_power))
+    
+    return (best_power,Plog)
 
 
 def TWR_EST(blk, tmr, dut, rem, delay, rawts=False):
@@ -374,7 +402,7 @@ def TWR_EST(blk, tmr, dut, rem, delay, rawts=False):
     
     Tof = (T41*T63 - T32*T54) / (T51+T62)
     Dof = Tof / SCL
-    Lof = Dof * LIGHT_SPEED * 1E-9
+    Lof = Dof * CS * 1E-9
     
     if Lof < 0 or Lof > 100:
         raise ValueError
@@ -442,7 +470,7 @@ def TWR_CALIB(blk, tmr, dut, refs, delay, dist, rawts=False):
         ## Adjust ANTD
         ## 
 
-        error = (Lavg - dist) / (LIGHT_SPEED / DW1000_CLOCK_HZ)
+        error = (Lavg - dist) / (CS / DW1000_CLOCK_HZ)
 
         if -0.75 < error < 0.75:
             break
@@ -472,7 +500,7 @@ def main():
     parser.add_argument('-w', '--wait', type=float, default=CFG.blink_wait)
     parser.add_argument('-p', '--port', type=int, default=RPC_PORT)
     parser.add_argument('-O', '--ppm-offset', type=float, default=0.0)
-    parser.add_argument('-P', '--power', type=float, default=CFG.rx_power)
+    parser.add_argument('-P', '--power', type=float, default=CFG.power)
     parser.add_argument('-C', '--coarse', type=int, default=None)
     parser.add_argument('-F', '--fine', type=int, default=None)
     parser.add_argument('-L', '--distance', type=float, default=CFG.distance)
@@ -487,12 +515,15 @@ def main():
     tail.VERBOSE = args.verbose
     tail.DEBUG = args.debug
 
+    CFG.power = args.power
+    CFG.channel = int(args.channel)
     CFG.distance = args.distance
-
+    CFG.rx_power = Dist2RxPower(CFG.channel, args.distance, args.power)
+        
     CFG.blink_count = args.count
     CFG.blink_delay = args.delay
     CFG.blink_wait  = args.wait
-
+    
     ppm_offset = args.ppm_offset
 
     for attr in DW1000_CALIB_ATTRS:
@@ -540,7 +571,7 @@ def main():
 
         prf = int(duts[0].GetDWAttr('prf'))
         
-        rxpwr = args.power
+        rxpwr = CFG.rx_power
         txpwr = list(Reg2TxPwrPair(duts[0].GetDWAttr('tx_power')))
 
         if args.coarse is not None:
@@ -553,17 +584,17 @@ def main():
         if args.calib_xtalt:
             for dut in duts:
                 (xtalt,ppm) = XTALT_CALIB(blk,tmr,dut,refs,delay,offset=ppm_offset,rawts=CFG.rawts)
-                print('XTALT {:s} {:d}'.format(dut.host,xtalt))
+                print('XTALT,{:s},{:d}'.format(dut.host,xtalt))
                 
         if args.calib_txpower:
             for dut in duts:
                 (txp,rxp) = TXPWR_CALIB(blk,tmr,dut,refs,delay,prf=prf,txpwr=txpwr,rxpwr=rxpwr,rawts=CFG.rawts)
-                print('TXPWR {:s} {}'.format(dut.host,TxPwrPair2Reg(txp)))
+                print('TXPWR,{0:s},{1:},{2[0]:},{2[1]:}'.format(dut.host,TxPwrPair2Reg(txp),txp))
     
         if args.calib_antd:
             for dut in duts:
                 (antd,corr) = TWR_CALIB(blk,tmr,dut,refs,delay,CFG.distance,rawts=CFG.rawts)
-                print('ANTD {:s} {:#04x}'.format(dut.host,antd))
+                print('ANTD,{:s},{:#04x}'.format(dut.host,antd))
     
     except KeyboardInterrupt:
         eprint('\rStopping...')

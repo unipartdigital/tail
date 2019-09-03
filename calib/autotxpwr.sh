@@ -307,11 +307,11 @@ then
 	then
 	    mesg "Calibrating <$ID> CH:${CH} PCODE:${PCODE} PRF:${PRF} PSR:${PSR} Level:${LEVEL}dBm"
 	    
-	    ./calibrate.py ${HOST}* ${REFS} -vv --profile=${PROFILE} --channel=${CH} --prf=${PRF} --pcode=${PCODE} --txpsr=${PSR} -T -A -P ${LEVEL} -L ${DIST} -C ${COARSE} -F ${FINE} -w ${WAIT} -d ${DELAY} -n ${COUNT} ${EXTRA} > ${DWTMP}
+	    ./calibrate.py ${HOST}* ${REFS} -v --profile=${PROFILE} --channel=${CH} --prf=${PRF} --pcode=${PCODE} --txpsr=${PSR} -T --power ${LEVEL} --distance ${DIST} --coarse ${COARSE} --fine ${FINE} -w ${WAIT} -d ${DELAY} -n ${COUNT} ${EXTRA} > ${DWTMP}
 	    
 	    TXPWR=$( cat $DWTMP | egrep '^TXPWR' | cut -d, -f 3 )
 	    TXKEY=$( cat $DWTMP | egrep '^TXPWR' | cut -d, -f 4,5 )
-	    ANTDC=$( cat $DWTMP | egrep '^ANTD'  | cut -d, -f 3 )
+	    ANTDC=${ANTD64}  ##$( cat $DWTMP | egrep '^ANTD'  | cut -d, -f 3 )
 	    
 	    if [[ "${ANTDC}" -lt 0x3800 ]] || [[ "${ANTDC}" -gt 0x4400 ]]
 	    then
