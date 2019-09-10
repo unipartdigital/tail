@@ -1,0 +1,221 @@
+Anchor resource model sketch
+============================
+
+Background
+----------
+
+OCF provides a framework for IoT devices (primarily sensors and
+actuators) in which pretty much everything is modelled as a "resource"
+URI with a selection of available verbs: e.g. GET to fetch the current
+resource state, PUT to replace the current resource state (for
+writable resources), OBSERVE to watch for changes to the resource
+state, etc.
+
+The actual wire protocols tend to use UDP (with TCP available as an
+option) and a compressed binary representation CBOR (RFC7049), but are
+approximately functionally equivalent to HTTP with JSON payloads.
+
+The OCF specification documents are downloadable from:
+
+  https://openconnectivity.org/developer/specifications
+
+The OCF specification provides predefined mechanisms for the large
+parts of the overall system that are not Tail-specific such as device
+discovery, device security, initial ownership acquisition, hands-off
+WiFi credential provisioning, etc.  If we can model Tail within the
+OCF framework, then we can avoid having to create bespoke solutions
+for these off-the-shelf problems.
+
+OCF documents only the application layer: lower layers of the stack
+are typically covered by RFCs such as RFC7049 for the data format,
+RFC7252 and RFC8323 for CoAP, etc.
+
+Scope
+-----
+
+The scope of this document is to lay out a very high-level initial
+design of the network-visible aspects of the Tail anchors.  This is
+not intended to be comprehensive; it is a starting point for further
+design work.
+
+Basic Model
+-----------
+
+We can fundamentally model the anchor as a resource where the state
+represents the most recent transmitted or received packet along with
+its metadata (such as timestamps).  For example:
+
+  <= GET /tail/pkt
+
+  => {
+      'dir': 'rx',
+      'src': '70b3d5b1e000001e',
+      'dst': '70b3d5b1e000002f',
+      'ts': '2019-08-09T10:07:43.62856422',
+      'data': 'rTq0zUQ65KH2VDEnMFHz8SuUUtDI7tNyog==',
+     }
+
+It is assumed that any timestamp corrections (e.g. for received signal
+strength or antenna delay) have already been carried out, and that the
+timestamp represents the anchor's best estimate of the timestamp
+according to its own local clock.  This isolates the resource
+representation from any knowledge of the quirks of the DW1000 chip.
+
+There will be additional metadata fields beyond 'dir', 'src', 'dst',
+and 'ts': the examples here are illustrative rather than exhaustive.
+
+While it is not particularly useful to be able to issue a single GET
+in order to retrieve the most recent packet, the utility of this
+approach comes through immediately when using OBSERVE:
+
+  <= OBSERVE /tail/pkt
+
+  => {
+      'dir': 'rx',
+      'src': '70b3d5b1e000000d',
+      'dst': '70b3d5b1e000002f',
+      'ts': '2019-08-09T10:07:44.98685627',
+      'data': 'y4S7/vweFEN3KL6Udjwef6bL+8qACKfKdQ==',
+     }
+
+  => {
+      'dir': 'rx',
+      'src': '70b3d5b1e000001e',
+      'dst': '70b3d5b1e000002f',
+      'ts': '2019-08-09T10:07:45.52876947',
+      'data': '2jcz7rcEAc1eDDcHfjjfDhRro0u51NCxSQ==',
+     }
+
+  => ...
+
+An OBSERVE of this resource allows an external device (such as an
+anchor co-ordinator) to subscribe to notifications for all transmitted
+and received packets.  This capability alone provides a substantial
+proportion of the required functionality for Tail.
+
+We can trivially extend this model to allow PUT to trigger the
+transmission of a packet:
+
+  <= PUT /tail/pkt {
+      'dst': '70b3d5b1e000001c',
+      'data': 'QF4O8aoInC8G4X7ehIOvQzOz0bMSt6YYfQ==',
+     }
+
+  => {
+      'dir': 'tx',
+      'src': '70b3d5b1e000002f',
+      'dst': '70b3d5b1e000001c',
+      'ts': '2019-08-09T10:08:03.87347632',
+      'data': 'QF4O8aoInC8G4X7ehIOvQzOz0bMSt6YYfQ==',
+     }
+
+Two-way ranging
+---------------
+
+The behaviours required to support two-way ranging can be obtained by
+adding a concept of "echo TTL" to the Tail radio protocol.  Any device
+(tag or anchor) receiving a packet with a non-zero echo TTL should
+send a response to the originating device with the echo TTL
+decremented by one.  The echo TTL would become an extra 'ttl' metadata
+field of the resource representation.
+
+For example: to trigger a two-way ranging exchange between two
+anchors, an anchor co-ordinator could send to one anchor:
+
+  <= PUT /tail/pkt {
+      'dst': '70b3d5b1e000001c',
+      'ttl': 2,
+     }
+
+The receive timestamp of the echo request packet should be
+incorporated into the echo reply, parsed by the anchor, and made
+available as additional resource metadata (e.g. 'erxts').
+
+Two-way ranging calculations will also require knowledge of the remote
+device's transmit timestamp for the echo reply.  For devices
+supporting scheduled transmission, this could be incorporated within
+the structure of the echo response and so made available as resource
+metadata.  For devices not supporting scheduled transmissions, this
+would require either follow-up packets or the ability for the anchor
+co-ordinator to additionally subscribe to notifications of transmitted
+packets from the remote device.
+
+Scheduled transmission
+----------------------
+
+The kernel driver does not currently support scheduled transmission,
+but the protocol would trivially allow for a scheduled transmission to
+be requested by simply incorporating the timestamp within the PUT
+resource representation:
+
+  <= PUT /tail/pkt {
+      'dst': '70b3d5b1e000001c',
+      'ts': '2019-08-09T10:12.98.47652879',
+      'data': 'uUI+DaQfb/t60PD/G6YJXtHYETSxG9IN+g==',
+     }
+
+Radio parameters
+----------------
+
+Radio parameters may be modelled as an additional resource within the
+same OCF device.  For example:
+
+  <= PUT /tail/rf {
+      'channel': 5,
+      'prf': 64,
+     }
+
+Autonomous responses
+--------------------
+
+The anchors will require the ability to respond to certain packets
+autonomously, since the cost of a round trip to an anchor co-ordinator
+would introduce a substantial response latency and hence reduce the
+ranging accuracy of the system.  (Our algorithm does not require a
+precisely scheduled response, but the overall error will nonetheless
+increase as the turnaround time increases.)
+
+Autonomous responses will cover both follow-up blinks used for one-way
+ranging and over-the-air configuration updates.
+
+As a first approach, we can try modelling autonomous responses as
+named per-source-address mappings from potential received packets to
+response packets.  For example:
+
+  <= PUT /tail/rsp/70b3d5b1e000001e/owr {
+      'cond': true,
+      'prio': 1,
+      'tx': {
+        'dst': '70b3d5b1e000001e',
+	'data': 'hwe6JKhO8B8aQFALCm9hHIXPymSIpSUW5A==',
+      },
+     }
+
+The URI is constructed as /tail/rsp/<src>/<name>, with <src> being the
+source address to which this autonomous response is applicable, and
+<name> being an arbitrary name used to allow for the existence of
+multiple potential autonomous responses (e.g. for both ranging and OTA
+configuration).
+
+The field 'cond' is to be used to determine the conditions under which
+the response would be sent.  The condition language is left
+unspecified at this point, but would need to allow for the expression
+of conditions suitable both for ranging (e.g. hold-off timers) and for
+OTA configuration (e.g. IV matches).
+
+The field 'prio' is used to select the single highest priority
+response when multiple response conditions are met.
+
+The field 'tx' is simply the representation of a /tail/pkt resource to
+be transmitted when the response policy is matched.
+
+Autonomous responses may be cancelled using the DELETE verb, e.g.
+
+  <= DELETE /tail/rsp/70b3d5b1e000001e/owr
+
+OCF provides the concept of a collection of resources and a batch
+interface for fetching or updating multiple resource in a single
+request.  The resource /tail/rsp/<src> could therefore represent a
+collection containing all named autonomous responses for that source
+address, and similarly the resource /tail/rsp could represent a
+collection of all autonomous responses.
