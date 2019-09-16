@@ -17,6 +17,7 @@ from datetime import datetime
 
 class cfg():
 
+    dw1000_profile  = None
     dw1000_channel  = None
     dw1000_pcode    = None
     dw1000_prf      = None
@@ -46,22 +47,6 @@ def SendBlink(rsock):
     frame.tail_payload = b'\xbb' * cfg.blink_size
     rsock.send(frame.encode())
 
-def RecvTime(rsock):
-    (data,ancl,_,_) = rsock.recvmsg(4096, 1024, socket.MSG_ERRQUEUE)
-    frame = TailFrame(data,ancl)
-    if cfg.verbose > 0:
-        print('** {} TX frame:\n{}'.format(datetime.now().time(), frame))
-    else:
-        print('** {} TX frame src:{} dst:{} size:{}'.format(datetime.now().time(), frame.src_addr.hex(), frame.dst_addr.hex(), len(data)))
-
-def RecvBlink(rsock):
-    (data,ancl,_,rem) = rsock.recvmsg(4096, 1024, 0)
-    frame = TailFrame(data,ancl)
-    if cfg.verbose > 0:
-        print('** {} RX frame:\n{}'.format(datetime.now().time(), frame))
-    else:
-        print('** {} RX frame src:{} dst:{} size:{}'.format(datetime.now().time(), frame.src_addr.hex(), frame.dst_addr.hex(), len(data)))
-
 
 class txThread(threading.Thread):
     def __init__(self,rsock):
@@ -80,11 +65,11 @@ class txThread(threading.Thread):
                 if cfg.blink_count is not None:
                     if self.count > cfg.blink_count:
                         self.running = False
-
+    
     def stop(self):
         self.running = False
+ 
 
-        
 class rxThread(threading.Thread):
     def __init__(self,rsock):
         threading.Thread.__init__(self)
@@ -101,15 +86,25 @@ class rxThread(threading.Thread):
                 try:
                     if fd == self.rsock.fileno():
                         if flags & select.POLLIN:
-                            RecvBlink(self.rsock)
+                            self.recv_frame()
                         if flags & select.POLLERR:
-                            RecvTime(self.rsock)
+                            self.recv_time()
                         self.count += 1
                 except Exception as err:
                     pr.error('{}: {}'.format(type(err).__name__, err))
 
     def stop(self):
         self.running = False
+        
+    def recv_frame(self):
+        (data,ancl,_,rem) = self.rsock.recvmsg(4096, 1024, 0)
+        frame = TailFrame(data,ancl)
+        print('*** {} RX {}'.format(datetime.now().time(), frame))
+
+    def recv_time(self):
+        (data,ancl,_,_) = self.rsock.recvmsg(4096, 1024, socket.MSG_ERRQUEUE)
+        frame = TailFrame(data,ancl)
+        print('*** {} TX {}'.format(datetime.now().time(), frame))
 
 
 def SocketLoop():
@@ -129,7 +124,7 @@ def SocketLoop():
     
     tx.start()
     rx.start()
-    
+
     try:
         while True:
             time.sleep(1)
@@ -155,6 +150,7 @@ def main():
     parser.add_argument('-c', '--count', type=int, default=cfg.blink_count)
     parser.add_argument('-i', '--interval', type=float, default=cfg.blink_delay)
     parser.add_argument('--dest', type=str, default=cfg.blink_dst)
+    parser.add_argument('--profile', type=str, default=cfg.dw1000_profile)
     parser.add_argument('--channel', type=int, default=cfg.dw1000_channel)
     parser.add_argument('--pcode', type=int, default=cfg.dw1000_pcode)
     parser.add_argument('--prf', type=int, default=cfg.dw1000_prf)
@@ -167,12 +163,14 @@ def main():
     pr.DEBUG = args.debug
 
     cfg.verbose = args.verbose
-    cfg.promisc = args.promiscuous_mode
+    WPANFrame.verbosity = cfg.verbose
     
     cfg.blink_dst = bytes.fromhex(args.dest)
     cfg.blink_size = args.size
     cfg.blink_count = args.count
     cfg.blink_delay = args.interval
+    
+    cfg.promisc = args.promiscuous_mode
     
     cfg.if_name  = args.interface
     cfg.if_bind  = (cfg.if_name, 0)
@@ -182,7 +180,8 @@ def main():
     cfg.if_addr = bytes.fromhex(cfg.if_eui64)
 
     WPANFrame.set_ifaddr(cfg.if_addr, 0xffff)
-    
+
+    cfg.dw1000_profile = args.profile
     cfg.dw1000_channel = args.channel
     cfg.dw1000_pcode = args.pcode
     cfg.dw1000_prf = args.prf
@@ -195,6 +194,7 @@ def main():
 
     if cfg.verbose > 1:
         print('UWB dump starting...')
+        print('  profile   : {}'.format(cfg.dw1000_profile))
         print('  channel   : {}'.format(cfg.dw1000_channel))
         print('  pcode     : {}'.format(cfg.dw1000_pcode))
         print('  prf       : {}'.format(cfg.dw1000_prf))
@@ -217,6 +217,8 @@ def main():
         SetDWAttr('smart_power', cfg.dw1000_smart)
     if cfg.dw1000_power is not None:
         SetDWAttr('tx_power', cfg.dw1000_power)
+    if cfg.dw1000_profile is not None:
+        SetDWAttr('profile', cfg.dw1000_profile)
 
     filt = GetDWAttr('frame_filter')
     
