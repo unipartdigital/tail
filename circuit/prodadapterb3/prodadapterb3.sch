@@ -1,0 +1,531 @@
+EESchema Schematic File Version 2
+LIBS:power
+LIBS:device
+LIBS:switches
+LIBS:relays
+LIBS:motors
+LIBS:transistors
+LIBS:conn
+LIBS:linear
+LIBS:regul
+LIBS:74xx
+LIBS:cmos4000
+LIBS:adc-dac
+LIBS:memory
+LIBS:xilinx
+LIBS:microcontrollers
+LIBS:dsp
+LIBS:microchip
+LIBS:analog_switches
+LIBS:motorola
+LIBS:texas
+LIBS:intel
+LIBS:audio
+LIBS:interface
+LIBS:digital-audio
+LIBS:philips
+LIBS:display
+LIBS:cypress
+LIBS:siliconi
+LIBS:opto
+LIBS:atmel
+LIBS:contrib
+LIBS:valves
+LIBS:prodadapterb3-cache
+EELAYER 25 0
+EELAYER END
+$Descr A4 11693 8268
+encoding utf-8
+Sheet 1 1
+Title ""
+Date ""
+Rev ""
+Comp ""
+Comment1 ""
+Comment2 ""
+Comment3 ""
+Comment4 ""
+$EndDescr
+$Comp
+L Conn_02x20_Odd_Even J4
+U 1 1 5D77B89E
+P 6700 2800
+F 0 "J4" H 6750 3800 50  0000 C CNN
+F 1 "Conn_02x20_Odd_Even" H 6750 1700 50  0000 C CNN
+F 2 "Pin_Headers:Pin_Header_Angled_2x20_Pitch2.54mm" H 6700 2800 50  0001 C CNN
+F 3 "" H 6700 2800 50  0001 C CNN
+F 4 "Harting" H 6700 2800 60  0001 C CNN "MFR"
+F 5 "09 18 540 6903" H 6700 2800 60  0001 C CNN "MPN"
+F 6 "Farnell" H 6700 2800 60  0001 C CNN "SPR"
+F 7 "1096897" H 6700 2800 60  0001 C CNN "SPN"
+	1    6700 2800
+	1    0    0    -1  
+$EndComp
+$Comp
+L Conn_02x20_Odd_Even J1
+U 1 1 5D77B89F
+P 3100 2800
+F 0 "J1" H 3150 3800 50  0000 C CNN
+F 1 "Conn_02x20_Odd_Even" H 3150 1700 50  0000 C CNN
+F 2 "Pin_Headers:Pin_Header_Angled_2x20_Pitch2.54mm" H 3100 2800 50  0001 C CNN
+F 3 "" H 3100 2800 50  0001 C CNN
+F 4 "Harting" H 3100 2800 60  0001 C CNN "MFR"
+F 5 "09 18 540 6903" H 3100 2800 60  0001 C CNN "MPN"
+F 6 "Farnell" H 3100 2800 60  0001 C CNN "SPR"
+F 7 "1096897" H 3100 2800 60  0001 C CNN "SPN"
+	1    3100 2800
+	1    0    0    -1  
+$EndComp
+Text Notes 6450 4050 0    60   ~ 0
+Raspberry Pi
+Text Notes 2750 4100 0    60   ~ 0
+Production Tester
+$Comp
+L GND #PWR01
+U 1 1 5D77B8A8
+P 5500 4100
+F 0 "#PWR01" H 5500 3850 50  0001 C CNN
+F 1 "GND" H 5500 3950 50  0000 C CNN
+F 2 "" H 5500 4100 50  0001 C CNN
+F 3 "" H 5500 4100 50  0001 C CNN
+	1    5500 4100
+	1    0    0    -1  
+$EndComp
+Text GLabel 6500 2800 0    60   Output ~ 0
+PI_MOSI
+Text GLabel 6500 2900 0    60   Input ~ 0
+PI_MISO
+Text GLabel 6500 3000 0    60   Output ~ 0
+PI_SCLK
+Text GLabel 7000 3000 2    60   Output ~ 0
+~PI_CS
+Text GLabel 7000 2900 2    60   Input ~ 0
+PI_IRQ
+Text GLabel 7000 2700 2    60   Output ~ 0
+~PI_RST
+Text GLabel 7000 2600 2    60   Output ~ 0
+PI_DUT_ON
+$Comp
+L +5V #PWR02
+U 1 1 5D77B8A9
+P 7250 1550
+F 0 "#PWR02" H 7250 1400 50  0001 C CNN
+F 1 "+5V" H 7250 1690 50  0000 C CNN
+F 2 "" H 7250 1550 50  0001 C CNN
+F 3 "" H 7250 1550 50  0001 C CNN
+	1    7250 1550
+	1    0    0    -1  
+$EndComp
+Text GLabel 2900 2400 0    60   Input ~ 0
+PI_POWER_5V
+Text GLabel 2900 3300 0    60   Input ~ 0
+PI_MEASURE_LED3
+Text GLabel 2900 3400 0    60   Input ~ 0
+PI_MEASURE_LED2
+Text GLabel 2900 3500 0    60   Input ~ 0
+PI_MEASURE_LED0
+Text GLabel 2900 3700 0    60   Input ~ 0
+PI_NEG_GROUND
+Text GLabel 3400 2200 2    60   Input ~ 0
+PI_ID_SC
+Text GLabel 3400 2300 2    60   BiDi ~ 0
+PI_ID_SD
+Text GLabel 3400 2700 2    60   Input ~ 0
+PI_DUT_ON
+Text GLabel 3400 3100 2    60   Input ~ 0
+PI_MEASURE_3V3
+Text GLabel 3400 3400 2    60   Input ~ 0
+PI_MEASURE_LED1
+Text GLabel 3400 3700 2    60   Input ~ 0
+PI_UART
+Text GLabel 3400 3800 2    60   Input ~ 0
+PI_JTAG
+Text GLabel 6500 2000 0    60   BiDi ~ 0
+PI_ID_SD
+Text GLabel 6500 2100 0    60   Input ~ 0
+PI_ID_SC
+Text GLabel 6500 2400 0    60   Output ~ 0
+PI_POWER_5V
+Text GLabel 6500 3300 0    60   Output ~ 0
+PI_MEASURE_LED3
+Text GLabel 6500 3400 0    60   Output ~ 0
+PI_MEASURE_LED2
+Text GLabel 6500 3500 0    60   Output ~ 0
+PI_MEASURE_LED0
+Text GLabel 6500 3700 0    60   Output ~ 0
+PI_NEG_GROUND
+Text GLabel 7000 3400 2    60   Output ~ 0
+PI_MEASURE_LED1
+Text GLabel 7000 3100 2    60   Output ~ 0
+PI_MEASURE_3V3
+Text GLabel 7000 3700 2    60   Output ~ 0
+PI_UART
+Text GLabel 7000 3800 2    60   Output ~ 0
+PI_JTAG
+$Comp
+L 24LC128 U1
+U 1 1 5D77B8AA
+P 6700 4950
+F 0 "U1" H 6450 5200 50  0000 C CNN
+F 1 "24LC128" H 6750 5200 50  0000 L CNN
+F 2 "Housings_DIP:DIP-8_W7.62mm" H 6750 4700 50  0001 L CNN
+F 3 "" H 6700 4850 50  0001 C CNN
+F 4 "Microchip" H 6700 4950 60  0001 C CNN "MFR"
+F 5 "24LC128-I/P" H 6700 4950 60  0001 C CNN "MPN"
+F 6 "Farnell" H 6700 4950 60  0001 C CNN "SPR"
+F 7 "9757929" H 6700 4950 60  0001 C CNN "SPN"
+	1    6700 4950
+	-1   0    0    -1  
+$EndComp
+$Comp
+L R R1
+U 1 1 5D77B8AB
+P 5850 4600
+F 0 "R1" V 5800 4400 50  0000 L CNN
+F 1 "3K9" V 5850 4550 50  0000 L CNN
+F 2 "Resistors_THT:R_Axial_DIN0204_L3.6mm_D1.6mm_P5.08mm_Horizontal" H 5850 4600 50  0001 C CNN
+F 3 "" H 5850 4600 50  0001 C CNN
+F 4 "Multicomp" H 5850 4600 60  0001 C CNN "MFR"
+F 5 "MF12 3K9" H 5850 4600 60  0001 C CNN "MPN"
+F 6 "Farnell" H 5850 4600 60  0001 C CNN "SPR"
+F 7 "9343156" H 5850 4600 60  0001 C CNN "SPN"
+	1    5850 4600
+	1    0    0    -1  
+$EndComp
+$Comp
+L R R2
+U 1 1 5D77B8AC
+P 5950 4600
+F 0 "R2" V 5900 4400 50  0000 L CNN
+F 1 "3K9" V 5950 4550 50  0000 L CNN
+F 2 "Resistors_THT:R_Axial_DIN0204_L3.6mm_D1.6mm_P5.08mm_Horizontal" H 5950 4600 50  0001 C CNN
+F 3 "" H 5950 4600 50  0001 C CNN
+F 4 "Multicomp" H 5950 4600 60  0001 C CNN "MFR"
+F 5 "MF12 3K9" H 5950 4600 60  0001 C CNN "MPN"
+F 6 "Farnell" H 5950 4600 60  0001 C CNN "SPR"
+F 7 "9343156" H 5950 4600 60  0001 C CNN "SPN"
+	1    5950 4600
+	1    0    0    -1  
+$EndComp
+$Comp
+L R R3
+U 1 1 5D77B8AD
+P 6050 4600
+F 0 "R3" V 6000 4400 50  0000 L CNN
+F 1 "3K9" V 6050 4550 50  0000 L CNN
+F 2 "Resistors_THT:R_Axial_DIN0204_L3.6mm_D1.6mm_P5.08mm_Horizontal" H 6050 4600 50  0001 C CNN
+F 3 "" H 6050 4600 50  0001 C CNN
+F 4 "Multicomp" H 6050 4600 60  0001 C CNN "MFR"
+F 5 "MF12 3K9" H 6050 4600 60  0001 C CNN "MPN"
+F 6 "Farnell" H 6050 4600 60  0001 C CNN "SPR"
+F 7 "9343156" H 6050 4600 60  0001 C CNN "SPN"
+	1    6050 4600
+	1    0    0    -1  
+$EndComp
+$Comp
+L Conn_01x02 J3
+U 1 1 5D77B8AE
+P 5850 5250
+F 0 "J3" H 5850 5350 50  0000 C CNN
+F 1 "Conn_01x02" H 5850 5050 50  0000 C CNN
+F 2 "Pin_Headers:Pin_Header_Straight_1x02_Pitch2.54mm" H 5850 5250 50  0001 C CNN
+F 3 "" H 5850 5250 50  0001 C CNN
+F 4 "Multicomp" H 5850 5250 60  0001 C CNN "MFR"
+F 5 "2211S-02G" H 5850 5250 60  0001 C CNN "MPN"
+F 6 "Farnell" H 5850 5250 60  0001 C CNN "SPR"
+F 7 "1593411" H 5850 5250 60  0001 C CNN "SPN"
+	1    5850 5250
+	-1   0    0    -1  
+$EndComp
+$Comp
+L GND #PWR03
+U 1 1 5D77B8AF
+P 6700 5450
+F 0 "#PWR03" H 6700 5200 50  0001 C CNN
+F 1 "GND" H 6700 5300 50  0000 C CNN
+F 2 "" H 6700 5450 50  0001 C CNN
+F 3 "" H 6700 5450 50  0001 C CNN
+	1    6700 5450
+	1    0    0    -1  
+$EndComp
+$Comp
+L +3.3V #PWR04
+U 1 1 5D77B8B0
+P 5550 1800
+F 0 "#PWR04" H 5550 1650 50  0001 C CNN
+F 1 "+3.3V" H 5550 1940 50  0000 C CNN
+F 2 "" H 5550 1800 50  0001 C CNN
+F 3 "" H 5550 1800 50  0001 C CNN
+	1    5550 1800
+	1    0    0    -1  
+$EndComp
+$Comp
+L +3.3V #PWR05
+U 1 1 5D77B8B1
+P 6700 4300
+F 0 "#PWR05" H 6700 4150 50  0001 C CNN
+F 1 "+3.3V" H 6700 4440 50  0000 C CNN
+F 2 "" H 6700 4300 50  0001 C CNN
+F 3 "" H 6700 4300 50  0001 C CNN
+	1    6700 4300
+	1    0    0    -1  
+$EndComp
+$Comp
+L Conn_02x05_Odd_Even J2
+U 1 1 5D77B8B6
+P 3100 4700
+F 0 "J2" H 3150 5000 50  0000 C CNN
+F 1 "Conn_02x05_Odd_Even" H 3150 4400 50  0000 C CNN
+F 2 "Pin_Headers:Pin_Header_Angled_2x05_Pitch1.27mm" H 3100 4700 50  0001 C CNN
+F 3 "" H 3100 4700 50  0001 C CNN
+F 4 "Samtec" H 3100 4700 60  0001 C CNN "MFR"
+F 5 "FTSH-105-01-L-D-RA-K" H 3100 4700 60  0001 C CNN "MPN"
+F 6 "Farnell" H 3100 4700 60  0001 C CNN "SPR"
+F 7 "2856878" H 3100 4700 60  0001 C CNN "SPN"
+	1    3100 4700
+	1    0    0    -1  
+$EndComp
+NoConn ~ 2900 4800
+NoConn ~ 3400 4800
+Wire Wire Line
+	6500 2300 5500 2300
+Wire Wire Line
+	5500 2300 5500 4100
+Wire Wire Line
+	5500 3800 6500 3800
+Wire Wire Line
+	5500 3100 6500 3100
+Connection ~ 5500 3100
+Connection ~ 5500 3800
+Wire Wire Line
+	8150 3950 5500 3950
+Wire Wire Line
+	8150 2100 8150 3950
+Wire Wire Line
+	8150 3500 7000 3500
+Connection ~ 5500 3950
+Wire Wire Line
+	8150 3300 7000 3300
+Connection ~ 8150 3500
+Wire Wire Line
+	8150 2800 7000 2800
+Connection ~ 8150 3300
+Wire Wire Line
+	8150 2500 7000 2500
+Connection ~ 8150 2800
+Wire Wire Line
+	8150 2100 7000 2100
+Connection ~ 8150 2500
+Wire Wire Line
+	7250 2000 7000 2000
+Wire Wire Line
+	7250 1550 7250 2000
+Wire Wire Line
+	7000 1900 7250 1900
+Connection ~ 7250 1900
+Wire Wire Line
+	6700 5250 6700 5450
+Wire Wire Line
+	7250 5350 6050 5350
+Connection ~ 6700 5350
+Wire Wire Line
+	5550 2700 6500 2700
+Wire Wire Line
+	6700 4300 6700 4650
+Wire Wire Line
+	6300 5050 6050 5050
+Wire Wire Line
+	6050 4750 6050 5250
+Connection ~ 6050 5050
+Wire Wire Line
+	6050 4350 6050 4450
+Connection ~ 6050 4350
+Wire Wire Line
+	5950 4750 5950 4950
+Wire Wire Line
+	5600 4950 6300 4950
+Wire Wire Line
+	5850 4750 5850 4850
+Wire Wire Line
+	5850 4850 6300 4850
+Wire Wire Line
+	5950 4450 5950 4350
+Connection ~ 5950 4350
+Wire Wire Line
+	5850 4450 5850 4350
+Wire Wire Line
+	5600 4950 5600 3200
+Wire Wire Line
+	5600 3200 6500 3200
+Connection ~ 5950 4950
+Wire Wire Line
+	6200 4850 6200 4450
+Wire Wire Line
+	6200 4450 8000 4450
+Wire Wire Line
+	8000 4450 8000 3200
+Wire Wire Line
+	8000 3200 7000 3200
+Connection ~ 6200 4850
+Wire Wire Line
+	7100 4850 7250 4850
+Wire Wire Line
+	7250 4850 7250 5350
+Wire Wire Line
+	7100 4950 7250 4950
+Connection ~ 7250 4950
+Wire Wire Line
+	7100 5050 7250 5050
+Connection ~ 7250 5050
+Wire Wire Line
+	5550 1900 6500 1900
+Connection ~ 5550 1900
+Wire Wire Line
+	5550 1800 5550 2700
+Wire Wire Line
+	5850 4350 6700 4350
+Connection ~ 6700 4350
+Wire Wire Line
+	2900 4600 2800 4600
+Wire Wire Line
+	2800 4600 2800 4900
+Wire Wire Line
+	2750 4900 2900 4900
+Wire Wire Line
+	2900 4700 2800 4700
+Connection ~ 2800 4700
+Text GLabel 3400 4500 2    60   Input ~ 0
+PI_MOSI
+Text GLabel 3400 4600 2    60   Input ~ 0
+PI_SCLK
+Text GLabel 3400 4700 2    60   Output ~ 0
+PI_MISO
+Text GLabel 3400 4900 2    60   Input ~ 0
+~PI_RST
+Text GLabel 2900 4500 0    60   Input ~ 0
+~PI_CS
+Text GLabel 2750 4900 0    60   Output ~ 0
+PI_IRQ
+Connection ~ 2800 4900
+Wire Wire Line
+	3750 2000 3400 2000
+Wire Wire Line
+	3750 1450 3750 2000
+Wire Wire Line
+	3400 1900 3750 1900
+Connection ~ 3750 1900
+$Comp
+L +5V #PWR06
+U 1 1 5D77BCCA
+P 3750 1450
+F 0 "#PWR06" H 3750 1300 50  0001 C CNN
+F 1 "+5V" H 3750 1590 50  0000 C CNN
+F 2 "" H 3750 1450 50  0001 C CNN
+F 3 "" H 3750 1450 50  0001 C CNN
+	1    3750 1450
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	2900 3800 1900 3800
+Wire Wire Line
+	1900 2300 1900 4050
+Wire Wire Line
+	1900 2300 2900 2300
+Wire Wire Line
+	2900 3100 1900 3100
+Connection ~ 1900 3100
+Wire Wire Line
+	1900 3950 4500 3950
+Wire Wire Line
+	4500 3950 4500 2100
+Wire Wire Line
+	4500 2100 3400 2100
+Connection ~ 1900 3800
+Wire Wire Line
+	3400 2500 4500 2500
+Connection ~ 4500 2500
+Wire Wire Line
+	3400 2800 4500 2800
+Connection ~ 4500 2800
+Wire Wire Line
+	3400 3300 4500 3300
+Connection ~ 4500 3300
+Wire Wire Line
+	3400 3500 4500 3500
+Connection ~ 4500 3500
+Connection ~ 1900 3950
+$Comp
+L GND #PWR07
+U 1 1 5D77BFC8
+P 1900 4050
+F 0 "#PWR07" H 1900 3800 50  0001 C CNN
+F 1 "GND" H 1900 3900 50  0000 C CNN
+F 2 "" H 1900 4050 50  0001 C CNN
+F 3 "" H 1900 4050 50  0001 C CNN
+	1    1900 4050
+	1    0    0    -1  
+$EndComp
+NoConn ~ 2900 1900
+NoConn ~ 2900 2000
+NoConn ~ 2900 2100
+NoConn ~ 2900 2200
+NoConn ~ 3400 2600
+NoConn ~ 3400 2900
+NoConn ~ 3400 3000
+NoConn ~ 3400 3200
+NoConn ~ 3400 3600
+NoConn ~ 2900 3600
+NoConn ~ 2900 3200
+NoConn ~ 2900 3000
+NoConn ~ 2900 2900
+NoConn ~ 2900 2800
+NoConn ~ 2900 2600
+NoConn ~ 2900 2500
+NoConn ~ 2900 2700
+NoConn ~ 6500 2200
+NoConn ~ 7000 2200
+NoConn ~ 7000 2300
+NoConn ~ 7000 2400
+NoConn ~ 6500 2500
+NoConn ~ 6500 2600
+NoConn ~ 6500 3600
+NoConn ~ 7000 3600
+Wire Wire Line
+	3400 2400 4500 2400
+Connection ~ 4500 2400
+$Comp
+L PWR_FLAG #FLG08
+U 1 1 5D77CE32
+P 7100 1900
+F 0 "#FLG08" H 7100 1975 50  0001 C CNN
+F 1 "PWR_FLAG" H 7100 2050 50  0000 C CNN
+F 2 "" H 7100 1900 50  0001 C CNN
+F 3 "" H 7100 1900 50  0001 C CNN
+	1    7100 1900
+	1    0    0    -1  
+$EndComp
+$Comp
+L PWR_FLAG #FLG09
+U 1 1 5D77CE56
+P 6250 1900
+F 0 "#FLG09" H 6250 1975 50  0001 C CNN
+F 1 "PWR_FLAG" H 6250 2050 50  0000 C CNN
+F 2 "" H 6250 1900 50  0001 C CNN
+F 3 "" H 6250 1900 50  0001 C CNN
+	1    6250 1900
+	1    0    0    -1  
+$EndComp
+$Comp
+L PWR_FLAG #FLG010
+U 1 1 5D77CE7A
+P 8150 2100
+F 0 "#FLG010" H 8150 2175 50  0001 C CNN
+F 1 "PWR_FLAG" H 8150 2250 50  0000 C CNN
+F 2 "" H 8150 2100 50  0001 C CNN
+F 3 "" H 8150 2100 50  0001 C CNN
+	1    8150 2100
+	1    0    0    -1  
+$EndComp
+Connection ~ 6250 1900
+Connection ~ 7100 1900
+$EndSCHEMATC
