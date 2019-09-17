@@ -2,54 +2,20 @@
 #
 # DW1000 Hat interactive calibration script
 #
+# Usage: autocalib.sh HOST <EUI64>
+#
 
 export HOST=$1
 export EUI64=$2
 
-REFS='
-  magpi1
-  magpi2
-  magpi3
-  magpi4
-  magpi5
-  magpi6
-  magpi7
-  magpi8
-'
-
-DIST=${DIST:-2.75}
-COUNT=${COUNT:-100}
-DELAY=${DELAY:-0.020}
-WAIT=${WAIT:-0.5}
-
-PPM_OFFSET=${PPM_OFFSET:-0.0}
-
-TAIL='~/tail/eeprom'
-
-XTALT=16
+XTALT=17
 SPIMAX=20000000
+ANTD16=0x4000
+ANTD64=0x4000
 
 DWTMP="/tmp/dwtmp-$$"
-DWLST="/tmp/dwlst-$$"
-DWCHS="/tmp/dwchs-$$"
 
 :> ${DWTMP}
-:> ${DWLST}
-
-##
-## Channel combinations to calibrate
-##
-## ID,CH,PCODE,PRF,PSR,PWR,COARSE,FINE
-##
-cat<<MEOW>${DWCHS}
-CH7-64,7,20,64,1024,-75,6,6
-CH7-16,7,8,16,1024,-75,6,6
-CH5-64,5,20,64,1024,-75,3,6
-CH5-16,5,8,16,1024,-75,3,6
-CH3-64,3,20,64,1024,-75,3,6
-CH3-16,3,8,16,1024,-75,3,6
-MEOW
-
 
 
 ##
@@ -156,7 +122,7 @@ MEOW
 				interrupts = <25 4>;
 				spi-max-frequency = <${SPIMAX}>;
 				decawave,eui64 = /bits/ 64 <0x${EUI64}>;
-				decawave,antd = <0x4040 0x4040>;
+				decawave,antd = <${ANTD16} ${ANTD64}>;
 				decawave,xtalt = <${XTALT}>;
 			};
 		};
@@ -229,25 +195,7 @@ then
     then
 	fail "Remote reboot"
     fi
+
+    ssh root@${HOST} dmesg | fgrep dw1000
 fi
 
-EUI64=$( ./dwattr.py ${HOST} --print-eui )
-
-if eui64check "${EUI64}"
-then
-    mesg "Starting calibration process for ${HOST} <${EUI64}>"
-
-    ./calibrate.py *${HOST} ${REFS} -vv --channel=3 --prf=64 --pcode=12 --txpsr=1024 --ppm-offset=${PPM_OFFSET} -X -w ${WAIT} -d ${DELAY} -n ${COUNT} ${EXTRA} > ${DWTMP}
-
-    XTALT=$( cat $DWTMP | egrep '^XTALT' | cut -d' ' -f 3 )
-    
-    if [[ "${XTALT}" -lt 1 ]] || [[ "${XTALT}" -gt 31 ]]
-    then
-	fail "XTALT calibration"
-    fi
-	    
-    echo "Programming the DW1000 Hat EEPROM..."
-    flash || fail "Flash programming"
-    mesg "Programming ${HOST} done."
-
-fi

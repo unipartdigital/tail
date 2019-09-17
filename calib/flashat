@@ -1,29 +1,83 @@
 #!/bin/bash
 
-FILE="$1"
 CHIP=${CHIP:-24c64}
-SIZE=$(stat -c'%s' "$1")
-READ=$(tempfile)
-
 I2C_BUS=${I2C_BUS:-0}
 I2C_ADDR=${I2C_ADDR:-50}
 
 SYS=/sys/class/i2c-adapter/i2c-${I2C_BUS}
 DEV=${SYS}/${I2C_BUS}-00${I2C_ADDR}
 
-error() { echo "*** ERROR: $*"; exit 1; }
 
-#modprobe i2c_dev  || error "modprobe i2c_dev failed"
-#modprobe at24 write_timeout=250  || error "modprobe at24 failed"
+error()
+{
+    echo "*** ERROR: $*"
+    exit 1
+}
+
+checkmod()
+{
+    lsmod | fgrep -q at24
+}
+
+compile()
+{
+    DTBO=$(tempfile)
+    dtc -Wno-unit_address_vs_reg -@ -I dts -O dtb -o "${DTBO}" "$2" && eepmake "$1" "$3" "${DTBO}"
+    rm -f "${DTBO}"
+}
+
+descfile()
+{
+    cat <<MEOW >$1
+vendor          "Unipart Digital"
+product         "Pi Tail"
+product_id      0x1000
+product_ver     0x00a0
+product_uuid    00000000-0000-0000-0000-000000000000
+gpio_drive      0
+gpio_slew       0
+gpio_hysteresis 0
+back_power      0
+setgpio         8       ALT0    DEFAULT
+setgpio         9       ALT0    DEFAULT
+setgpio         10      ALT0    DEFAULT
+setgpio         11      ALT0    DEFAULT
+setgpio         25      INPUT   DOWN
+setgpio         24      INPUT   NONE
+setgpio         23      INPUT   NONE
+MEOW
+}
+
+
+case "$1" in
+    *.eep)	FILE="$1" ;;
+    *.dts)	TREE="$1" ;;
+esac
+
+if [ -f "${TREE}" ]
+then
+    NAME="${TREE%%.dts}"
+    FILE="${NAME}.eep"
+    DESC=$(tempfile)
+    descfile ${DESC}
+    compile ${DESC} ${TREE} ${FILE} || fail 'EEPROM compilation failed'
+    rm -f ${DESC}
+fi
+
+SIZE=$(stat -c'%s' "${FILE}")
+READ=$(tempfile)
+
+if ! checkmod
+then
+	MLOAD=yes
+	modprobe i2c_dev  || error "modprobe i2c_dev failed"
+	modprobe at24 write_timeout=250  || error "modprobe at24 failed"
+fi
 
 test -f ${FILE}   || error "File ${FILE} does not exist"
 test -d ${SYS}    || error "Directory ${SYS} does not exist"
 
-if [ ! -d ${DEV} ]
-then
-    echo "${CHIP} 0x${I2C_ADDR}" > ${SYS}/new_device
-fi
-
+test -d ${DEV}    || ( echo "${CHIP} 0x${I2C_ADDR}" > ${SYS}/new_device )
 test -d ${DEV}    || error "Directory ${DEV} does not exist"
 
 dd if="${FILE}" of=${DEV}/eeprom oflag=sync status=none || error "dd to eeprom failed"
@@ -32,10 +86,12 @@ dd of="${READ}" if=${DEV}/eeprom bs=1k status=none || error "dd from eeprom fail
 echo "0x${I2C_ADDR}" > ${SYS}/delete_device
 
 cmp -n ${SIZE} -s ${FILE} ${READ} ; OK=$?
-
 rm -f ${READ}
 
-#rmmod at24
-#rmmod i2c_dev
+if [ "${MLOAD}" == 'yes' ]
+then
+	rmmod at24
+	rmmod i2c_dev
+fi
 
 exit ${OK}

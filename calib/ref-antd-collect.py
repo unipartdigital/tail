@@ -1,7 +1,20 @@
 #!/usr/bin/python3
 #
-# Automatic DW1000 calibration for Tail development
+# Collect antd calibration data for reference anchors.
 #
+# Usage: ref-antd-collect <DWARG..>
+#		<-D|--debug> <-v|--verbose>
+#		<-n|--count> <-d|--delay> <-w|--wait>
+#		<-f|--file> <-L|--distance>
+#		host1:host2 <host3:host4...>
+#
+# Run TWR between host:host pairs for <count> times.
+# Record average KPIs for every pair, and save into <file>
+# 
+# This information is then fed into ref-antd-calc, which
+# solves the LSE solution for ANTDs. 
+# 
+
 
 import sys
 import math
@@ -21,7 +34,7 @@ from config import *
 from tail import eprint, eprints
 
 
-class Config():
+class CFG():
 
     blink_count  = 100
     blink_delay  = 0.010
@@ -33,7 +46,6 @@ class Config():
     prf          = None
     freq         = None
 
-CFG = Config()
 
 Pi = math.pi
 Cs = 299792458
@@ -142,21 +154,14 @@ def TWR_RUN(blk, tmr, rems, devs, delay, count):
 
                 DATA['Dist'].append(X[1])
                 DATA['PPM'].append(X[2])
-                
                 DATA['PWR1'].append(X[4])
                 DATA['PWR2'].append(X[10])
                 DATA['FPR1'].append(X[5])
                 DATA['FPR2'].append(X[11])
-
-                if -10 < X[7] < 90:
-                    DATA['Temp1'].append(X[7])
-                if -10 < X[13] < 90:
-                    DATA['Temp2'].append(X[13])
-
-                if 2.500 < X[8] < 3.500:
-                    DATA['Volt1'].append(X[8])
-                if 2.500 < X[14] < 3.500:
-                    DATA['Volt2'].append(X[14])
+                DATA['Temp1'].append(X[7])
+                DATA['Temp2'].append(X[13])
+                DATA['Volt1'].append(X[8])
+                DATA['Volt2'].append(X[14])
                     
             except (TimeoutError):
                 #eprint('T {} <> {}'.format(dut.host,rem.host))

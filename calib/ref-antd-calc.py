@@ -1,4 +1,13 @@
 #!/usr/bin/python3
+#
+# Calcalate reference anchor ANTDs from the data collected by ref-antd-collect.
+#
+# Usage: ref-antd-calc <-f|--file> <-L|--distance> <-B|--bidir> <-W|--weighted>
+#
+#  distance		Distance used in collection
+#  bidir		Use host1:host2 measurement also for host2:host1
+#  weighted		Weight the calculation with distance variance
+#
 
 import sys
 import math
@@ -22,17 +31,6 @@ CLOCK_HZ  = CLOCK_GHZ * 1E9
 
 Cvac = 299792458
 
-xxDEVMAP = {
-    'magpi1'  :  0,
-    'magpi2'  :  1,
-    'magpi3'  :  2,
-    'magpi4'  :  3,
-    'magpi5'  :  4,
-    'magpi6'  :  5,
-    'magpi7'  :  6,
-    'magpi8'  :  7,
-}
-
 DEVMAP = {
     'magpi0'  :  0,
     'magpi1'  :  1,
@@ -44,7 +42,6 @@ DEVMAP = {
     'magpi7'  :  7,
     'magpi8'  :  8,
 }
-
 
 
 def hostname(id):

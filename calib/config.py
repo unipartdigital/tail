@@ -108,9 +108,22 @@ DW1000_ATTRS = (
     'tx_power',
     'xtalt',
     'antd',
+    'profile',
     'snr_threshold',
     'fpr_threshold',
     'noise_threshold',
+)
+
+DW1000_PRINT_ATTRS = (
+    'channel',
+    'prf',
+    'pcode',
+    'txpsr',
+    'rate',
+    'smart_power',
+    'tx_power',
+    'xtalt',
+    'antd',
 )
 
 DW1000_TSINFO_ATTRS = (
@@ -133,32 +146,21 @@ DW1000_TSINFO_ATTRS = (
 )
 
 DW1000_DEFAULT_CONFIG = {
-    'channel'	      : 7,
-    'pcode'	      : 20,
+    'channel'	      : 5,
+    'pcode'	      : 12,
     'prf'	      : 64,
-    'rate'	      : 6800,
-    'txpsr'	      : 256,
+    'rate'	      : 850,
+    'txpsr'	      : 1024,
     'smart_power'     : 0,
-    'tx_power'        : 0xd1d1d1d1,
-    'xtalt'	      : 15,
+    'tx_power'        : 0x88888888,
+    'xtalt'	      : 17,
     'antd'            : DW1000_64PRF_ANTD_DEFAULT,
+    'profile'         : 'CH5-12+6',
     'snr_threshold'   : 0,
     'fpr_threshold'   : 0,
     'noise_threshold' : 65535,
 }
 
-DW1000_CALIB_CONFIG = {
-    'channel'	      : 7,
-    'pcode'	      : 20,
-    'prf'	      : 64,
-    'rate'	      : 850,
-    'txpsr'	      : 1024,
-    'smart_power'     : 0,
-    'tx_power'        : 0xb1b1b1b1,
-    'snr_threshold'   : 0,
-    'fpr_threshold'   : 0,
-    'noise_threshold' : 65535,
-}
 
 DW1000_DEVICE_CALIB = {
     '70b3d5b1e0000001': {
@@ -220,167 +222,6 @@ DW1000_DEVICE_CALIB = {
     '70b3d5b1e000000f': {
         'xtalt'	   : 16,
         'antd'     : 0x403b,
-    },
-    '70b3d5b1e0000010': {
-        'xtalt'	   : 18,
-        'antd'     : 0x4010,
-    },
-    '70b3d5b1e0000011': {
-        'bss'      : 4,
-        'host'     : 'bss5',
-        'xtalt'	   : 17,
-        'antd'     : 0x401e,
-        'coord'    : (2.666, 0.185, 1.255),
-    },
-    '70b3d5b1e0000012': {
-        'xtalt'	   : 23,		# Unstable
-        'antd'     : 0x401f,
-    },
-    '70b3d5b1e0000013': {
-        'bss'      : 5,
-        'host'     : 'bss6',
-        'xtalt'	   : 15,
-        'antd'     : 0x402f,
-        'coord'    : (6.177, 0.185, 1.255),
-    },
-    '70b3d5b1e0000014': {
-        'bss'      : 0,
-        'host'     : 'bss1',
-        'xtalt'	   : 16,
-        'antd'     : 0x4049,
-        'coord'    : (0.150, 0.475, 0.035),
-    },
-    '70b3d5b1e0000015': {
-        'bss'      : 1,
-        'host'     : 'bss2',
-        'xtalt'	   : 14,
-        'antd'     : 0x4040,
-        'coord'    : (8.545, 0.420, 0.035),
-    },
-    '70b3d5b1e0000016': {
-        'bss'      : 2,
-        'host'     : 'bss3',
-        'xtalt'	   : 17,
-        'antd'     : 0x404a,
-        'coord'    : (8.567, 5.807, 0.035),
-    },
-    '70b3d5b1e0000017': {
-        'bss'      : 3,
-        'host'     : 'bss4',
-        'xtalt'	   : 15,
-        'antd'     : 0x4032,
-        'coord'    : (0.175, 5.860, 0.035),
-    },
-    '70b3d5b1e0000018': {
-        'bss'      : 6,
-        'host'     : 'bss7',
-        'xtalt'	   : 15,
-        'antd'     : 0x4023,
-        'coord'    : (6.102, 6.146, 1.265),
-    },
-    '70b3d5b1e0000019': {
-        'bss'      : 7,
-        'host'     : 'bss8',
-        'xtalt'	   : 15,
-        'antd'     : 0x4018,
-        'coord'    : (2.299, 6.140, 1.270),
-    },
-    '70b3d5b1e000001b': {
-        'xtalt'	   : 16,
-        'antd'     : 0x4020,
-    },
-    '70b3d5b1e000001c': {
-        'xtalt'	   : 16,
-        'antd'     : 0x4020,
-    },
-    '70b3d5b1e000001d': {
-        'xtalt'	   : 16,
-        'antd'     : 0x4020,
-    },
-    '70b3d5b1e000001e': {
-        'xtalt'	   : 16,
-        'antd'     : 0x4020,
-    },
-    '70b3d5b1e000001f': {
-        'xtalt'	   : 16,
-        'antd'     : 0x4020,
-    },
-    '70b3d5b1e0000025': {
-        'xtalt'	   : 14,
-        'antd'     : 0x4020,
-    },
-    '70b3d5b1e0000027': {
-        'xtalt'	   : 16,
-        'antd'     : 0x4020,
-    },
-    '70b3d5b1e000002a': { # Unstable?
-        'xtalt'	   : 16,
-        'antd'     : 0x4020,
-    },
-    '70b3d5b1e000002b': {
-        'xtalt'	   : 16,
-        'antd'     : 0x4020,
-    },
-    '70b3d5b1e000002c': {
-        'xtalt'	   : 16,
-        'antd'     : 0x4020,
-    },
-    '70b3d5b1e000002d': {
-        'xtalt'	   : 16,
-        'antd'     : 0x4020,
-    },
-    '70b3d5b1e000002e': {
-        'xtalt'	   : 16,
-        'antd'     : 0x4020,
-    },
-    '70b3d5b1e000002f': {
-        'xtalt'	   : 16,
-        'antd'     : 0x4020,
-    },
-    '70b3d5b1e0000022': {
-        'host'     : 'magpi0',
-        'xtalt'	   : 17,
-        'antd'     : 0x4055,
-    },
-    '70b3d5b1e0000020': {
-        'host'     : 'magpi1',
-        'xtalt'	   : 17,
-        'antd'     : 0x4053,
-    },
-    '70b3d5b1e0000021': {
-        'host'     : 'magpi2',
-        'xtalt'	   : 17,
-        'antd'     : 0x404D,
-    },
-    '70b3d5b1e0000024': {
-        'host'     : 'magpi3',
-        'xtalt'	   : 16,
-        'antd'     : 0x4054,
-    },
-    '70b3d5b1e0000026': {
-        'host'     : 'magpi4',
-        'xtalt'	   : 17,
-        'antd'     : 0x4055,
-    },
-    '70b3d5b1e0000029': {
-        'host'     : 'magpi5',
-        'xtalt'	   : 17,
-        'antd'     : 0x4049,
-    },
-    '70b3d5b1e000001a': {
-        'host'     : 'magpi06',
-        'xtalt'	   : 16,
-        'antd'     : 0x404E,
-    },
-    '70b3d5b1e0000023': {
-        'host'     : 'magpi7',
-        'xtalt'	   : 17,
-        'antd'     : 0x404A,
-    },
-    '70b3d5b1e0000028': {
-        'host'     : 'magpi8',
-        'xtalt'	   : 18,
-        'antd'     : 0x404A,
     },
 }
 

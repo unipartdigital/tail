@@ -1,6 +1,15 @@
 pipeline:
+
   firmware:
     image: unipartdigital/firmware-tester
     pull: true
     commands:
       - make -C firmware
+
+  release:
+    image: plugins/gitea-release
+    base_url: https://git.unipart.io
+    secrets: [ gitea_token ]
+    files: firmware/Tail*.bin
+    when:
+      event: tag

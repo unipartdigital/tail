@@ -232,7 +232,7 @@ class DW1000:
 
     def PrintDWAttrs(self):
         eprint('{} <{}>'.format(self.host,self.eui))
-        for attr in DW1000_ATTRS:
+        for attr in DW1000_PRINT_ATTRS:
             value = self.GetDWAttr(attr)
             eprint('  {:20s}: {}'.format(attr, value))
 
@@ -245,7 +245,7 @@ class DW1000:
             eprints(' {:24s}'.format('HOSTS'))
             for rem in remotes:
                 eprints(' {:10s}'.format(rem.host[:9]))
-            for attr in DW1000_ATTRS:
+            for attr in DW1000_PRINT_ATTRS:
                 eprints('\n  {:20s}:  '.format(attr))
                 for rem in remotes:
                     value = rem.GetDWAttr(attr)
@@ -254,13 +254,13 @@ class DW1000:
         else:
             for rem in remotes:
                 eprint('{} <{}>'.format(rem.host,rem.eui))
-                for attr in DW1000_ATTRS:
+                for attr in DW1000_PRINT_ATTRS:
                     value = rem.GetDWAttr(attr)
                     eprint('  {:20s}: {}'.format(attr,value))
 
     def AddPrintArguments(parser):
         parser.add_argument('--print-eui', action='store_true', default=False, help='Print EUI64 value')
-        for attr in DW1000_ATTRS:
+        for attr in DW1000_PRINT_ATTRS:
             parser.add_argument('--print-'+attr, action='store_true', default=False, help='Print attribute <{}> value'.format(attr))
 
     def HandlePrintArguments(args,remotes):
@@ -268,7 +268,7 @@ class DW1000:
         for rem in remotes:
             if getattr(args, 'print_eui'):
                 print(rem.eui)
-            for attr in DW1000_ATTRS:
+            for attr in DW1000_PRINT_ATTRS:
                 if getattr(args, 'print_'+attr):
                     val = rem.GetDWAttr(attr)
                     ret = True

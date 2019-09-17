@@ -1,20 +1,23 @@
 #!/bin/bash
 
-RATE=850
-TXPSR=1024
-CHANNEL=7
-PCODE=20
-PRF=64
-
-TX_POWER=0xd1d1d1d1
-SMART_POWER=0
-
-ANTD=${ANTD:-cal}
+CHANNEL=${CHANNEL:-3}
+PCODE=${PCODE:-12}
+PRF=${PRF:-64}
+RATE=${RATE:-850}
+TXPSR=${TXPSR:-1024}
+TXPWR=${TXPWR:-0x45454545}
+SMART=${SMART:-0}
 XTALT=${XTALT:-cal}
+ANTD=${ANTD:-cal}
 
-DWLIST='bss1 bss2 bss3 bss4 bss5 bss6 bss7 bss8'
+HOSTS='bss1 bss2 bss3 bss4 bss5 bss6 bss7 bss8'
 
-./dwattr.py ${DWLIST} 			\
+bss-time
+bss-start
+
+cd ${HOME}/Projects/Tail/devel/rtls || exit 1
+
+./dwattr.py -vv -s ${HOSTS} 		\
 	    --channel ${CHANNEL} 	\
 	    --pcode ${PCODE}		\
 	    --prf ${PRF} 		\
@@ -22,5 +25,5 @@ DWLIST='bss1 bss2 bss3 bss4 bss5 bss6 bss7 bss8'
 	    --txpsr ${TXPSR} 		\
 	    --antd ${ANTD} 		\
 	    --xtalt ${XTALT}		\
-	    --smart_power ${SMART_POWER} \
-	    --tx_power ${TX_POWER} 	\
+	    --smart_power ${SMART} 	\
+	    --tx_power ${TXPWR} 	\

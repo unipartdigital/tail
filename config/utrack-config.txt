@@ -1,4 +1,4 @@
-config chan 7
+config chan 5
 config prf_high 1
 config ns_sfd 0
 config long_frames 0
@@ -8,8 +8,8 @@ config accel_exponent 0
 config accel_mode 1
 config accel_count 1
 config accel_sensitivity 2
-config tx_pcode 0x14
-config rx_pcode 0x14
+config tx_pcode 12
+config rx_pcode 12
 config turnaround_delay 0x88 0x13
 config tx_plen 8
 config rx_pac 3

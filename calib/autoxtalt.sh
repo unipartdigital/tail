@@ -1,31 +1,11 @@
 #!/bin/bash
 #
-# DW1000 Hat interactive calibration script
+# Simple DW1000 Hat interactive calibration script,
 #
-# Usage: autocalib.sh HOST <EUI64>
+# Usage: autoxtalt.sh HOST <EUI64>
 #
-
-##
-## Default profile
-##
-DEFPROF='CH5-12+6'
-
-##
-## Calibration profiles
-##
-## ID,CH,PCODE,PRF,PSR,PWR,COARSE,FINE
-##
-DWCHS="/tmp/dwchs-$$"
-cat<<MEOW>${DWCHS}
-CH5-9+3,5,10,64,1024,-9.3,3,8
-CH5-9+6,5,10,64,1024,-9.3,6,8
-CH5-9+9,5,10,64,1024,-9.3,9,8
-CH5-12+0,5,10,64,1024,-12.3,0,8
-CH5-12+3,5,10,64,1024,-12.3,3,8
-CH5-12+6,5,10,64,1024,-12.3,6,8
-CH5-15+0,5,10,64,1024,-15.3,0,8
-CH5-15+3,5,10,64,1024,-15.3,3,8
-MEOW
+#     *** Only calibrates XTALT ***
+#
 
 ##
 ## Reference anchors
@@ -47,7 +27,6 @@ REFS='
 
 PPM_OFFSET=${PPM_OFFSET:-0.0}
 
-PROFILE=${PROFILE:-'CH5-12+6'}
 CHANNEL=${CHANNEL:-5}
 PCODE=${PCODE:-12}
 PRF=${PRF:-64}
@@ -70,10 +49,8 @@ ANTD64=0x4000
 ##
 
 DWTMP="/tmp/dwtmp-$$"
-DWLST="/tmp/dwlst-$$"
 
 :> ${DWTMP}
-:> ${DWLST}
 
 export HOST=$1
 export EUI64=$2
@@ -185,48 +162,20 @@ MEOW
 				decawave,eui64 = /bits/ 64 <0x${EUI64}>;
 				decawave,antd = <${ANTD16} ${ANTD64}>;
 				decawave,xtalt = <${XTALT}>;
-				decawave,default = "${DEFPROF}";
-				decawave,calib {
-MEOW
-
-    N=0
-    cat "${DWLST}" | while IFS=, read ID CH PRF ANTD POWER REST
-    do
-	if [ -n "${ID}" ]
-	then
-	    cat<<MEOW>>${EUI64}.dts
-					calib@$N {
-						id = "${ID}";
-						ch = <${CH}>;
-						prf = <${PRF}>;
-						antd = <${ANTD}>;
-						power = <${POWER}>;
-					};
-MEOW
-	    let N+=1
-	fi
-    done
-    
-    cat<<MEOW>>${EUI64}.dts
-				};
 			};
 		};
 	};
 
 	__overrides__ {
 		dw1000_eui = <&dw1000>,"decawave,eui64#0";
-		dw1000_profile = <&dw1000>,"decawave,default";
 	};
 };
 MEOW
 
-    dtc -Wno-unit_address_vs_reg -@ -I dts -O dtb -o ${EUI64}.dtbo ${EUI64}.dts ||
-	fail 'Device Tree compilation'
-    dtc -Wno-unit_address_vs_reg -@ -I dtb -O dts -o ${EUI64}.dmp ${EUI64}.dtbo ||
-	fail 'Device Tree disassembly'
+    dtc -Wno-unit_address_vs_reg -@ -I dts -O dtb -o ${EUI64}.dtbo ${EUI64}.dts
+    dtc -Wno-unit_address_vs_reg -@ -I dtb -O dts -o ${EUI64}.dmp ${EUI64}.dtbo
     
-    eepmake ${EUI64}.txt ${EUI64}.eep ${EUI64}.dtbo ||
-	fail 'EEPROM compilation'
+    eepmake ${EUI64}.txt ${EUI64}.eep ${EUI64}.dtbo
 }
 
 flash()
@@ -292,7 +241,7 @@ if eui64check "${EUI64}"
 then
     mesg "Starting calibration process for ${HOST} <${EUI64}>"
 
-    ./calibrate.py *${HOST} ${REFS} -vv --profile=${PROFILE} --channel=${CHANNEL} --prf=${PRF} --pcode=${PCODE} --txpsr=${PSR} --ppm-offset=${PPM_OFFSET} -X -w ${WAIT} -d ${DELAY} -n ${COUNT} ${EXTRA} > ${DWTMP}
+    ./calibrate.py *${HOST} ${REFS} -vv --channel=${CHANNEL} --prf=${PRF} --pcode=${PCODE} --txpsr=${PSR} --ppm-offset=${PPM_OFFSET} -X -w ${WAIT} -d ${DELAY} -n ${COUNT} ${EXTRA} > ${DWTMP}
 
     XTALT=$( cat $DWTMP | egrep '^XTALT' | cut -d, -f 3 )
     
@@ -301,43 +250,6 @@ then
 	fail "XTALT calibration"
     fi
 	    
-    cat ${DWCHS} | while IFS=, read ID CH PCODE PRF PSR LEVEL COARSE FINE
-    do
-	if [ -n "${ID}" ]
-	then
-	    mesg "Calibrating <$ID> CH:${CH} PCODE:${PCODE} PRF:${PRF} PSR:${PSR} Level:${LEVEL}dBm"
-	    
-	    ./calibrate.py ${HOST}* ${REFS} -vv --profile=${PROFILE} --channel=${CH} --prf=${PRF} --pcode=${PCODE} --txpsr=${PSR} -T -A -P ${LEVEL} -L ${DIST} -C ${COARSE} -F ${FINE} -w ${WAIT} -d ${DELAY} -n ${COUNT} ${EXTRA} > ${DWTMP}
-	    
-	    TXPWR=$( cat $DWTMP | egrep '^TXPWR' | cut -d, -f 3 )
-	    TXKEY=$( cat $DWTMP | egrep '^TXPWR' | cut -d, -f 4,5 )
-	    ANTDC=$( cat $DWTMP | egrep '^ANTD'  | cut -d, -f 3 )
-	    
-	    if [[ "${ANTDC}" -lt 0x3800 ]] || [[ "${ANTDC}" -gt 0x4400 ]]
-	    then
-		fail "ANTD calibration"
-	    fi
-
-	    P=${TXPWR##0x}
-	    POWER=0x$P$P$P$P
-
-	    echo "$ID,$CH,$PRF,$ANTDC,$POWER,$TXKEY,$LEVEL" >> ${DWLST}
-	    
-	    echo "***"
-	    echo "*** Calibration done: ${ID} Ch:${CH} PRF:${PRF} XTALT:${XTALT} TXPWR:${TXKEY}:${TXPWR} ANTD:${ANTDC}"
-	    echo "***"
-	fi
-    done
-    
-    echo '***'
-    echo '*** Calibration:'
-    echo '***'
-    cat "${DWLST}" | while IFS=, read ID CH PRF ANTD TXPWR TXP1 TXP2 LEVEL
-    do
-	echo "*** $ID CH:$CH PRF:$PRF ANTD:$ANTD LEVEL:$LEVEL POWER:$TXP1+$TXP2:$TXPWR"
-    done
-    echo "***"
-    
     echo "Programming the DW1000 Hat EEPROM..."
     flash || fail "Flash programming"
     mesg "Programming ${HOST} done."

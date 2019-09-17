@@ -1,43 +1,39 @@
 #!/usr/bin/python3
 #
-# XTAL speed sync against NTP
+# DW1000 XTAL speed check against NTP
 #
 # Usage:  ntpsync.py xmit* recv1 recv2 recv3 ... [usual args]
+#
+# Output:
+#	Erx	Rx HWtime vs. receiver Pi NTP synced clock
+#	Etx	Tx HWtime vs. receiver Pi NTP synced clock
+#	Ediff	Erx-Etx
+#	Ebk	Rx/Tx HW stamp ratio
+#	Ehw	Rx/Tx ratio as measured by DW1000
+#	Pwr	Rx Power
 #
 
 import sys
 import math
-import queue
-import socket
-import json
-import pprint
-import argparse
-import threading
 import tail
-
-import numpy as np
-import numpy.linalg as lin
-
-from numpy import dot
+import argparse
 
 from tail import *
 from config import *
-from pprint import pprint
 
 
-class Config():
+class CFG():
 
     blink_count    = 1000000
     blink_delay    = 0.100
     blink_wait     = 1.0
     blink_interval = 60
 
-CFG = Config()
 
 DATA = {}
     
 
-def XTAL_PPM(blk, tmr, tx, rxs, devs, INDEX=0, START=0, CH=7, PRF=64, rawts=False):
+def XTAL_PPM(blk, tmr, tx, rxs, devs, INDEX=0, START=0, CH=5, PRF=64, rawts=False):
 
     if rawts:
         SCL = DW1000_CLOCK_GHZ
@@ -62,7 +58,7 @@ def XTAL_PPM(blk, tmr, tx, rxs, devs, INDEX=0, START=0, CH=7, PRF=64, rawts=Fals
     
     DATA[INDEX] = {}
     
-    veprint(1,'    ANCHOR          Etx        Erx        Ediff      Ebk        Ehw        Pwr')
+    veprint(1,'    ANCHOR          Erx        Etx        Ediff      Ebk        Ehw        Pwr')
     veprint(1,'    ===============================================================================')
     
     for rx in rxs:
@@ -122,7 +118,16 @@ def XTAL_PPM(blk, tmr, tx, rxs, devs, INDEX=0, START=0, CH=7, PRF=64, rawts=Fals
             Rsum += ErrRxNtp
             Tsum += ErrTxNtp
 
-            veprint(1, '    {:<12s}  {:7.3f}ppm {:7.3f}ppm {:7.3f}ppm {:7.3f}ppm {:7.3f}ppm {:6.1f}dBm'.format(rx.host, ErrTxNtp*1E6, ErrRxNtp*1E6, (ErrRxNtp-ErrTxNtp)*1E6, Err*1E6, F24*1E6, Pwr))
+            msg = '    '
+            msg += '{:<12s}  '.format(rx.host)
+            msg += '{:7.3f}ppm '.format(ErrRxNtp*1E6)
+            msg += '{:7.3f}ppm '.format(ErrTxNtp*1E6)
+            msg += '{:7.3f}ppm '.format((ErrRxNtp-ErrTxNtp)*1E6)
+            msg += '{:7.3f}ppm '.format(Err*1E6)
+            msg += '{:7.3f}ppm '.format(F24*1E6)
+            msg += '{:6.1f}dBm '.format(Pwr)
+            
+            veprint(1, msg)
                 
         except (ValueError,KeyError):
             veprint(1,'    {:<12s}'.format(rx.host))
@@ -135,8 +140,16 @@ def XTAL_PPM(blk, tmr, tx, rxs, devs, INDEX=0, START=0, CH=7, PRF=64, rawts=Fals
     Pavg = Psum/Fcnt
     Pwr  = DW1000.RxPower2dBm(Pavg,PRF)
                 
+    msg = '    AVERAGE       '
+    msg += '{:7.3f}ppm '.format(Ravg)
+    msg += '{:7.3f}ppm '.format(Tavg)
+    msg += '{:7.3f}ppm '.format(Ravg-Tavg)
+    msg += '{:7.3f}ppm '.format(Eavg)
+    msg += '{:7.3f}ppm '.format(Favg)
+    msg += '{:6.1f}dBm '.format(Pwr)
+    
     veprint(1,'    ===============================================================================')
-    veprint(1,'    AVERAGE       {:7.3f}ppm {:7.3f}ppm {:7.3f}ppm {:7.3f}ppm {:7.3f}ppm {:6.1f}dBm'.format(Tavg, Ravg, (Ravg-Tavg), Eavg, Favg, Pwr))
+    veprint(1, msg)
         
     return
 
