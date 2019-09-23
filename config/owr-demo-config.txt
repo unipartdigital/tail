@@ -1,0 +1,28 @@
+config chan 5
+config prf_high 1
+config ns_sfd 0
+config long_frames 0
+config sfd_timeout 0
+config smart_tx_power 0
+config accel_exponent 0
+config accel_mode 1
+config accel_count 1
+config accel_sensitivity 2
+config tx_pcode 12
+config rx_pcode 12
+config turnaround_delay 0x88 0x13
+config tx_plen 8
+config rx_pac 3
+config data_rate 1
+config rxtimeout 0x86 0x09
+config rxdelay 0x86 0x09
+config antenna_delay_rx 0x20 0x40
+config antenna_delay_tx 0x20 0x40
+config tx_power 0x88 0x88 0x88 0x88
+config tag_transition_time 10
+config tag_max_anchors 0
+config tag_min_responses 1
+config tag_period_idle 0xa0 0x86 0x1
+config tag_period 0xE8 0x03
+config tag_jitter 200
+config tag_jitter_idle 200
