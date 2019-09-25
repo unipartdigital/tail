@@ -558,9 +558,9 @@ class Test(threading.Thread):
         relays.relay('pullup_5v').state = True
         relays.relay('measure_isense+').state = True
         relays.relay('neg_ground').state = True
-        self.set_voltage(2.5)
+        self.set_voltage(2.2)
         v_set = self.voltage()
-        if (v_set < 2.2) or (v_set > 2.8):
+        if (v_set < 1.9) or (v_set > 2.5):
             return False
         relays.relay('dummy_load').state = True
         relays.relay('power_5v').state = True
