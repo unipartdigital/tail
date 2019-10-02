@@ -4,70 +4,70 @@
 
 [
     {
-	"eui"   : "70b3d5b1e00000xx",
+	"eui"   : "70b3d5b1e0000042",
         "host"  : "anchor01.qs.unipart.io",
 	"port"  : 8912,
         "coord" : [0, 6320.3924831, -320],
         "ref"   : True
     },
     {
-	"eui"   : "70b3d5b1e00000xx",
+	"eui"   : "70b3d5b1e0000049",
         "host"  : "anchor02.qs.unipart.io",
 	"port"  : 8912,
         "coord" : [3295.5736086, 5577.0306928, -330],
         "ref"   : True
     },
     {
-	"eui"   : "70b3d5b1e00000xx",
+	"eui"   : "70b3d5b1e000000d",
         "host"  : "anchor03.qs.unipart.io",
 	"port"  : 8912,
         "coord" : [3299.4077707, 5570.9443618, -1242],
         "ref"   : True
     },
     {
-	"eui"   : "70b3d5b1e00000xx",
+	"eui"   : "70b3d5b1e000004a",
         "host"  : "anchor04.qs.unipart.io",
 	"port"  : 8912,
         "coord" : [7760.3914733, 4354.5743534, -315],
         "ref"   : True
     },
     {
-	"eui"   : "70b3d5b1e00000xx",
+	"eui"   : "70b3d5b1e0000046",
         "host"  : "anchor05.qs.unipart.io",
 	"port"  : 8912,
         "coord" : [9072.7560286, 1525.5813223, -1244],
         "ref"   : True
     },
     {
-	"eui"   : "70b3d5b1e00000xx",
+	"eui"   : "70b3d5b1e0000048",
         "host"  : "anchor06.qs.unipart.io",
 	"port"  : 8912,
         "coord" : [47.3432517999999, 1328.2971589, -1242],
         "ref"   : True
     },
     {
-	"eui"   : "70b3d5b1e00000xx",
+	"eui"   : "70b3d5b1e0000043",
         "host"  : "anchor07.qs.unipart.io",
 	"port"  : 8912,
         "coord" : [80.4544299999998, 0, -300],
         "ref"   : True
     },
     {
-	"eui"   : "70b3d5b1e00000xx",
+	"eui"   : "70b3d5b1e0000044",
         "host"  : "anchor08.qs.unipart.io",
 	"port"  : 8912,
         "coord" : [3136.5290155, -1028.7988617, -1205],
         "ref"   : True
     },
     {
-	"eui"   : "70b3d5b1e00000xx",
+	"eui"   : "70b3d5b1e0000047",
         "host"  : "anchor09.qs.unipart.io",
 	"port"  : 8912,
         "coord" : [4844.4593583, -46.5052524, -338],
         "ref"   : True
     },
     {
-	"eui"   : "70b3d5b1e00000xx",
+	"eui"   : "70b3d5b1e0000045",
         "host"  : "anchor10.qs.unipart.io",
 	"port"  : 8912,
         "coord" : [8730.666435, 59.4008765, -325],
