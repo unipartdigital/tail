@@ -1,0 +1,104 @@
+{
+    "ANCHORS" :
+    [
+        {
+            "name"  : "A1",
+            "eui"   : "70b3d5b1e0000042",
+            "host"  : "anchor01.qs.unipart.io",
+            "port"  : 8912,
+            "coord" : [0.000, 6.320, -0.320],
+            "ref"   : true
+        },
+        {
+            "name"  : "A2",
+            "eui"   : "70b3d5b1e0000049",
+            "host"  : "anchor02.qs.unipart.io",
+            "port"  : 8912,
+            "coord" : [3.297, 5.576, -0.330],
+            "ref"   : true
+        },
+        {
+            "name"  : "A3",
+            "eui"   : "70b3d5b1e000000d",
+            "host"  : "anchor03.qs.unipart.io",
+            "port"  : 8912,
+            "coord" : [3.300, 5.573, -1.242],
+            "ref"   : false
+        },
+        {
+            "name"  : "A4",
+            "eui"   : "70b3d5b1e000004a",
+            "host"  : "anchor04.qs.unipart.io",
+            "port"  : 8912,
+            "coord" : [7.772, 4.360, -0.315],
+            "ref"   : true
+        },
+        {
+            "name"  : "A5",
+            "eui"   : "70b3d5b1e0000046",
+            "host"  : "anchor05.qs.unipart.io",
+            "port"  : 8912,
+            "coord" : [9.071, 1.523, -1.244],
+            "ref"   : false
+        },
+        {
+            "name"  : "A6",
+            "eui"   : "70b3d5b1e0000048",
+            "host"  : "anchor06.qs.unipart.io",
+            "port"  : 8912,
+            "coord" : [0.048, 1.327, -1.242],
+            "ref"   : true
+        },
+        {
+            "name"  : "A7",
+            "eui"   : "70b3d5b1e0000043",
+            "host"  : "anchor07.qs.unipart.io",
+            "port"  : 8912,
+            "coord" : [0.080, 0.000, -0.300],
+            "ref"   : true
+        },
+        {
+            "name"  : "A8",
+            "eui"   : "70b3d5b1e0000044",
+            "host"  : "anchor08.qs.unipart.io",
+            "port"  : 8912,
+            "coord" : [3.131, -1.026, -1.205],
+            "ref"   : false
+        },
+        {
+            "name"  : "A9",
+            "eui"   : "70b3d5b1e0000047",
+            "host"  : "anchor09.qs.unipart.io",
+            "port"  : 8912,
+            "coord" : [4.846, -0.047, -0.338],
+            "ref"   : true
+        },
+        {
+            "name"  : "A10",
+            "eui"   : "70b3d5b1e0000045",
+            "host"  : "anchor10.qs.unipart.io",
+            "port"  : 8912,
+            "coord" : [8.727, 0.059, -0.325],
+            "ref"   : true
+        }
+    ],
+    
+    "TAGS" :
+    [
+        {
+            "eui"    : "70b3d5b1e0000128",
+            "name"   : "T0128",
+            "colour" : "#0000F0FF"
+        },
+        {
+            "eui"    : "70b3d5b1e0000129",
+            "name"   : "T0129",
+            "colour" : "#F00000FF"
+        },
+        {
+            "eui"    : "70b3d5b1e000012c",
+            "name"   : "T012C",
+            "colour" : "#00F000FF"
+        }
+    ]
+}
