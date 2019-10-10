@@ -18,7 +18,7 @@ import {
   NavLink,
 } from 'reactstrap';
 import { PanZoom } from 'react-easy-panzoom';
-import styled from 'styled-components';
+import styled, { keyframes } from 'styled-components';
 import floorplan from './floorplan.svg';
 import logo from './logo.svg';
 import 'bootstrap/dist/css/bootstrap.css';
@@ -29,36 +29,89 @@ const LogoImage = styled.img.attrs(props => ({
   width: 1em;
 `;
 
-const FloorplanImage = styled.img`
-  width: 100%;
-  pointer-events: none;
+const tagAnimation = keyframes`
+  0% {
+    opacity: 1.00;
+  }
+  50% {
+    opacity: 0.50;
+  }
+  100% {
+    opacity: 1.00;
+  }
 `;
+
+function TagDot(props) {
+
+  const { x, y, r, color, ...other } = props;
+
+  return (
+    <circle cx={x} cy={y} r={r} fill={color} {...other}>
+      <animate attributeType="XML" attributeName="r" from={r} to={r * 0.8}
+               dur="1s" repeatCount="indefinite"/>
+      <animate attributeType="XML" attributeName="opacity" from="1.0" to="0.5"
+               dur="1s" repeatCount="indefinite"/>
+    </circle>
+  );
+}
 
 class TagMap extends React.Component {
 
   constructor(props) {
     super(props);
     this.panzoom = React.createRef();
-    this.reCenter = this.reCenter.bind(this);
+    this.floorplan = React.createRef();
+    this.onFloorplanLoad = this.onFloorplanLoad.bind(this);
   }
 
-  reCenter() {
+  onFloorplanLoad() {
     this.panzoom.current.autoCenter();
   }
 
   render() {
+
+    let tagdots = this.props.tags.map((tag) => (
+      <TagDot key={tag.id} id={tag.id} x={tag.x} y={tag.y} r={tag.r}
+              color={tag.color}/>
+    ));
+
     return (
-      <PanZoom ref={this.panzoom} autoCenter={true}>
-        <FloorplanImage src={floorplan} onLoad={this.reCenter}/>
+      <PanZoom ref={this.panzoom}>
+        <svg viewBox="0 0 1010 830">
+          {tagdots}
+          <image ref={this.floorplan} width="100%" height="100%"
+                 xlinkHref={floorplan} onLoad={this.onFloorplanLoad}/>
+        </svg>
       </PanZoom>
     );
   }
 }
 
-function TagList() {
+function TagList(props) {
+
+  let tagrows = props.tags.map((tag) => (
+    <tr key={tag.id}>
+      <td>{tag.id}</td>
+      <td>{tag.name}</td>
+      <td>{tag.x}</td>
+      <td>{tag.y}</td>
+    </tr>
+  ));
 
   return (
-    <div>List of tags</div>
+    <table width="100%">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>X</th>
+          <th>Y</th>
+        </tr>
+      </thead>
+      <tbody>
+        {tagrows}
+      </tbody>
+    </table>
   );
 }
 
@@ -91,6 +144,25 @@ function Navigation() {
 
 function App() {
 
+  const tags = [
+    {
+      "id": "70b3d5b1e0000139",
+      "name": "YORK-871612",
+      "x": 500,
+      "y": 400,
+      "r": 15,
+      "color": "red",
+    },
+    {
+      "id": "70b3d5b1e0000145",
+      "name": "YORK-456198",
+      "x": 200,
+      "y": 300,
+      "r": 15,
+      "color": "green",
+    },
+  ];
+
   return (
     <div>
       <Router>
@@ -98,8 +170,8 @@ function App() {
         <Container>
           <Switch>
             <Redirect exact from="/" to="/map" component={TagMap}/>
-            <Route path="/map" component={TagMap}/>
-            <Route path="/list" component={TagList}/>
+            <Route path="/map"><TagMap tags={tags}/></Route>
+            <Route path="/list"><TagList tags={tags}/></Route>
           </Switch>
         </Container>
       </Router>
