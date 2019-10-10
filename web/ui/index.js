@@ -34,13 +34,25 @@ const FloorplanImage = styled.img`
   pointer-events: none;
 `;
 
-function TagMap() {
+class TagMap extends React.Component {
 
-  return (
-    <PanZoom>
-      <FloorplanImage src={floorplan}/>
-    </PanZoom>
-  );
+  constructor(props) {
+    super(props);
+    this.panzoom = React.createRef();
+    this.reCenter = this.reCenter.bind(this);
+  }
+
+  reCenter() {
+    this.panzoom.current.autoCenter();
+  }
+
+  render() {
+    return (
+      <PanZoom ref={this.panzoom} autoCenter={true}>
+        <FloorplanImage src={floorplan} onLoad={this.reCenter}/>
+      </PanZoom>
+    );
+  }
 }
 
 function TagList() {
