@@ -151,7 +151,7 @@ function App() {
       "x": 500,
       "y": 400,
       "r": 15,
-      "color": "red",
+      "color": "orange",
     },
     {
       "id": "70b3d5b1e0000145",
@@ -159,7 +159,7 @@ function App() {
       "x": 200,
       "y": 300,
       "r": 15,
-      "color": "green",
+      "color": "blue",
     },
   ];
 
