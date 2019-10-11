@@ -31,12 +31,14 @@ class cfg():
 
     debug = 0
 
-    config_json   = '/etc/tail.json'
-
-    server_addr   = ''
-    server_port   = 8913
-    client_port   = 9475
+    dw1000_tx    = -12.3
+    dw1000_ch    = 5
+    dw1000_prf   = 64
     
+    server_addr  = ''
+    server_port  = 8913
+    client_port  = 9475
+  
     tag_beacon_timer      = 0.010
     tag_ranging_timer     = 0.010
     tag_timeout_timer     = 0.050
@@ -46,16 +48,23 @@ class cfg():
     anchor_response_timer = 0.010
     anchor_ranging_timer  = 0.010
     anchor_timeout_timer  = 0.050
-    
+
+    lat_algo      = 'swls'
+   
     max_dist      = 25.0
     max_ddoa      = 25.0
     max_change    = 5.0
     
     filter_len    = 100
     
-    force_ref     = None
+    force_beacon  = None
+    force_common  = None
+    random_beacon = False
+    random_common = False
 
     sleep_min     = 0.0005
+
+    config_json   = '/etc/tail.json'
 
 CONFIG_FILE = '/etc/tail.conf'
 
@@ -67,6 +76,9 @@ def dprint(level, *args, **kwargs):
     if cfg.debug >= level:
         print(*args, file=sys.stderr, flush=True, **kwargs)
 
+def errhandler(msg,err):
+    eprint('\n*** EXCEPTION {}:\n{}***\n'.format(msg,traceback.format_exc()))
+
 
 def woodoo(T):
     dprint(4, 'woodoo: {}'.format(T))
@@ -76,7 +88,7 @@ def woodoo(T):
     T63 = T[5] - T[2]
     T51 = T[4] - T[0]
     T62 = T[5] - T[1]
-    ToF = 2 * (T41*T63 - T32*T54) / (T51+T62)
+    ToF = (T41*T63 - T32*T54) / (T51+T62)
     DoF = (ToF / DW1000_CLOCK_HZ) * Cabs
     return DoF
 
@@ -99,7 +111,7 @@ class Timeout():
             try:
                 self.func(*self.args)
             except Exception as err:
-                dprint(3, 'EXCEPTION in Timeout::expire: {}: {}'.format(err.__class__.__name__,err))
+                errhandler('Timeout::expire', err)
 
     def arm(self, delay=None):
         if not self.armed:
@@ -173,6 +185,7 @@ class GeoFilter():
 
     def reset(self):
         self.val_filt = self.zero.copy()
+        self.var_filt = 0.0
         self.count = 0
         
     def update(self,value):
@@ -180,20 +193,50 @@ class GeoFilter():
         flen = min(self.count, self.lenght)
         diff = value - self.val_filt
         self.val_filt += diff / flen
+        self.var_filt += (np.sum(diff*diff) - self.var_filt) / flen
 
     def avg(self):
         return self.val_filt.copy()
 
+    def var(self):
+        return self.var_filt.copy()
+
+    def dev(self):
+        return np.sqrt(self.var_filt)
+
 
 class TRX():
 
-    def __init__(self,origin,anchor,frame,tinfo):
+    def __init__(self,origin,src,anchor,frame,tinfo):
         self.origin = origin
         self.anchor = anchor
         self.key    = anchor.key
+        self.src    = src
         self.frame  = frame
         self.tinfo  = tinfo
-        self.ts     = tinfo['rawts']
+        self.rawts  = tinfo['rawts']
+        self.ts     = tinfo['rawts'] + self.get_offset()
+
+    def is_rx(self):
+        return (self.tinfo['lqi'] > 0)
+
+    def timestamp(self):
+        ##self.get_comp()
+        return self.ts
+
+    def get_offset(self):
+        if self.is_rx():
+            return self.anchor.rx_offset()
+        else:
+            return self.anchor.tx_offset()
+    
+    def get_comp(self):
+        distance = dist(self.anchor.coord, self.src.coord)
+        rflevel = RFCalcRxPower(cfg.dw1000_ch, distance, cfg.dw1000_tx)
+        rxlevel = self.get_rx_level()
+        fplevel = self.get_fp_level()
+        diff = fplevel - rflevel
+        dprint(4, 'TRX::get_comp: SRC:{} ANCHOR:{} DIST:{:.3f}m RxLevel:{:.2f}dBm FpLevel:{:.2f}dBm RfLevel:{:.2f}dBm Diff:{:.2f}dBm'.format(self.src.name,self.anchor.name,distance,rxlevel,fplevel,rflevel,diff))
 
     def get_ref_level(self):
         if self.anchor.refok:
@@ -206,7 +249,7 @@ class TRX():
         RXP = self.tinfo['rxpacc']
         if POW>0 and RXP>0:
             power = (POW << 17) / (RXP*RXP)
-            level = RxPower2dBm(power)
+            level = RxPower2dBm(power, cfg.dw1000_prf)
             return level
         else:
             return -120
@@ -218,7 +261,7 @@ class TRX():
         RXP = self.tinfo['rxpacc']
         if FP1>0 and FP2>0 and FP3>0 and RXP>0:
             power = (FP1*FP1 + FP2*FP2 + FP3*FP3) / (RXP*RXP)
-            level = RxPower2dBm(power)
+            level = RxPower2dBm(power, cfg.dw1000_prf)
             return level
         else:
             return -120
@@ -277,105 +320,211 @@ class Tag():
     def get_coord_avg(self):
         return self.cfilt.avg()
 
-    def hyperlater(ref, alist):
-        B0 = np.array(ref.coord)
-        B  = np.array([A.coord for A in alist])
-        R  = np.array([alist[A][0] for A in alist])
-        S  = np.array([alist[A][1] for A in alist])
-        dprint(4, 'Tag::hyperlater:\n{}\n{}\n{}\n{}'.format(B0,B,R,S))
-        (X,N) = hyperlater(B0,B,R,S)
-        return X
-        
     def laterate(self):
         try:
-            ref = self.ref
-            rkey = self.ref.key
-            anchors = {}
-            T = [ 0, 0, 0, 0, 0, 0 ]
-            for (akey,anchor) in self.server.anchor_keys.items():
-                if akey != rkey:
-                    try:
-                        T[0] = self.blinks[0][akey].ts
-                        T[1] = self.blinks[0][rkey].ts
-                        T[2] = self.blinks[1][rkey].ts
-                        T[3] = self.blinks[1][akey].ts
-                        T[4] = self.blinks[2][akey].ts
-                        T[5] = self.blinks[2][rkey].ts
-                        L = woodoo(T)
-                        R = ref.distance_to(anchor)
-                        D = R - L
-                        if -cfg.max_ddoa < D < cfg.max_ddoa:
-                            anchors[anchor] = (D,1.0)
-                            dprint(2, ' * Anchor: {} {:.1f}dBm LAT:{:.3f} REF:{:.3f} DOA:{:.3f}'.format(anchor.eui,self.blinks[0][akey].get_rx_level(),L,R,D))
-                        else:
-                            dprint(2, ' * Anchor: {} {:.3f} BAD TDOA'.format(anchor.eui,D))
-                    except KeyError:
-                        dprint(2, '  * Anchor: {} NOT FOUND'.format(anchor.eui))
-                    except ZeroDivisionError:
-                        dprint(2, '  * Anchor: {} BAD TIMES'.format(anchor.eui))
-            coord = Tag.hyperlater(ref,anchors)
-            self.update_coord(coord)
-            self.update_stats(ref, anchors)
+            if cfg.lat_algo == 'wls':
+                self.laterate_wls()
+            elif cfg.lat_algo == 'swls':
+                self.select_common()
+                self.laterate_swls()
+            elif cfg.lat_algo == 'rfswls':
+                self.select_common()
+                self.laterate_rfswls()
+            elif cfg.lat_algo == 'test':
+                self.laterate_test()
+            
             self.server.send_client_msg(Type='TAG', Tag=self.eui, Coord=self.coord.tolist())
-            dprint(1, 'Tag::laterate: LAT:{} AVG:{}'.format(coord, self.get_coord_avg()))
-                
+            dprint(1, 'Tag::laterate: {} LAT:{} AVG:{}'.format(self.name, self.coord, self.get_coord_avg()))
+
         except (KeyError,ValueError,AttributeError,LinAlgError) as err:
-            eprint('Tag::laterate failed: {}: {}'.format(err.__class__.__name__, err))
-
+            errhandler('Tag::laterate', err)
     
-    def update_stats(self, ref, anchors):
-        for anchor in anchors:
-            ref_dist = self.distance_avg_to(ref)
-            anc_dist = self.distance_avg_to(anchor)
-            loc_ddoa = ref_dist - anc_dist
-            lat_ddoa = anchors[anchor][0]
-            err_ddoa = lat_ddoa - loc_ddoa
-            err_tick = (err_ddoa / Cabs) * DW1000_CLOCK_HZ
-            msg  = 'Tag::update_stats: '
-            msg += 'REF:{} '.format(ref.eui)
-            msg += 'ANC:{} '.format(anchor.eui)
-            msg += 'ref_dist:{:.3f} '.format(ref_dist)
-            msg += 'anc_dist:{:.3f} '.format(anc_dist)
-            msg += 'loc_ddoa:{:.3f} '.format(loc_ddoa)
-            msg += 'lat_ddoa:{:.3f} '.format(lat_ddoa)
-            msg += 'err_ddoa:{:.3f} '.format(err_ddoa)
-            dprint(3, msg)
-
-    def select_ref(self):
-        if cfg.force_ref:
-            self.ref = self.server.get_anchor(cfg.force_ref)
-            self.ref.register_tag(self)
-            dprint(2, 'Tag::select_ref: Tag:{} => Anchor:{}'.format(self.eui, self.ref.eui))
+    def laterate_wls(self):
+        bkey = self.beacon.key
+        COORDS = []
+        RANGES = []
+        SIGMAS = []
+        T = [ 0, 0, 0, 0, 0, 0 ]
+        for (akey,anchor) in self.server.anchor_keys.items():
+            if akey != bkey:
+                try:
+                    T[0] = self.blinks[0][akey].timestamp()
+                    T[1] = self.blinks[0][bkey].timestamp()
+                    T[2] = self.blinks[1][bkey].timestamp()
+                    T[3] = self.blinks[1][akey].timestamp()
+                    T[4] = self.blinks[2][akey].timestamp()
+                    T[5] = self.blinks[2][bkey].timestamp()
+                    C = self.beacon.distance_to(anchor)
+                    L = woodoo(T)
+                    D = C - 2*L
+                    if -cfg.max_ddoa < D < cfg.max_ddoa:
+                        COORDS.append(anchor.coord)
+                        RANGES.append(D)
+                        SIGMAS.append(0.1)
+                        dprint(3, ' * Anchor: {} {} LAT:{:.3f} C:{:.3f} D:{:.3f}'.format(anchor.name,anchor.eui,L,C,D))
+                    else:
+                        dprint(3, ' * Anchor: {} {} D:{:.3f} BAD TDOA'.format(anchor.name,anchor.eui,D))
+                except KeyError:
+                    dprint(3, ' * Anchor: {} {} NOT FOUND'.format(anchor.name,anchor.eui))
+                except ZeroDivisionError:
+                    dprint(3, ' * Anchor: {} {} BAD TIMES'.format(anchor.name,anchor.eui))
+        (coord,cond) = hyperlater(self.beacon.coord, COORDS, RANGES, SIGMAS, delta=0.01)
+        dprint(3, 'Tag::laterate_wls: {0} ({1[0]:.3f},{1[1]:.3f},{1[2]:.3f}) COND:{2:.0f}'.format(self.name,coord,cond))
+        self.update_coord(coord)
+        
+    def laterate_swls(self):
+        ckey = self.common.key
+        bkey = self.beacon.key
+        COORDS = []
+        RANGES = []
+        SIGMAS = []
+        T = [ 0, 0, 0, 0, 0, 0 ]
+        for (akey,anchor) in self.server.anchor_keys.items():
+            if akey not in (bkey,ckey):
+                try:
+                    T[0] = self.blinks[0][akey].timestamp()
+                    T[1] = self.blinks[0][ckey].timestamp()
+                    T[2] = self.blinks[1][ckey].timestamp()
+                    T[3] = self.blinks[1][akey].timestamp()
+                    T[4] = self.blinks[2][akey].timestamp()
+                    T[5] = self.blinks[2][ckey].timestamp()
+                    B = self.beacon.distance_to(self.common)
+                    C = self.beacon.distance_to(anchor)
+                    L = woodoo(T)
+                    D = (C - B) - 2*L
+                    if -cfg.max_ddoa < D < cfg.max_ddoa:
+                        COORDS.append(anchor.coord)
+                        RANGES.append(D)
+                        SIGMAS.append(0.1)
+                        dprint(3, ' * Anchor: {} {} LAT:{:.3f} B:{:.3f} C:{:.3f} D:{:.3f}'.format(anchor.name,anchor.eui,L,B,C,D))
+                    else:
+                        dprint(3, ' * Anchor: {} {} D:{:.3f} BAD TDOA'.format(anchor.name,anchor.eui,D))
+                except KeyError:
+                    dprint(3, ' * Anchor: {} {} NOT FOUND'.format(anchor.name,anchor.eui))
+                except ZeroDivisionError:
+                    dprint(3, ' * Anchor: {} {} BAD TIMES'.format(anchor.name,anchor.eui))
+        (coord,cond) = hyperlater(self.common.coord, COORDS, RANGES, SIGMAS, delta=0.005)
+        dprint(3, 'Tag::laterate_swls: {0} ({1[0]:.3f},{1[1]:.3f},{1[2]:.3f}) COND:{2:.0f}'.format(self.name,coord,cond))
+        self.update_coord(coord)
+    
+    def laterate_rfswls(self):
+        ckey = self.common.key
+        bkey = self.beacon.key
+        COORDS = []
+        RANGES = []
+        LEVELS = []
+        T = [ 0, 0, 0, 0, 0, 0 ]
+        L = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 ]
+        for (akey,anchor) in self.server.anchor_keys.items():
+            if akey not in (bkey,ckey):
+                try:
+                    T[0] = self.blinks[0][akey].timestamp()
+                    T[1] = self.blinks[0][ckey].timestamp()
+                    T[2] = self.blinks[1][ckey].timestamp()
+                    T[3] = self.blinks[1][akey].timestamp()
+                    T[4] = self.blinks[2][akey].timestamp()
+                    T[5] = self.blinks[2][ckey].timestamp()
+                    L[0] = self.blinks[0][akey].get_fp_level()
+                    L[1] = self.blinks[0][ckey].get_fp_level()
+                    L[2] = self.blinks[1][ckey].get_fp_level()
+                    L[3] = self.blinks[1][akey].get_fp_level()
+                    L[4] = self.blinks[2][akey].get_fp_level()
+                    L[5] = self.blinks[2][ckey].get_fp_level()
+                    B = self.beacon.distance_to(self.common)
+                    C = self.beacon.distance_to(anchor)
+                    L = woodoo(T)
+                    D = (C - B) - 2*L
+                    if -cfg.max_ddoa < D < cfg.max_ddoa:
+                        COORDS.append(anchor.coord)
+                        RANGES.append(D)
+                        LEVELS.append(L)
+                        dprint(3, ' * Anchor: {} {} LAT:{:.3f} B:{:.3f} C:{:.3f} D:{:.3f}'.format(anchor.name,anchor.eui,L,B,C,D))
+                    else:
+                        dprint(3, ' * Anchor: {} {} D:{:.3f} BAD TDOA'.format(anchor.name,anchor.eui,D))
+                except KeyError:
+                    dprint(3, ' * Anchor: {} {} NOT FOUND'.format(anchor.name,anchor.eui))
+                except ZeroDivisionError:
+                    dprint(3, ' * Anchor: {} {} BAD TIMES'.format(anchor.name,anchor.eui))
+        (coord,cond) = hyperlater_rfcomp(self.common.coord, COORDS, RANGES, LEVELS, delta=0.005)
+        dprint(3, 'Tag::laterate_rfswls: {0} ({1[0]:.3f},{1[1]:.3f},{1[2]:.3f}) COND:{2:.0f}'.format(self.name,coord,cond))
+        self.update_coord(coord)
+    
+    def laterate_test(self):
+        ##
+        ## Add algorithm here
+        ## coord = ...the magic function...
+        ##
+        dprint(3, 'Tag::laterate_test: {0} ({1[0]:.3f},{1[1]:.3f},{1[2]:.3f})'.format(self.name,coord))
+        self.update_coord(coord)
+        
+    def select_beacon(self):
+        if cfg.force_beacon:
+            self.beacon = self.server.get_anchor(cfg.force_beacon)
+            self.beacon.register_tag(self)
+            dprint(3, 'Tag::select_beacon: FORCED Tag:{} => Anchor:{}'.format(self.name, self.beacon.name))
             return
-        if True:
+        if cfg.random_beacon:
             N = len(self.server.anchor_refs)
             I = random.randrange(0,N)
-            self.ref = list(self.server.anchor_refs.values())[I]
-            self.ref.register_tag(self)
-            dprint(2, 'Tag::select_ref: Tag:{} => Anchor:{}'.format(self.eui, self.ref.eui))
+            self.beacon = list(self.server.anchor_refs.values())[I]
+            self.beacon.register_tag(self)
+            dprint(3, 'Tag::select_beacon: RANDOM Tag:{} => Anchor:{}'.format(self.name, self.beacon.name))
             return
-        if self.blinks[0]:
-            rxl = { trx:trx.get_ref_level() for trx in self.blinks[0].values() }
-            trx = max(rxl, key=rxl.get)
-            if trx.anchor.ref:
-                self.ref = trx.anchor
-                self.ref.register_tag(self)
-                dprint(2, 'Tag::select_ref: Tag:{} => Anchor:{} {:.1f}dBm'.format(trx.origin.eui, trx.anchor.eui, trx.get_ref_level()))
+        if True:
+            levels = {}
+            for key in self.server.anchor_refs:
+                if key in self.blinks[0]:
+                    rx = self.blinks[0][key]
+                    levels[key] = rx.get_rx_level()
+            if levels:
+                key = max(levels, key=levels.get)
+                self.beacon = self.server.anchor_keys[key]
+                self.beacon.register_tag(self)
+                dprint(3, 'Tag::select_beacon: BEST Tag:{} => Anchor:{}'.format(self.name, self.beacon.name))
+                return
+        raise ValueError('beacon anchor selection not possible')
+    
+    def select_common(self):
+        if cfg.force_common:
+            self.common = self.server.get_anchor(cfg.force_common)
+            dprint(3, 'Tag::select_common: FORCED Tag:{} => Anchor:{}'.format(self.name, self.common.name))
+            return
+        if cfg.random_common:
+            N = len(self.server.anchor_refs)
+            I = random.randrange(0,N)
+            self.common = list(self.server.anchor_refs.values())[I]
+            dprint(3, 'Tag::select_common: RANDOM Tag:{} => Anchor:{}'.format(self.name, self.beacon.name))
+            return
+        if self.beacon:
+            levels = {}
+            for key in self.server.anchor_refs:
+                if key != self.beacon.key:
+                    if key in self.blinks[0] and key in self.blinks[1] and key in self.blinks[2]:
+                        rx0 = self.blinks[0][key]
+                        rx1 = self.blinks[1][key]
+                        rx2 = self.blinks[2][key]
+                        levels[key] = rx0.get_rx_level() + rx1.get_rx_level() + rx2.get_rx_level()
+            if levels:
+                key = max(levels, key=levels.get)
+                self.common = self.server.anchor_keys[key]
+                dprint(3, 'Tag::select_common: BEST Tag:{} => Anchor:{}'.format(self.name, self.common.name))
+                return
+        raise ValueError('common anchor selection not possible')
     
     def beacon_expire(self):
         dprint(3, 'Tag::beacon_expire @ {}'.format(time.time() - self.ranging_start))
-        if self.ref:
-            self.ref.transmit_beacon(self.eui)
+        if self.beacon:
+            self.beacon.transmit_beacon(self.eui)
 
     def ranging_expire(self):
         dprint(3, 'Tag::ranging_expire @ {}'.format(time.time() - self.ranging_start))
         self.laterate()
-        self.select_ref()
+        self.select_beacon()
         self.finish_ranging()
 
     def timeout_expire(self):
         dprint(3, 'Tag::timeout_expire @ {}'.format(time.time() - self.ranging_start))
-        self.select_ref()
+        self.select_beacon()
         self.finish_ranging()
         
     def add_blink(self,trx):
@@ -389,21 +538,21 @@ class Tag():
             tag = trx.origin.eui
             anc = trx.anchor.eui
             src = trx.frame.get_src_eui()
-            if src == trx.origin.ref.eui:
+            if src == trx.origin.beacon.eui:
                 dprint(4, 'Tag::add_beacon:  ANC:{} SRC:{} Rx:{:.1f}dBm'.format(anc, src, trx.get_rx_level()))
                 self.blinks[1][trx.key] = trx
                 self.beacon_timer.unarm()
 
     def add_ranging(self,trx):
         if self.ranging:
-            dprint(4, 'Tag::add_ranging: ANC:{} Rx:{:.1f}dBm'.format(trx.anchor.eui, trx.get_rx_level()))
+            dprint(4, 'Tag::add_ranging: ANC:{} Rx:{:.1f}dBm'.format(trx.anchor.name, trx.get_rx_level()))
             self.blinks[2][trx.key] = trx
             self.ranging_timer.arm()
 
 
 class Anchor():
 
-    def __init__(self, server, name, eui, host, port, coord, ref, antd=0.0):
+    def __init__(self, server, name, eui, host, port, coord, ref, rx_antd=0.0, tx_antd=0.0):
         self.server  = server
         self.sock    = server.sock
         self.name    = name
@@ -412,7 +561,8 @@ class Anchor():
         self.eui     = eui
         self.refok   = ref
         self.coord   = np.array(coord)
-        self.antdo   = antd
+        self.rx_antd = rx_antd
+        self.tx_antd = tx_antd
         self.raddr   = socket.getaddrinfo(host, port, socket.AF_INET6)[0][4]
         self.key     = self.raddr[0]
         self.ranging_start  = None
@@ -431,16 +581,11 @@ class Anchor():
     def distance_to(self, obj):
         return dist(self.coord, obj.coord)
 
-    def offset(self):
-        return int(self.antdo)
+    def tx_offset(self):
+        return int(self.tx_antd)
 
-    def set_offset(self, offset):
-        self.antdo = offset
-        dprint(3, 'set_offset: {} {:.3f}'.format(self.eui, offset))
-
-    def adjust_offset(self, adjust):
-        self.antdo -= adjust
-        dprint(3, 'offset: {} {:+.3f} {:.3f}'.format(self.eui, adjust, self.antdo))
+    def rx_offset(self):
+        return int(self.rx_antd)
 
     def sendmsg(self, **args):
         data = json.dumps(args)
@@ -483,17 +628,17 @@ class Anchor():
     def two_way_ranging(self):
         try:
             T = [ 0, 0, 0, 0, 0, 0 ]
-            T[0] = self.ranging_blinks[0][self.key].ts + self.offset()
-            T[1] = self.ranging_blinks[0][self.ranging_peer.key].ts - self.ranging_peer.offset()
-            T[2] = self.ranging_blinks[1][self.ranging_peer.key].ts + self.ranging_peer.offset()
-            T[3] = self.ranging_blinks[1][self.key].ts - self.offset()
-            T[4] = self.ranging_blinks[2][self.key].ts + self.offset()
-            T[5] = self.ranging_blinks[2][self.ranging_peer.key].ts - self.ranging_peer.offset()
+            T[0] = self.ranging_blinks[0][self.key].timestamp()
+            T[1] = self.ranging_blinks[0][self.ranging_peer.key].timestamp()
+            T[2] = self.ranging_blinks[1][self.ranging_peer.key].timestamp()
+            T[3] = self.ranging_blinks[1][self.key].timestamp()
+            T[4] = self.ranging_blinks[2][self.key].timestamp()
+            T[5] = self.ranging_blinks[2][self.ranging_peer.key].timestamp()
             D = woodoo(T)
             self.server.add_anchor_twr(self, self.ranging_peer, D)
         
         except (KeyError,ValueError,AttributeError,LinAlgError) as err:
-            dprint(3, 'Anchor::TWR failed: {}: {}'.format(err.__class__.__name__, err))
+            errhandler('Anchor::TWR', err)
 
     def wakeup_expire(self):
         dprint(3, 'Anchor::wakeup_expire')
@@ -599,6 +744,15 @@ class Server():
         self.anchor_euis.pop(anchor.eui, None)
         self.anchor_refs.pop(anchor.key, None)
 
+    def get(self, key):
+        if key in self.anchor_keys:
+            return self.anchor_keys[key]
+        elif key in self.anchor_euis:
+            return self.anchor_euis[key]
+        elif key in self.tags:
+            return self.tags[key]
+        raise KeyError
+
     def get_anchor(self, key):
         if key in self.anchor_keys:
             return self.anchor_keys[key]
@@ -614,17 +768,17 @@ class Server():
             twr = self.anchor_twrs[key].avg()
         return twr
 
-    def add_anchor_twr(self, anchor_a, anchor_b, dist):
-        if -cfg.max_dist < dist < cfg.max_dist:
+    def add_anchor_twr(self, anchor_a, anchor_b, distance):
+        if -cfg.max_dist < distance < cfg.max_dist:
             key1 = (anchor_a,anchor_b)
             key2 = (anchor_b,anchor_a)
             if key1 not in self.anchor_twrs:
-                filt = GeoFilter(0.0, cfg.filter_len)
+                filt = GeoFilter(np.array(1), cfg.filter_len)
                 self.anchor_twrs[key1] = filt
                 self.anchor_twrs[key2] = filt
-            self.anchor_twrs[key1].update(dist)
+            self.anchor_twrs[key1].update(distance)
             avg = self.anchor_twrs[key1].avg()
-            dprint(3, 'add_anchor_twr: {}<>{} DIS:{:.3f} AVG:{:.3f}'.format(anchor_a.eui, anchor_b.eui, dist, avg))
+            dprint(3, 'add_anchor_twr: {}<>{} DIS:{:.3f} AVG:{:.3f}'.format(anchor_a.eui, anchor_b.eui, distance, avg))
 
     def add_tag(self, args):
         dprint(4, 'Server::add_tag {}'.format(args))
@@ -649,47 +803,37 @@ class Server():
                 self.rem_client(client)
 
     def recv_anchor_frame(self,anchor,msg):
-        #dprint(4, 'Server::recv_anchor_frame MSG:{}'.format(msg))
+        dprint(5, 'Server::recv_anchor_frame MSG:{}'.format(msg))
         tinfo = msg['TSInfo']
         frame = TailFrame(bytes.fromhex(msg['Frame']))
+        src = self.get(msg['Src'])
         if frame.tail_frmtype == 0:
-            src = msg['Src']
-            tag = self.get_tag(src)
-            tag.add_blink(TRX(tag,anchor,frame,tinfo))
+            src.add_blink(TRX(src,src,anchor,frame,tinfo))
         elif frame.tail_frmtype == 3:
-            src = msg['Src']
-            tag = self.get_tag(src)
-            tag.add_ranging(TRX(tag,anchor,frame,tinfo))
+            src.add_ranging(TRX(src,src,anchor,frame,tinfo))
         elif frame.tail_frmtype == 1:
-            ref = frame.tail_beacon.hex()
+            ref = self.get(frame.tail_beacon.hex())
             if frame.tail_subtype == 0:
-                tag = self.get_tag(ref)
-                tag.add_beacon(TRX(tag,anchor,frame,tinfo))
+                ref.add_beacon(TRX(ref,src,anchor,frame,tinfo))
             elif frame.tail_subtype == 1:
-                anc = self.get_anchor(ref)
-                anc.add_beacon(TRX(anc,anchor,frame,tinfo), 0)
+                ref.add_beacon(TRX(ref,src,anchor,frame,tinfo), 0)
             elif frame.tail_subtype == 2:
-                anc = self.get_anchor(ref)
-                anc.add_beacon(TRX(anc,anchor,frame,tinfo), 1)
+                ref.add_beacon(TRX(ref,src,anchor,frame,tinfo), 1)
             elif frame.tail_subtype == 3:
-                anc = self.get_anchor(ref)
-                anc.add_beacon(TRX(anc,anchor,frame,tinfo), 2)
+                ref.add_beacon(TRX(ref,src,anchor,frame,tinfo), 2)
                 
     def recv_anchor_msg(self):
         try:
             (data,addr) = self.sock.recvfrom(4096)
-            if addr[0] in self.anchor_keys:
-                anchor = self.anchor_keys[addr[0]]
-                msg = json.loads(data.decode())
-                if msg['Type'] in ('RX','TX'):
-                    self.recv_anchor_frame(anchor,msg)
-                else:
-                    raise ValueError
+            anc = self.get_anchor(addr[0])
+            msg = json.loads(data.decode())
+            if msg['Type'] in ('RX','TX'):
+                self.recv_anchor_frame(anc,msg)
             else:
-                eprint('Unknown anchor: {}'.format(addr[0]))
+                raise ValueError
                 
         except Exception as err:
-            eprint('Unable to decode anchor message: {}\n*** {}: {}'.format(data.decode(), type(err).__name__, err))
+            errhandler('recv_anchor_msg: Unable to decode', err)
 
             
     def socket_loop(self):
@@ -711,7 +855,7 @@ class Server():
                             self.cliefds[fd].recvmsg()
                         
                 except (KeyError,ValueError) as err:
-                    eprint('{}: {}'.format(err.__class__.__name__, err))
+                    errhandler('socket_loop', err)
         
         socks.unregister(tpipe.sock)
 
@@ -730,8 +874,12 @@ def main():
     parser = argparse.ArgumentParser(description="Tail Location server")
     
     parser.add_argument('-D', '--debug', action='count', default=cfg.debug)
+    parser.add_argument('-A', '--algo', type=str, default=cfg.lat_algo)
     parser.add_argument('-c', '--config', type=str, default=cfg.config_json)
-    parser.add_argument('--force_ref', type=str, default=None)
+    parser.add_argument('--force-beacon', type=str, default=None)
+    parser.add_argument('--force-common', type=str, default=None)
+    parser.add_argument('--random-beacon', action='store_true', default=False)
+    parser.add_argument('--random-common', action='store_true', default=False)
     
     args = parser.parse_args()
     
@@ -739,6 +887,11 @@ def main():
     WPANFrame.verbosity = max((0, cfg.debug - 1))
 
     cfg.config_json = args.config
+
+    cfg.lat_algo = args.algo
+    
+    cfg.random_beacon = args.random_beacon
+    cfg.random_common = args.random_common
 
     server = Server()
 
@@ -751,10 +904,15 @@ def main():
     for arg in cfg.config.get('TAGS'):
         server.add_tag(arg)
 
-    if args.force_ref:
+    if args.force_beacon:
         for (key,anchor) in server.anchor_keys.items():
-            if anchor.name == args.force_ref:
-                cfg.force_ref = key
+            if anchor.name == args.force_beacon:
+                cfg.force_beacon = key
+    
+    if args.force_common:
+        for (key,anchor) in server.anchor_keys.items():
+            if anchor.name == args.force_common:
+                cfg.force_common = key
     
     try:
         server.socket_loop()

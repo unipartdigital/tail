@@ -32,7 +32,8 @@ class cfg():
     room_y = (-2, 7)
     room_w = (room_s * (room_x[1] - room_x[0]), room_s * (room_y[1] - room_y[0]))
     
-    filter_len = 10
+    coord_filter_len = 5
+    bubble_filter_len  = 10
 
     jconfig = {}
     tags = {}
@@ -80,7 +81,8 @@ class Tag():
         self.name = name
         self.colour = colour
         self.coord = None
-        self.cfilt = GeoFilter(np.zeros(3), cfg.filter_len)
+        self.cfilt = GeoFilter(np.zeros(3), cfg.coord_filter_len)
+        self.bfilt = GeoFilter(np.zeros(3), cfg.bubble_filter_len)
 
     def plot(self, ax):
         self.p1 = ax.plot([], [], 'o', mfc=self.colour, ms=10)
@@ -88,18 +90,19 @@ class Tag():
         self.p3 = ax.annotate('', (0,0))
 
     def update(self, X):
-        self.coord = X
         self.cfilt.update(X)
-        Xavg = self.cfilt.avg()
-        Rstd = self.cfilt.dev()
-        Rstd = min(Rstd,10)
+        self.bfilt.update(X)
+        self.coord = self.cfilt.avg()
+        mean = self.bfilt.avg()
+        mstd = self.bfilt.dev()
+        mstd = min(mstd,5.0)
         ppl.setp(self.p1, xdata=self.coord[0])
         ppl.setp(self.p1, ydata=self.coord[1])
-        ppl.setp(self.p2, xdata=Xavg[0])
-        ppl.setp(self.p2, ydata=Xavg[1])
-        ppl.setp(self.p2, ms=Rstd*cfg.std_pixels)
-        ppl.setp(self.p3, text='{0} ({1[0]:.2f},{1[1]:.2f},{1[2]:.2f})'.format(self.name,Xavg))
-        ppl.setp(self.p3, position=(Xavg[0]+Rstd,Xavg[1]+Rstd))
+        ppl.setp(self.p2, xdata=mean[0])
+        ppl.setp(self.p2, ydata=mean[1])
+        ppl.setp(self.p2, ms=mstd*cfg.std_pixels)
+        ppl.setp(self.p3, text='{0} ({1[0]:.2f},{1[1]:.2f},{1[2]:.2f})'.format(self.name,self.coord))
+        ppl.setp(self.p3, position=(self.coord[0]+0.15,self.coord[1]+0.15))
         
         
 class Room():

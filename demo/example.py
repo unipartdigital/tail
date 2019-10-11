@@ -45,7 +45,7 @@ def main():
     parser = argparse.ArgumentParser(description="Tail 3D client example")
     
     parser.add_argument('-p', '--port', type=int, default=9475)
-    parser.add_argument('server', type=str, nargs='?', default='resistor')
+    parser.add_argument('server', type=str, nargs='?', default='resistor.qs.unipart.io')
     
     args = parser.parse_args()
     

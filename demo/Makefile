@@ -12,7 +12,7 @@ ANCHOR_ROOT ?= /netboot/buster
 .PHONY: all install-server install-anchor install-client
 
 all:
-	@echo "Nothing to do."
+	@echo "all done!"
 
 install-anchor:
 	install -o root -g root -m 644 tail.conf $(ANCHOR_ROOT)/etc/tail.conf
@@ -38,3 +38,7 @@ install-client:
 tag-fast tag-slow tag-off:
 	cat $@.txt > /dev/ttyUSB0
 
+
+clean:
+	rm -fr __pycache__
+	rm -f *~
