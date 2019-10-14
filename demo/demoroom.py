@@ -9,6 +9,7 @@ import socket
 import select
 import json
 import argparse
+import threading
 
 from tail import *
 
@@ -31,8 +32,8 @@ class cfg():
     room_x = (-1, 10)
     room_y = (-2, 7)
     room_w = (room_s * (room_x[1] - room_x[0]), room_s * (room_y[1] - room_y[0]))
-    
-    coord_filter_len = 5
+
+    coord_filter_len = 3
     bubble_filter_len  = 10
 
     jconfig = {}
@@ -76,11 +77,11 @@ class GeoFilter():
 
 class Tag():
 
-    def __init__(self, name, eui, colour):
+    def __init__(self, name, eui, colour, algo=None):
         self.eui = eui
         self.name = name
         self.colour = colour
-        self.coord = None
+        self.coord = np.ones(3) * -10
         self.cfilt = GeoFilter(np.zeros(3), cfg.coord_filter_len)
         self.bfilt = GeoFilter(np.zeros(3), cfg.bubble_filter_len)
 
@@ -89,10 +90,12 @@ class Tag():
         self.p2 = ax.plot([], [], 'o', mfc='#00008010', mec='#00000000', ms=1)
         self.p3 = ax.annotate('', (0,0))
 
-    def update(self, X):
+    def update(self,X):
         self.cfilt.update(X)
         self.bfilt.update(X)
         self.coord = self.cfilt.avg()
+
+    def draw(self):
         mean = self.bfilt.avg()
         mstd = self.bfilt.dev()
         mstd = min(mstd,5.0)
@@ -110,12 +113,11 @@ class Room():
     def __init__(self):
         self.fig = ppl.figure()
         self.fig.set_size_inches(cfg.room_w)
-        
         self.ax = self.fig.add_subplot(1,1,1)
         self.ax.set_title(cfg.title)
         self.ax.set_xlim(cfg.room_x)
         self.ax.set_ylim(cfg.room_y)
-
+        
         for anchor in cfg.jconfig.get('ANCHORS'):
             name = anchor['name']
             self.ax.plot(anchor['coord'][0],anchor['coord'][1],'rx')
@@ -127,49 +129,54 @@ class Room():
             cfg.tags[tag.eui] = tag
 
         self.fig.show()
-
+    
     def update(self):
+        for eui in cfg.tags:
+            cfg.tags[eui].draw()
         self.fig.canvas.draw()
 
 
-def msg_loop(host, port):
+class Receiver(threading.Thread):
 
-    saddr = socket.getaddrinfo(host, port, socket.AF_INET6)[0][4]
+    def __init__(self,host,port):
+        threading.Thread.__init__(self)
+        self.saddr = TCPTailPipe.get_saddr(host,port)
 
-    tpipe = TCPTailPipe()
-
-    room = Room()
-    
-    Xcnt = 1
-    Xavg = np.zeros(3)
-    Vavg = np.zeros(1)
-
-    while True:
-        try:
-            tpipe.connect(saddr)
-
-            while True:
-                try:
-                    msg = json.loads(tpipe.recvmsg())
-                    
-                    if msg['Type'] == 'TAG' and msg['Tag']:
-                        eui = msg['Tag']
-                        if eui in cfg.tags:
-                            tag = cfg.tags[eui]
-                            tag.update(msg['Coord'])
-                            room.update()
-                            print('TAG:{0} COORD:{1[0]:.3f},{1[1]:.3f},{1[2]:.3f}'.format(msg['Tag'],msg['Coord']))
-
-                except (ValueError,KeyError,AttributeError) as err:
-                    eprint('{}: {}'.format(err.__class__.__name__, err))
+    def run(self):
+        Xcnt = 1
+        Xavg = np.zeros(3)
+        Vavg = np.zeros(1)
         
-        except ConnectionError as err:
-            eprint('{}: {}'.format(err.__class__.__name__, err))
-            tpipe.close()
-            time.sleep(1.0)
+        tpipe = TCPTailPipe()
+        
+        self.running = True
+        
+        while self.running:
+            try:
+                tpipe.connect(self.saddr)
+                while self.running:
+                    try:
+                        msg = json.loads(tpipe.recvmsg())
+                        if msg['Type'] == 'TAG' and msg['Tag']:
+                            eui = msg['Tag']
+                            if eui in cfg.tags:
+                                tag = cfg.tags[eui]
+                                tag.update(msg['Coord'])
+                                print('TAG:{0} COORD:{1[0]:.3f},{1[1]:.3f},{1[2]:.3f}'.format(msg['Tag'],msg['Coord']))
 
-    tpipe.close()
+                    except (ValueError,KeyError,AttributeError) as err:
+                        eprint('{}: {}'.format(err.__class__.__name__, err))
+        
+            except ConnectionError as err:
+                eprint('{}: {}'.format(err.__class__.__name__, err))
+                tpipe.close()
+                time.sleep(1.0)
 
+        tpipe.close()
+
+    def stop(self):
+        self.running = False
+        
 
 def main():
 
@@ -186,10 +193,13 @@ def main():
     
     parser.add_argument('-s', '--server', type=str, default=cfg.server_host)
     parser.add_argument('-p', '--port', type=int, default=cfg.server_port)
+    parser.add_argument('-f', '--filter', type=int, default=cfg.coord_filter_len)
     parser.add_argument('-c', '--config', type=str, default=cfg.config_json)
     
     args = parser.parse_args()
 
+    cfg.coord_filter_len = args.filter
+    
     cfg.server_port  = args.port
     cfg.server_host  = args.server
     cfg.config_json  = args.config
@@ -198,8 +208,18 @@ def main():
         with open(cfg.config_json, 'r') as f:
             cfg.jconfig = json.load(f)
 
-    msg_loop(cfg.server_host, cfg.server_port)
-    
+    room = Room()
+    recv = Receiver(cfg.server_host, cfg.server_port)
+            
+    try:
+        recv.start()
+        while True:
+            room.update()
+
+    except KeyboardInterrupt:
+        eprint('Exiting...')
+
+    recv.stop()
 
 if __name__ == "__main__": main()
 

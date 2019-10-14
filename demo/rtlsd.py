@@ -35,8 +35,10 @@ class cfg():
     dw1000_ch    = 5
     dw1000_prf   = 64
     
-    server_addr  = ''
+    server_addr  = '::'
     server_port  = 8913
+
+    client_addr  = '::'
     client_port  = 9475
   
     tag_beacon_timer      = 0.010
@@ -49,7 +51,7 @@ class cfg():
     anchor_ranging_timer  = 0.010
     anchor_timeout_timer  = 0.050
 
-    lat_algo      = 'swls'
+    algo  = None
    
     max_dist      = 25.0
     max_ddoa      = 25.0
@@ -90,6 +92,7 @@ def woodoo(T):
     T62 = T[5] - T[1]
     ToF = (T41*T63 - T32*T54) / (T51+T62)
     DoF = (ToF / DW1000_CLOCK_HZ) * Cabs
+    dprint(4, 'woodoo: {}'.format(DoF))
     return DoF
 
 
@@ -220,16 +223,16 @@ class TRX():
     def is_rx(self):
         return (self.tinfo['lqi'] > 0)
 
-    def timestamp(self):
-        ##self.get_comp()
-        return self.ts
-
     def get_offset(self):
         if self.is_rx():
             return self.anchor.rx_offset()
         else:
             return self.anchor.tx_offset()
     
+    def timestamp(self):
+        ##self.get_comp()
+        return self.ts
+
     def get_comp(self):
         distance = dist(self.anchor.coord, self.src.coord)
         rflevel = RFCalcRxPower(cfg.dw1000_ch, distance, cfg.dw1000_tx)
@@ -237,12 +240,6 @@ class TRX():
         fplevel = self.get_fp_level()
         diff = fplevel - rflevel
         dprint(4, 'TRX::get_comp: SRC:{} ANCHOR:{} DIST:{:.3f}m RxLevel:{:.2f}dBm FpLevel:{:.2f}dBm RfLevel:{:.2f}dBm Diff:{:.2f}dBm'.format(self.src.name,self.anchor.name,distance,rxlevel,fplevel,rflevel,diff))
-
-    def get_ref_level(self):
-        if self.anchor.refok:
-            return self.get_rx_level()
-        else:
-            return -150
 
     def get_rx_level(self):
         POW = self.tinfo['cir_pwr']
@@ -278,11 +275,12 @@ class TRX():
 
 class Tag():
 
-    def __init__(self,server,eui,name,colour):
-        self.key = bytes.fromhex(eui)
-        self.eui = eui
-        self.name = name
+    def __init__(self, server, eui, name, algo=None, colour=None):
         self.server = server
+        self.eui = eui
+        self.key = bytes.fromhex(eui)
+        self.name = name
+        self.algo = algo
         self.beacon = None
         self.common = None
         self.coord = np.zeros(3)
@@ -317,24 +315,28 @@ class Tag():
         if dist(self.cfilt.avg(), npcoord) < cfg.max_change:
             self.coord = npcoord
 
-    def get_coord_avg(self):
-        return self.cfilt.avg()
-
     def laterate(self):
+        if cfg.algo:
+            algo = cfg.algo
+        else:
+            algo = self.algo
         try:
-            if cfg.lat_algo == 'wls':
+            if algo == 'wls':
                 self.laterate_wls()
-            elif cfg.lat_algo == 'swls':
+            elif algo == 'swls':
                 self.select_common()
                 self.laterate_swls()
-            elif cfg.lat_algo == 'rfswls':
+            elif algo == 'cwls':
                 self.select_common()
-                self.laterate_rfswls()
-            elif cfg.lat_algo == 'test':
+                self.laterate_cwls()
+            elif algo == 'test':
                 self.laterate_test()
+            else:
+                raise ValueError
             
             self.server.send_client_msg(Type='TAG', Tag=self.eui, Coord=self.coord.tolist())
-            dprint(1, 'Tag::laterate: {} LAT:{} AVG:{}'.format(self.name, self.coord, self.get_coord_avg()))
+
+            dprint(1, 'Tag::laterate: {} COORD:{}'.format(self.name, self.coord))
 
         except (KeyError,ValueError,AttributeError,LinAlgError) as err:
             errhandler('Tag::laterate', err)
@@ -344,6 +346,7 @@ class Tag():
         COORDS = []
         RANGES = []
         SIGMAS = []
+        dprint(3, ' * Beacon: {} {}'.format(self.beacon.name,self.beacon.eui))
         T = [ 0, 0, 0, 0, 0, 0 ]
         for (akey,anchor) in self.server.anchor_keys.items():
             if akey != bkey:
@@ -378,6 +381,8 @@ class Tag():
         COORDS = []
         RANGES = []
         SIGMAS = []
+        dprint(3, ' * Beacon: {} {}'.format(self.beacon.name,self.beacon.eui))
+        dprint(3, ' * Common: {} {}'.format(self.common.name,self.common.eui))
         T = [ 0, 0, 0, 0, 0, 0 ]
         for (akey,anchor) in self.server.anchor_keys.items():
             if akey not in (bkey,ckey):
@@ -407,14 +412,16 @@ class Tag():
         dprint(3, 'Tag::laterate_swls: {0} ({1[0]:.3f},{1[1]:.3f},{1[2]:.3f}) COND:{2:.0f}'.format(self.name,coord,cond))
         self.update_coord(coord)
     
-    def laterate_rfswls(self):
+    def laterate_cwls(self):
         ckey = self.common.key
         bkey = self.beacon.key
         COORDS = []
         RANGES = []
         LEVELS = []
-        T = [ 0, 0, 0, 0, 0, 0 ]
-        L = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 ]
+        dprint(3, ' * Beacon: {} {}'.format(self.beacon.name,self.beacon.eui))
+        dprint(3, ' * Common: {} {}'.format(self.common.name,self.common.eui))
+        T = [ None, None, None, None, None, None ]
+        R = [ None, None, None, None, None, None ]
         for (akey,anchor) in self.server.anchor_keys.items():
             if akey not in (bkey,ckey):
                 try:
@@ -424,12 +431,12 @@ class Tag():
                     T[3] = self.blinks[1][akey].timestamp()
                     T[4] = self.blinks[2][akey].timestamp()
                     T[5] = self.blinks[2][ckey].timestamp()
-                    L[0] = self.blinks[0][akey].get_fp_level()
-                    L[1] = self.blinks[0][ckey].get_fp_level()
-                    L[2] = self.blinks[1][ckey].get_fp_level()
-                    L[3] = self.blinks[1][akey].get_fp_level()
-                    L[4] = self.blinks[2][akey].get_fp_level()
-                    L[5] = self.blinks[2][ckey].get_fp_level()
+                    R[0] = self.blinks[0][akey].get_fp_level()
+                    R[1] = self.blinks[0][ckey].get_fp_level()
+                    R[2] = self.blinks[1][ckey].get_fp_level()
+                    R[3] = self.blinks[1][akey].get_fp_level()
+                    R[4] = self.blinks[2][akey].get_fp_level()
+                    R[5] = self.blinks[2][ckey].get_fp_level()
                     B = self.beacon.distance_to(self.common)
                     C = self.beacon.distance_to(anchor)
                     L = woodoo(T)
@@ -437,7 +444,7 @@ class Tag():
                     if -cfg.max_ddoa < D < cfg.max_ddoa:
                         COORDS.append(anchor.coord)
                         RANGES.append(D)
-                        LEVELS.append(L)
+                        LEVELS.append(R)
                         dprint(3, ' * Anchor: {} {} LAT:{:.3f} B:{:.3f} C:{:.3f} D:{:.3f}'.format(anchor.name,anchor.eui,L,B,C,D))
                     else:
                         dprint(3, ' * Anchor: {} {} D:{:.3f} BAD TDOA'.format(anchor.name,anchor.eui,D))
@@ -445,14 +452,13 @@ class Tag():
                     dprint(3, ' * Anchor: {} {} NOT FOUND'.format(anchor.name,anchor.eui))
                 except ZeroDivisionError:
                     dprint(3, ' * Anchor: {} {} BAD TIMES'.format(anchor.name,anchor.eui))
-        (coord,cond) = hyperlater_rfcomp(self.common.coord, COORDS, RANGES, LEVELS, delta=0.005)
-        dprint(3, 'Tag::laterate_rfswls: {0} ({1[0]:.3f},{1[1]:.3f},{1[2]:.3f}) COND:{2:.0f}'.format(self.name,coord,cond))
+        (coord,cond) = hyperlater_rflevel(self.beacon.coord, self.common.coord, COORDS, RANGES, LEVELS, delta=0.005)
+        dprint(3, 'Tag::laterate_cwls: {0} ({1[0]:.3f},{1[1]:.3f},{1[2]:.3f}) COND:{2:.0f}'.format(self.name,coord,cond))
         self.update_coord(coord)
     
     def laterate_test(self):
         ##
         ## Add algorithm here
-        ## coord = ...the magic function...
         ##
         dprint(3, 'Tag::laterate_test: {0} ({1[0]:.3f},{1[1]:.3f},{1[2]:.3f})'.format(self.name,coord))
         self.update_coord(coord)
@@ -545,7 +551,7 @@ class Tag():
 
     def add_ranging(self,trx):
         if self.ranging:
-            dprint(4, 'Tag::add_ranging: ANC:{} Rx:{:.1f}dBm'.format(trx.anchor.name, trx.get_rx_level()))
+            dprint(4, 'Tag::add_ranging: ANC:{} Rx:{:.1f}dBm'.format(trx.anchor.eui, trx.get_rx_level()))
             self.blinks[2][trx.key] = trx
             self.ranging_timer.arm()
 
@@ -683,7 +689,7 @@ class Client():
 
     def __init__(self, pipe):
         self.pipe = pipe
-        self.key  = self.pipe.remote[0]
+        self.key  = self.pipe.remote
         self.fd   = self.pipe.sock.fileno()
 
     def sendmsg(self, **args):
@@ -838,8 +844,10 @@ class Server():
             
     def socket_loop(self):
 
+        saddr = TCPTailPipe.get_saddr(cfg.client_addr, cfg.client_port)
+        
         tpipe = TCPTailPipe()
-        tpipe.listen(('', cfg.client_port, 0, 0))
+        tpipe.listen(saddr)
     
         self.sockets.register(tpipe.sock, select.POLLIN)
 
@@ -874,7 +882,7 @@ def main():
     parser = argparse.ArgumentParser(description="Tail Location server")
     
     parser.add_argument('-D', '--debug', action='count', default=cfg.debug)
-    parser.add_argument('-A', '--algo', type=str, default=cfg.lat_algo)
+    parser.add_argument('-A', '--algo', type=str, default=None)
     parser.add_argument('-c', '--config', type=str, default=cfg.config_json)
     parser.add_argument('--force-beacon', type=str, default=None)
     parser.add_argument('--force-common', type=str, default=None)
@@ -888,7 +896,7 @@ def main():
 
     cfg.config_json = args.config
 
-    cfg.lat_algo = args.algo
+    cfg.algo = args.algo
     
     cfg.random_beacon = args.random_beacon
     cfg.random_common = args.random_common

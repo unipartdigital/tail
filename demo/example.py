@@ -19,7 +19,7 @@ def eprint(*args, **kwargs):
 
 def msg_loop(host,port):
 
-    saddr = socket.getaddrinfo(host, port, socket.AF_INET6)[0][4]
+    saddr = TCPTailPipe.get_saddr(host, port)
 
     tpipe = TCPTailPipe()
     tpipe.connect(saddr)
@@ -28,7 +28,7 @@ def msg_loop(host,port):
         try:
             msg = json.loads(tpipe.recvmsg())
             if msg['Type'] == 'TAG':
-                print('({0[0]:.3f},{0[1]:.3f},{0[2]:.3f})'.format(msg['Coord']))
+                print('{0} ({1[0]:.3f},{1[1]:.3f},{1[2]:.3f})'.format(msg['Tag'], msg['Coord']))
 
         except (ValueError,KeyError,AttributeError) as err:
             eprint('{}: {}'.format(err.__class__.__name__, err))

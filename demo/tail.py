@@ -87,25 +87,33 @@ class TailPipe:
 
 class TCPTailPipe(TailPipe):
 
-    def connect(self, remote):
-        if self.sock is None:
-            self.sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
-            self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-        self.sock.connect(remote)
-        self.remote = remote
+    def get_saddr(host,port):
+        addrs = socket.getaddrinfo(host, port)
+        for addr in addrs:
+            if addr[1] == socket.SOCK_STREAM:
+                if addr[0] in (socket.AF_INET, socket.AF_INET6):
+                    return addr
+        return None
 
-    def listen(self, local):
+    def connect(self, saddr):
         if self.sock is None:
-            self.sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+            self.sock = socket.socket(saddr[0], saddr[1])
             self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-        self.local = local
-        self.sock.bind(local)
+        self.sock.connect(saddr[4])
+        self.remote = saddr[4]
+
+    def listen(self, saddr):
+        if self.sock is None:
+            self.sock = socket.socket(saddr[0], saddr[1])
+            self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.local = saddr[4]
+        self.sock.bind(saddr[4])
         self.sock.listen()
 
     def accept(self):
         (csock,caddr) = self.sock.accept()
+        csock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         pipe = TCPTailPipe(csock)
         pipe.local = self.local
         pipe.remote = caddr
@@ -114,12 +122,21 @@ class TCPTailPipe(TailPipe):
         
 class UDPTailPipe(TailPipe):
 
-    def connect(self, remote):
+    def get_saddr(host,port):
+        addrs = socket.getaddrinfo(host, port)
+        for addr in addrs:
+            if addr[1] == socket.SOCK_DGRAM:
+                if addr[0] in (socket.AF_INET, socket.AF_INET6):
+                    return addr
+        return None
+
+    def connect(self, saddr):
         if self.sock is None:
-            self.sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+            self.sock = socket.socket(saddr[0], saddr[1])
             self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.sock.connect(remote)
-        self.remote = remote
+            self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.sock.connect(saddr[4])
+        self.remote = saddr[4]
 
     def listen(self, local):
         if self.sock is None:

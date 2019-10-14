@@ -86,19 +86,28 @@
     "TAGS" :
     [
         {
-            "eui"    : "70b3d5b1e0000128",
-            "name"   : "T0128",
-            "colour" : "#0000F0FF"
-        },
-        {
             "eui"    : "70b3d5b1e0000129",
             "name"   : "T0129",
-            "colour" : "#F00000FF"
+            "colour" : "#F00000FF",
+            "algo"   : "test"
         },
         {
             "eui"    : "70b3d5b1e000012c",
             "name"   : "T012C",
-            "colour" : "#00F000FF"
+            "colour" : "#00F000FF",
+            "algo"   : "wls"
+        },
+        {
+            "eui"    : "70b3d5b1e000012d",
+            "name"   : "T012D",
+            "colour" : "#0000F0FF",
+            "algo"   : "swls"
+        },
+        {
+            "eui"    : "70b3d5b1e000012e",
+            "name"   : "T012E",
+            "colour" : "#F0F000FF",
+            "algo"   : "cwls"
         }
     ]
 }
