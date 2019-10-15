@@ -19,6 +19,7 @@
     "react-dom": "^16.8.6",
     "react-easy-panzoom": "^0.4.0",
     "react-router-dom": "^5.1.2",
+    "react-use-websocket": "^0.9.8",
     "reactstrap": "^8.0.1",
     "styled-components": "^4.3.2"
   },

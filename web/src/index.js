@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
 import {
   BrowserRouter as Router,
@@ -10,18 +10,25 @@ import {
 import {
   Collapse,
   Container,
+  Modal,
+  ModalBody,
   Nav,
   Navbar,
   NavbarBrand,
   NavbarToggler,
   NavItem,
   NavLink,
+  Spinner,
 } from 'reactstrap';
 import { PanZoom } from 'react-easy-panzoom';
+import useWebSocket from 'react-use-websocket';
 import styled, { keyframes } from 'styled-components';
 import floorplan from './floorplan.svg';
 import logo from './logo.svg';
 import 'bootstrap/dist/css/bootstrap.css';
+
+var ws_url = new URL('/tags', window.location.href);
+ws_url.protocol = ws_url.protocol.replace('http', 'ws');
 
 const LogoImage = styled.img.attrs(props => ({
   className: "mr-2",
@@ -41,10 +48,7 @@ const tagAnimation = keyframes`
   }
 `;
 
-function TagDot(props) {
-
-  const { x, y, r, color, ...other } = props;
-
+function TagDot({ x, y, r, color, ...other }) {
   return (
     <circle cx={x} cy={y} r={r} fill={color} {...other}>
       <animate attributeType="XML" attributeName="r" from={r} to={r * 0.8}
@@ -55,41 +59,33 @@ function TagDot(props) {
   );
 }
 
-class TagMap extends React.Component {
+function TagMap({tags}) {
 
-  constructor(props) {
-    super(props);
-    this.panzoom = React.createRef();
-    this.floorplan = React.createRef();
-    this.onFloorplanLoad = this.onFloorplanLoad.bind(this);
-  }
+  const panzoomRef = useRef();
+  const floorplanRef = useRef();
 
-  onFloorplanLoad() {
-    this.panzoom.current.autoCenter();
-  }
+  const onFloorplanLoad = () => {
+    panzoomRef.current.autoCenter();
+  };
 
-  render() {
+  let tagdots = Object.entries(tags).map(([id, tag]) => (
+    <TagDot key={id} id={id} x={tag.x} y={tag.y} r={tag.r} color={tag.color}/>
+  ));
 
-    let tagdots = this.props.tags.map((tag) => (
-      <TagDot key={tag.id} id={tag.id} x={tag.x} y={tag.y} r={tag.r}
-              color={tag.color}/>
-    ));
-
-    return (
-      <PanZoom ref={this.panzoom}>
-        <svg viewBox="0 0 1010 830">
-          {tagdots}
-          <image ref={this.floorplan} width="100%" height="100%"
-                 xlinkHref={floorplan} onLoad={this.onFloorplanLoad}/>
-        </svg>
-      </PanZoom>
-    );
-  }
+  return (
+    <PanZoom ref={panzoomRef}>
+      <svg viewBox="0 0 1010 830">
+        {tagdots}
+        <image ref={floorplanRef} width="100%" height="100%"
+               xlinkHref={floorplan} onLoad={onFloorplanLoad}/>
+      </svg>
+    </PanZoom>
+  );
 }
 
-function TagList(props) {
+function TagList({tags}) {
 
-  let tagrows = props.tags.map((tag) => (
+  let tagrows = tags.map((tag) => (
     <tr key={tag.id}>
       <td>{tag.id}</td>
       <td>{tag.name}</td>
@@ -144,28 +140,26 @@ function Navigation() {
 
 function App() {
 
-  const tags = [
-    {
-      "id": "70b3d5b1e0000139",
-      "name": "YORK-871612",
-      "x": 500,
-      "y": 400,
-      "r": 15,
-      "color": "orange",
-    },
-    {
-      "id": "70b3d5b1e0000145",
-      "name": "YORK-456198",
-      "x": 200,
-      "y": 300,
-      "r": 15,
-      "color": "blue",
-    },
-  ];
+  const [tags, setTags] = useState({});
+  const [sendMessage, lastMessage, readyState] = useWebSocket(ws_url.href);
+
+  useEffect(() => {
+    if (lastMessage !== null) {
+      const newTags = JSON.parse(lastMessage.data);
+      setTags(prevTags => ({...prevTags, ...newTags}));
+    }
+  }, [lastMessage]);
 
   return (
     <div>
       <Router>
+        <Modal isOpen={readyState != 1}>
+          <ModalBody>
+            <Spinner size="sm"/>
+            {' '}
+            Connecting...
+          </ModalBody>
+        </Modal>
         <Navigation/>
         <Container>
           <Switch>
