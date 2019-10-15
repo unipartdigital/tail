@@ -68,8 +68,8 @@ function TagMap({tags}) {
     panzoomRef.current.autoCenter();
   };
 
-  let tagdots = Object.entries(tags).map(([id, tag]) => (
-    <TagDot key={id} id={id} x={tag.x} y={tag.y} r={tag.r} color={tag.color}/>
+  let tagdots = Object.entries(tags).map(([id, {x, y, r, color}]) => (
+    <TagDot key={id} id={id} x={x} y={y} r={r} color={color}/>
   ));
 
   return (
@@ -85,12 +85,12 @@ function TagMap({tags}) {
 
 function TagList({tags}) {
 
-  let tagrows = tags.map((tag) => (
-    <tr key={tag.id}>
-      <td>{tag.id}</td>
-      <td>{tag.name}</td>
-      <td>{tag.x}</td>
-      <td>{tag.y}</td>
+  let tagrows = Object.entries(tags).map(([id, {name, x, y}]) => (
+    <tr key={id}>
+      <td>{id}</td>
+      <td>{name}</td>
+      <td>{x}</td>
+      <td>{y}</td>
     </tr>
   ));
 
