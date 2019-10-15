@@ -8,7 +8,7 @@ After=network.target
 Type=simple
 Restart=always
 RestartSec=1
-ExecStart=/sbin/anchord -s resistor.qs.unipart.io
+ExecStart=/sbin/anchord
 
 [Install]
 WantedBy=multi-user.target

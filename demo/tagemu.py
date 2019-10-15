@@ -8,7 +8,6 @@ import socket
 import select
 import argparse
 import netifaces
-import configparser
 
 from tail import *
 
@@ -34,8 +33,6 @@ class cfg():
     blink_interval  = 1.000
     blink_count     = None
     
-CONFIG_FILE = '/etc/tail.conf'
-
 
 def eprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
@@ -99,15 +96,6 @@ def socket_loop():
 
 def main():
 
-    if False: #os.path.exists(CONFIG_FILE):
-        try:
-            config = configparser.ConfigParser()
-            config.read(CONFIG_FILE)
-            for key,val in config['tagemu'].items():
-                setattr(cfg,key,val)
-        except Exception as err:
-            eprint('Could not read config file {}: {}'.format(CONFIG_FILE, err))
-    
     parser = argparse.ArgumentParser(description="uTrack Connector daemon")
 
     parser.add_argument('-D', '--debug', action='count', default=cfg.debug)

@@ -11,7 +11,6 @@ import select
 import socket
 import netifaces
 import argparse
-import configparser
 
 from tail import *
 
@@ -26,8 +25,9 @@ class cfg():
     dw1000_prf      = 64
     dw1000_rate     = 850
     dw1000_txpsr    = 1024
-    dw1000_power    = 0x88888888
     dw1000_smart    = 0
+    dw1000_power    = '0x88888888'
+    dw1000_txlevel  = -12.3
 
     if_name         = 'wpan0'
 
@@ -37,7 +37,7 @@ class cfg():
     server_host     = 'localhost'
     server_port     = 8913
 
-CONFIG_FILE = '/etc/tail.conf'
+    config_json     = '/etc/tail.json'
 
 
 def eprint(*args, **kwargs):
@@ -161,38 +161,70 @@ def socket_loop():
     rsock.close()
 
 
-
 def main():
 
-    if False: ##os.path.exists(CONFIG_FILE):
-        try:
-            config = configparser.ConfigParser()
-            config.read(CONFIG_FILE)
-            for key,val in config['anchor'].items():
-                setattr(cfg,key,val)
-        except Exception as err:
-            eprint('Could not read config file {}: {}'.format(CONFIG_FILE, err))
-    
     parser = argparse.ArgumentParser(description="Tail anchor daemon")
 
-    parser.add_argument('-D', '--debug', action='count', default=cfg.debug)
-    parser.add_argument('-s', '--server', type=str, default=cfg.server_host)
-    parser.add_argument('-p', '--port', type=int, default=cfg.server_port)
-    parser.add_argument('-I', '--interface', type=str, default=cfg.if_name)
-    parser.add_argument('--profile', type=str, default=cfg.dw1000_profile)
-    parser.add_argument('--channel', type=int, default=cfg.dw1000_channel)
-    parser.add_argument('--pcode', type=int, default=cfg.dw1000_pcode)
-    parser.add_argument('--prf', type=int, default=cfg.dw1000_prf)
-    parser.add_argument('--rate', type=int, default=cfg.dw1000_rate)
-    parser.add_argument('--txpsr', type=int, default=cfg.dw1000_txpsr)
-    parser.add_argument('--power', type=str, default=cfg.dw1000_power)
+    parser.add_argument('-D', '--debug', action='count', default=0)
+    parser.add_argument('-I', '--interface', type=str, default=None)
+    parser.add_argument('-s', '--server', type=str, default=None)
+    parser.add_argument('-p', '--port', type=int, default=None)
+    parser.add_argument('-c', '--config', type=str, default=None)
+    parser.add_argument('--profile', type=str, default=None)
+    parser.add_argument('--channel', type=int, default=None)
+    parser.add_argument('--pcode', type=int, default=None)
+    parser.add_argument('--prf', type=int, default=None)
+    parser.add_argument('--rate', type=int, default=None)
+    parser.add_argument('--txpsr', type=int, default=None)
+    parser.add_argument('--power', type=str, default=None)
     
     args = parser.parse_args()
 
-    cfg.debug = args.debug
+    if args.config:
+        cfg.config_json = args.config
+
+    with open(cfg.config_json, 'r') as f:
+        cfg.config = json.load(f)
+
+    for (key,value) in cfg.config.get('ANCHORD').items():
+        try:
+            getattr(cfg,key)
+            setattr(cfg,key,value)
+        except AttributeError:
+            eprint('Invalid ANCHORD config {}: {}'.format(key,value))
+            
+    for (key,value) in cfg.config.get('DW1000').items():
+        try:
+            getattr(cfg,key)
+            setattr(cfg,key,value)
+        except AttributeError:
+            eprint('Invalid DW1000 config {}: {}'.format(key,value))
+
+    if args.debug:
+        cfg.debug = args.debug
+    if args.server:
+        cfg.server_host = args.server
+    if args.port:
+        cfg.server_port = args.port
+    if args.interface:
+        cfg.if_name = args.interface
+    if args.profile:
+        cfg.dw1000_profile = args.profile
+    if args.channel:
+        cfg.dw1000_channel = args.channel
+    if args.pcode:
+        cfg.dw1000_pcode = args.pcode
+    if args.prf:
+        cfg.dw1000_prf = args.prf
+    if args.txpsr:
+        cfg.dw1000_txpsr = args.txpsr
+    if args.power:
+        cfg.dw1000_power = args.power
+    if args.rate:
+        cfg.dw1000_rate = args.rate
+    
     WPANFrame.verbosity = max((0, cfg.debug - 2))
 
-    cfg.if_name  = args.interface
     cfg.if_bind  = (cfg.if_name, 0)
 
     addrs = netifaces.ifaddresses(cfg.if_name).get(netifaces.AF_PACKET)
@@ -201,19 +233,9 @@ def main():
 
     WPANFrame.set_ifaddr(cfg.if_addr)
 
-    cfg.server_host    = args.server
-    cfg.server_port    = args.port
-    cfg.server_raddr   = socket.getaddrinfo(cfg.server_host, cfg.server_port, socket.AF_INET6)[0][4]
-    cfg.anchor_laddr   = (cfg.anchor_addr, cfg.anchor_port, 0, 0)
+    cfg.server_raddr = socket.getaddrinfo(cfg.server_host, cfg.server_port, socket.AF_INET6)[0][4]
+    cfg.anchor_laddr = (cfg.anchor_addr, cfg.anchor_port, 0, 0)
 
-    cfg.dw1000_profile = args.profile
-    cfg.dw1000_channel = args.channel
-    cfg.dw1000_pcode   = args.pcode
-    cfg.dw1000_prf     = args.prf
-    cfg.dw1000_txpsr   = args.txpsr
-    cfg.dw1000_power   = args.power
-    cfg.dw1000_rate    = args.rate
-    
     dprint(1, 'Tail Anchor daemon starting...')
 
     try:

@@ -14,7 +14,6 @@ import socket
 import select
 import logging
 import argparse
-import configparser
 import traceback
 
 import numpy as np
@@ -31,15 +30,21 @@ class cfg():
 
     debug = 0
 
-    dw1000_tx    = -12.3
-    dw1000_ch    = 5
-    dw1000_prf   = 64
+    dw1000_profile  = None
+    dw1000_channel  = 5
+    dw1000_pcode    = 12
+    dw1000_prf      = 64
+    dw1000_rate     = 850
+    dw1000_txpsr    = 1024
+    dw1000_smart    = 0
+    dw1000_power    = '0x88888888'
+    dw1000_txlevel  = -12.3
     
-    server_addr  = '::'
-    server_port  = 8913
+    anchor_addr     = '::'
+    anchor_port     = 8913
 
-    client_addr  = '::'
-    client_port  = 9475
+    server_addr     = '::'
+    server_port     = 9475
   
     tag_beacon_timer      = 0.010
     tag_ranging_timer     = 0.010
@@ -51,24 +56,23 @@ class cfg():
     anchor_ranging_timer  = 0.010
     anchor_timeout_timer  = 0.050
 
-    algo  = None
+    default_algo    = 'wls'
+    force_algo      = None
    
-    max_dist      = 25.0
-    max_ddoa      = 25.0
-    max_change    = 5.0
+    max_dist        = 25.0
+    max_ddoa        = 25.0
+    max_change      = 5.0
     
-    filter_len    = 100
+    filter_len      = 100
     
-    force_beacon  = None
-    force_common  = None
-    random_beacon = False
-    random_common = False
+    force_beacon    = None
+    force_common    = None
+    random_beacon   = False
+    random_common   = False
 
-    sleep_min     = 0.0005
+    sleep_min       = 0.0005
 
-    config_json   = '/etc/tail.json'
-
-CONFIG_FILE = '/etc/tail.conf'
+    config_json     = '/etc/tail.json'
 
 
 def eprint(*args, **kwargs):
@@ -235,7 +239,7 @@ class TRX():
 
     def get_comp(self):
         distance = dist(self.anchor.coord, self.src.coord)
-        rflevel = RFCalcRxPower(cfg.dw1000_ch, distance, cfg.dw1000_tx)
+        rflevel = RFCalcRxPower(cfg.dw1000_channel, distance, cfg.dw1000_txlevel)
         rxlevel = self.get_rx_level()
         fplevel = self.get_fp_level()
         diff = fplevel - rflevel
@@ -275,7 +279,7 @@ class TRX():
 
 class Tag():
 
-    def __init__(self, server, eui, name, algo=None, colour=None):
+    def __init__(self, server, eui, name, colour=None, algo=cfg.default_algo):
         self.server = server
         self.eui = eui
         self.key = bytes.fromhex(eui)
@@ -307,28 +311,24 @@ class Tag():
     def distance_to(self, obj):
         return dist(self.coord, obj.coord)
 
-    def distance_avg_to(self, obj):
-        return dist(self.cfilt.avg(), obj.coord)
-
     def update_coord(self, npcoord):
         self.cfilt.update(npcoord)
         if dist(self.cfilt.avg(), npcoord) < cfg.max_change:
             self.coord = npcoord
 
     def laterate(self):
-        if cfg.algo:
-            algo = cfg.algo
+        if cfg.force_algo:
+            algo = cfg.force_algo
         else:
             algo = self.algo
         try:
             if algo == 'wls':
                 self.laterate_wls()
+            elif algo == 'wls2d':
+                self.laterate_wls2d()
             elif algo == 'swls':
                 self.select_common()
                 self.laterate_swls()
-            elif algo == 'cwls':
-                self.select_common()
-                self.laterate_cwls()
             elif algo == 'test':
                 self.laterate_test()
             else:
@@ -342,11 +342,11 @@ class Tag():
             errhandler('Tag::laterate', err)
     
     def laterate_wls(self):
+        dprint(3, ' * Beacon: {} {}'.format(self.beacon.name,self.beacon.eui))
         bkey = self.beacon.key
         COORDS = []
         RANGES = []
         SIGMAS = []
-        dprint(3, ' * Beacon: {} {}'.format(self.beacon.name,self.beacon.eui))
         T = [ 0, 0, 0, 0, 0, 0 ]
         for (akey,anchor) in self.server.anchor_keys.items():
             if akey != bkey:
@@ -375,14 +375,48 @@ class Tag():
         dprint(3, 'Tag::laterate_wls: {0} ({1[0]:.3f},{1[1]:.3f},{1[2]:.3f}) COND:{2:.0f}'.format(self.name,coord,cond))
         self.update_coord(coord)
         
+    def laterate_wls2d(self):
+        dprint(3, ' * Beacon: {} {}'.format(self.beacon.name,self.beacon.eui))
+        bkey = self.beacon.key
+        COORDS = []
+        RANGES = []
+        SIGMAS = []
+        T = [ 0, 0, 0, 0, 0, 0 ]
+        for (akey,anchor) in self.server.anchor_keys.items():
+            if akey != bkey:
+                try:
+                    T[0] = self.blinks[0][akey].timestamp()
+                    T[1] = self.blinks[0][bkey].timestamp()
+                    T[2] = self.blinks[1][bkey].timestamp()
+                    T[3] = self.blinks[1][akey].timestamp()
+                    T[4] = self.blinks[2][akey].timestamp()
+                    T[5] = self.blinks[2][bkey].timestamp()
+                    C = self.beacon.distance_to(anchor)
+                    L = woodoo(T)
+                    D = C - 2*L
+                    if -cfg.max_ddoa < D < cfg.max_ddoa:
+                        COORDS.append(anchor.coord)
+                        RANGES.append(D)
+                        SIGMAS.append(0.1)
+                        dprint(3, ' * Anchor: {} {} LAT:{:.3f} C:{:.3f} D:{:.3f}'.format(anchor.name,anchor.eui,L,C,D))
+                    else:
+                        dprint(3, ' * Anchor: {} {} D:{:.3f} BAD TDOA'.format(anchor.name,anchor.eui,D))
+                except KeyError:
+                    dprint(3, ' * Anchor: {} {} NOT FOUND'.format(anchor.name,anchor.eui))
+                except ZeroDivisionError:
+                    dprint(3, ' * Anchor: {} {} BAD TIMES'.format(anchor.name,anchor.eui))
+        (coord,cond) = hyperlater2D(self.beacon.coord, COORDS, RANGES, SIGMAS, delta=0.01)
+        dprint(3, 'Tag::laterate_wls2d: {0} ({1[0]:.3f},{1[1]:.3f},{1[2]:.3f}) COND:{2:.0f}'.format(self.name,coord,cond))
+        self.update_coord(coord)
+        
     def laterate_swls(self):
+        dprint(3, ' * Beacon: {} {}'.format(self.beacon.name,self.beacon.eui))
+        dprint(3, ' * Common: {} {}'.format(self.common.name,self.common.eui))
         ckey = self.common.key
         bkey = self.beacon.key
         COORDS = []
         RANGES = []
         SIGMAS = []
-        dprint(3, ' * Beacon: {} {}'.format(self.beacon.name,self.beacon.eui))
-        dprint(3, ' * Common: {} {}'.format(self.common.name,self.common.eui))
         T = [ 0, 0, 0, 0, 0, 0 ]
         for (akey,anchor) in self.server.anchor_keys.items():
             if akey not in (bkey,ckey):
@@ -412,60 +446,17 @@ class Tag():
         dprint(3, 'Tag::laterate_swls: {0} ({1[0]:.3f},{1[1]:.3f},{1[2]:.3f}) COND:{2:.0f}'.format(self.name,coord,cond))
         self.update_coord(coord)
     
-    def laterate_cwls(self):
-        ckey = self.common.key
-        bkey = self.beacon.key
-        COORDS = []
-        RANGES = []
-        LEVELS = []
-        dprint(3, ' * Beacon: {} {}'.format(self.beacon.name,self.beacon.eui))
-        dprint(3, ' * Common: {} {}'.format(self.common.name,self.common.eui))
-        T = [ None, None, None, None, None, None ]
-        R = [ None, None, None, None, None, None ]
-        for (akey,anchor) in self.server.anchor_keys.items():
-            if akey not in (bkey,ckey):
-                try:
-                    T[0] = self.blinks[0][akey].timestamp()
-                    T[1] = self.blinks[0][ckey].timestamp()
-                    T[2] = self.blinks[1][ckey].timestamp()
-                    T[3] = self.blinks[1][akey].timestamp()
-                    T[4] = self.blinks[2][akey].timestamp()
-                    T[5] = self.blinks[2][ckey].timestamp()
-                    R[0] = self.blinks[0][akey].get_fp_level()
-                    R[1] = self.blinks[0][ckey].get_fp_level()
-                    R[2] = self.blinks[1][ckey].get_fp_level()
-                    R[3] = self.blinks[1][akey].get_fp_level()
-                    R[4] = self.blinks[2][akey].get_fp_level()
-                    R[5] = self.blinks[2][ckey].get_fp_level()
-                    B = self.beacon.distance_to(self.common)
-                    C = self.beacon.distance_to(anchor)
-                    L = woodoo(T)
-                    D = (C - B) - 2*L
-                    if -cfg.max_ddoa < D < cfg.max_ddoa:
-                        COORDS.append(anchor.coord)
-                        RANGES.append(D)
-                        LEVELS.append(R)
-                        dprint(3, ' * Anchor: {} {} LAT:{:.3f} B:{:.3f} C:{:.3f} D:{:.3f}'.format(anchor.name,anchor.eui,L,B,C,D))
-                    else:
-                        dprint(3, ' * Anchor: {} {} D:{:.3f} BAD TDOA'.format(anchor.name,anchor.eui,D))
-                except KeyError:
-                    dprint(3, ' * Anchor: {} {} NOT FOUND'.format(anchor.name,anchor.eui))
-                except ZeroDivisionError:
-                    dprint(3, ' * Anchor: {} {} BAD TIMES'.format(anchor.name,anchor.eui))
-        (coord,cond) = hyperlater_rflevel(self.beacon.coord, self.common.coord, COORDS, RANGES, LEVELS, delta=0.005)
-        dprint(3, 'Tag::laterate_cwls: {0} ({1[0]:.3f},{1[1]:.3f},{1[2]:.3f}) COND:{2:.0f}'.format(self.name,coord,cond))
-        self.update_coord(coord)
-    
     def laterate_test(self):
         ##
         ## Add algorithm here
         ##
+        coord = np.zeros(3)
         dprint(3, 'Tag::laterate_test: {0} ({1[0]:.3f},{1[1]:.3f},{1[2]:.3f})'.format(self.name,coord))
         self.update_coord(coord)
         
     def select_beacon(self):
         if cfg.force_beacon:
-            self.beacon = self.server.get_anchor(cfg.force_beacon)
+            self.beacon = cfg.force_beacon
             self.beacon.register_tag(self)
             dprint(3, 'Tag::select_beacon: FORCED Tag:{} => Anchor:{}'.format(self.name, self.beacon.name))
             return
@@ -492,7 +483,7 @@ class Tag():
     
     def select_common(self):
         if cfg.force_common:
-            self.common = self.server.get_anchor(cfg.force_common)
+            self.common = cfg.force_common
             dprint(3, 'Tag::select_common: FORCED Tag:{} => Anchor:{}'.format(self.name, self.common.name))
             return
         if cfg.random_common:
@@ -705,7 +696,7 @@ class Client():
         
 class Server():
 
-    def __init__(self, addr=cfg.server_addr, port=cfg.server_port):
+    def __init__(self, addr=cfg.anchor_addr, port=cfg.anchor_port):
         self.laddr = (addr,port,0,0)
         self.sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -838,13 +829,15 @@ class Server():
             else:
                 raise ValueError
                 
+        except KeyError as err:
+            pass
         except Exception as err:
             errhandler('recv_anchor_msg: Unable to decode', err)
 
             
     def socket_loop(self):
 
-        saddr = TCPTailPipe.get_saddr(cfg.client_addr, cfg.client_port)
+        saddr = TCPTailPipe.get_saddr(cfg.server_addr, cfg.server_port)
         
         tpipe = TCPTailPipe()
         tpipe.listen(saddr)
@@ -870,58 +863,74 @@ class Server():
 
 def main():
 
-    if False: ##os.path.exists(CONFIG_FILE):
-        try:
-            config = configparser.ConfigParser()
-            config.read(CONFIG_FILE)
-            for key,val in config['server'].items():
-                setattr(cfg,key,val)
-        except Exception as err:
-            eprint('Could not read config file {}: {}'.format(CONFIG_FILE, err))
-    
     parser = argparse.ArgumentParser(description="Tail Location server")
     
-    parser.add_argument('-D', '--debug', action='count', default=cfg.debug)
+    parser.add_argument('-D', '--debug', action='count', default=0)
     parser.add_argument('-A', '--algo', type=str, default=None)
-    parser.add_argument('-c', '--config', type=str, default=cfg.config_json)
+    parser.add_argument('-c', '--config', type=str, default=None)
     parser.add_argument('--force-beacon', type=str, default=None)
     parser.add_argument('--force-common', type=str, default=None)
     parser.add_argument('--random-beacon', action='store_true', default=False)
     parser.add_argument('--random-common', action='store_true', default=False)
     
     args = parser.parse_args()
-    
-    cfg.debug = args.debug
-    WPANFrame.verbosity = max((0, cfg.debug - 1))
 
-    cfg.config_json = args.config
-
-    cfg.algo = args.algo
-    
-    cfg.random_beacon = args.random_beacon
-    cfg.random_common = args.random_common
-
-    server = Server()
+    if args.config:
+        cfg.config_json = args.config
 
     with open(cfg.config_json, 'r') as f:
         cfg.config = json.load(f)
+
+    for (key,value) in cfg.config.get('RTLSD').items():
+        try:
+            getattr(cfg,key)
+            setattr(cfg,key,value)
+        except AttributeError:
+            eprint('Invalid RTLSD config {}: {}'.format(key,value))
+
+    for (key,value) in cfg.config.get('DW1000').items():
+        try:
+            getattr(cfg,key)
+            setattr(cfg,key,value)
+        except AttributeError:
+            eprint('Invalid DW1000 config {}: {}'.format(key,value))
     
+    if args.debug:
+        cfg.debug = args.debug
+    if args.algo:
+        cfg.force_algo = args.algo
+    if args.force_beacon:
+        cfg.force_beacon = args.force_beacon
+    if args.force_common:
+        cfg.force_common = args.force_common
+    if args.random_beacon:
+        cfg.random_beacon = args.random_beacon
+    if args.random_common:
+        cfg.random_common = args.random_common
+
+    WPANFrame.verbosity = max((0, cfg.debug - 1))
+
+    server = Server()
+
     for arg in cfg.config.get('ANCHORS'):
         server.add_anchor(arg)
 
     for arg in cfg.config.get('TAGS'):
         server.add_tag(arg)
 
-    if args.force_beacon:
+    if cfg.force_beacon:
         for (key,anchor) in server.anchor_keys.items():
-            if anchor.name == args.force_beacon:
-                cfg.force_beacon = key
-    
-    if args.force_common:
+            if anchor.name == cfg.force_beacon:
+                cfg.force_beacon = anchor
+                break
+    if cfg.force_common:
         for (key,anchor) in server.anchor_keys.items():
-            if anchor.name == args.force_common:
-                cfg.force_common = key
+            if anchor.name == cfg.force_common:
+                cfg.force_common = anchor
+                break
     
+    dprint(1, 'Tail RTLS daemon starting...')
+
     try:
         server.socket_loop()
 

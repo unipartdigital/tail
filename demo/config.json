@@ -1,4 +1,43 @@
 {
+    "DW1000" :
+    {
+	"dw1000_profile"	: null,
+	"dw1000_channel"	: 5,
+	"dw1000_pcode"		: 12,
+	"dw1000_prf"		: 64,
+	"dw1000_rate"		: 850,
+	"dw1000_txpsr"		: 1024,
+	"dw1000_smart"		: 0,
+	"dw1000_power"		: "0x88888888",
+	"dw1000_txlevel"	: -12.3
+    },
+
+    "RTLSD" :
+    {
+	"anchor_port"		: 8913,
+	"server_port"		: 9475,
+
+	"default_algo"		: "wls",
+
+	"max_dist"		: 20.0,
+	"max_ddoa"		: 20.0,
+	"max_change"		: 5.0
+    },
+
+    "ANCHORD" :
+    {
+	"server_host"		: "resistor.qs.unipart.io",
+	"server_port"		: 8913,
+	"anchor_port"		: 8912
+    },
+
+    "DEMO" :
+    {
+	"title"			: "Tail Demo Room",
+	"server_host"		: "resistor.qs.unipart.io",
+	"server_port"		: 9475
+    },
+
     "ANCHORS" :
     [
         {
@@ -82,14 +121,14 @@
             "ref"   : true
         }
     ],
-    
+
     "TAGS" :
     [
         {
             "eui"    : "70b3d5b1e0000129",
             "name"   : "T0129",
             "colour" : "#F00000FF",
-            "algo"   : "test"
+            "algo"   : "wls2d"
         },
         {
             "eui"    : "70b3d5b1e000012c",
@@ -107,7 +146,7 @@
             "eui"    : "70b3d5b1e000012e",
             "name"   : "T012E",
             "colour" : "#F0F000FF",
-            "algo"   : "cwls"
+            "algo"   : "test"
         }
     ]
 }

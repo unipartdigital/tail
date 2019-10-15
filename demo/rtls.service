@@ -8,7 +8,7 @@ After=systemd-networkd-wait-online.service
 Type=simple
 Restart=always
 RestartSec=1
-ExecStart=/sbin/rtlsd --force-beacon=A1 --force-common=A10
+ExecStart=/sbin/rtlsd
 
 [Install]
 WantedBy=multi-user.target

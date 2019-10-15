@@ -19,8 +19,6 @@ import matplotlib.pyplot as ppl
 
 class cfg():
 
-    config_json = 'config.json'
-
     server_host = 'resistor.qs.unipart.io'
     server_port = 9475
 
@@ -36,10 +34,7 @@ class cfg():
     coord_filter_len = 3
     bubble_filter_len  = 10
 
-    jconfig = {}
-    tags = {}
-
-CONFIG_FILE = '/etc/tail.conf'
+    config_json = 'config.json'
 
 
 def eprint(*args, **kwargs):
@@ -104,8 +99,11 @@ class Tag():
         ppl.setp(self.p2, xdata=mean[0])
         ppl.setp(self.p2, ydata=mean[1])
         ppl.setp(self.p2, ms=mstd*cfg.std_pixels)
-        ppl.setp(self.p3, text='{0} ({1[0]:.2f},{1[1]:.2f},{1[2]:.2f})'.format(self.name,self.coord))
         ppl.setp(self.p3, position=(self.coord[0]+0.15,self.coord[1]+0.15))
+        if self.coord[2]:
+            ppl.setp(self.p3, text='{0} ({1[0]:.2f},{1[1]:.2f},{1[2]:.2f})'.format(self.name,self.coord))
+        else:
+            ppl.setp(self.p3, text='{0} ({1[0]:.2f},{1[1]:.2f})'.format(self.name,self.coord))
         
         
 class Room():
@@ -117,13 +115,15 @@ class Room():
         self.ax.set_title(cfg.title)
         self.ax.set_xlim(cfg.room_x)
         self.ax.set_ylim(cfg.room_y)
-        
-        for anchor in cfg.jconfig.get('ANCHORS'):
+
+        for anchor in cfg.config.get('ANCHORS'):
             name = anchor['name']
             self.ax.plot(anchor['coord'][0],anchor['coord'][1],'rx')
             self.ax.annotate(name, (anchor['coord'][0]-0.3,anchor['coord'][1]-0.3))
 
-        for arg in cfg.jconfig.get("TAGS"):
+        cfg.tags = {}
+        
+        for arg in cfg.config.get("TAGS"):
             tag = Tag(**arg)
             tag.plot(self.ax)
             cfg.tags[tag.eui] = tag
@@ -180,34 +180,35 @@ class Receiver(threading.Thread):
 
 def main():
 
-    if False: ##os.path.exists(CONFIG_FILE):
-        try:
-            config = configparser.ConfigParser()
-            config.read(CONFIG_FILE)
-            for key,val in config['client'].items():
-                setattr(cfg,key,val)
-        except Exception as err:
-            eprint('Could not read config file {}: {}'.format(CONFIG_FILE, err))
-    
     parser = argparse.ArgumentParser(description="Tail 3D client example")
     
-    parser.add_argument('-s', '--server', type=str, default=cfg.server_host)
-    parser.add_argument('-p', '--port', type=int, default=cfg.server_port)
-    parser.add_argument('-f', '--filter', type=int, default=cfg.coord_filter_len)
-    parser.add_argument('-c', '--config', type=str, default=cfg.config_json)
+    parser.add_argument('-c', '--config', type=str, default=None)
+    parser.add_argument('-s', '--server', type=str, default=None)
+    parser.add_argument('-p', '--port', type=int, default=None)
+    parser.add_argument('-f', '--filter', type=int, default=None)
     
     args = parser.parse_args()
 
-    cfg.coord_filter_len = args.filter
+    if args.config:
+        cfg.config_json = args.config
+
+    with open(cfg.config_json, 'r') as f:
+        cfg.config = json.load(f)
+
+    for (key,value) in cfg.config.get('DEMO').items():
+        try:
+            getattr(cfg,key)
+            setattr(cfg,key,value)
+        except AttributeError:
+            eprint('Invalid DEMO config {}: {}'.format(key,value))
+
+    if args.server:
+        cfg.server_host = args.server
+    if args.port:
+        cfg.server_port = args.port
+    if args.filter:
+        cfg.coord_filter_len = args.filter
     
-    cfg.server_port  = args.port
-    cfg.server_host  = args.server
-    cfg.config_json  = args.config
-
-    if cfg.config_json:
-        with open(cfg.config_json, 'r') as f:
-            cfg.jconfig = json.load(f)
-
     room = Room()
     recv = Receiver(cfg.server_host, cfg.server_port)
             
