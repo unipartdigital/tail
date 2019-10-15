@@ -2,10 +2,11 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 
 module.exports = {
   entry: {
-    index: __dirname + '/ui/index.js',
+    index: __dirname + '/src/index.js',
   },
   output: {
-    path: __dirname + '/server/static',
+    path: __dirname + '/dist',
+    publicPath: '/dist/',
     filename: '[name].bundle.js',
   },
   module: {
@@ -35,7 +36,7 @@ module.exports = {
   plugins: [
     new HtmlWebpackPlugin({
       title: 'Tail Demo',
-      template: __dirname + '/ui/index.html',
+      template: __dirname + '/src/index.html',
     }),
   ],
 };
