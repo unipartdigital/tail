@@ -19,6 +19,7 @@ import {
   NavItem,
   NavLink,
   Spinner,
+  Table,
 } from 'reactstrap';
 import { PanZoom } from 'react-easy-panzoom';
 import useWebSocket from 'react-use-websocket';
@@ -89,13 +90,13 @@ function TagList({tags}) {
     <tr key={id}>
       <td>{id}</td>
       <td>{name}</td>
-      <td>{x}</td>
-      <td>{y}</td>
+      <td>{x.toFixed(2)}</td>
+      <td>{y.toFixed(2)}</td>
     </tr>
   ));
 
   return (
-    <table width="100%">
+    <Table striped width="100%">
       <thead>
         <tr>
           <th>ID</th>
@@ -107,7 +108,7 @@ function TagList({tags}) {
       <tbody>
         {tagrows}
       </tbody>
-    </table>
+    </Table>
   );
 }
 

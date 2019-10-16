@@ -1,4 +1,5 @@
 MAKEFLAGS = "-j 2"
+HOST = resistor.qs.unipart.io
 
 all : npm-build
 
@@ -11,4 +12,4 @@ npm-build :
 	npm run build
 
 server-dev :
-	./server.py
+	./server.py ${HOST}
