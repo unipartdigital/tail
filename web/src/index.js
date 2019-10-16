@@ -37,6 +37,10 @@ const LogoImage = styled.img.attrs(props => ({
   width: 1em;
 `;
 
+const FloorplanObject = styled.object`
+  pointer-events: none;
+`;
+
 const tagAnimation = keyframes`
   0% {
     opacity: 1.00;
@@ -60,6 +64,15 @@ function TagDot({ x, y, r, color, ...other }) {
   );
 }
 
+function TagDots({tags, group}) {
+
+  const tagdots = Object.entries(tags).map(([id, {x, y, r, color}]) => (
+    <TagDot key={id} id={id} x={x} y={y} r={r} color={color}/>
+  ));
+
+  return group ? ReactDOM.createPortal(tagdots, group) : <div/>;
+}
+
 function TagMap({tags}) {
 
   const panzoomRef = useRef();
@@ -69,24 +82,21 @@ function TagMap({tags}) {
     panzoomRef.current.autoCenter();
   };
 
-  let tagdots = Object.entries(tags).map(([id, {x, y, r, color}]) => (
-    <TagDot key={id} id={id} x={x} y={y} r={r} color={color}/>
-  ));
-
   return (
     <PanZoom ref={panzoomRef}>
-      <svg viewBox="0 0 1010 830">
-        {tagdots}
-        <image ref={floorplanRef} width="100%" height="100%"
-               xlinkHref={floorplan} onLoad={onFloorplanLoad}/>
-      </svg>
+      <FloorplanObject ref={floorplanRef} data={floorplan} width="100%"
+                      onLoad={onFloorplanLoad}/>
+      <TagDots tags={tags}
+               group={floorplanRef.current &&
+                      floorplanRef.current.contentDocument &&
+                      floorplanRef.current.contentDocument.documentElement}/>
     </PanZoom>
   );
 }
 
 function TagList({tags}) {
 
-  let tagrows = Object.entries(tags).map(([id, {name, x, y}]) => (
+  const tagrows = Object.entries(tags).map(([id, {name, x, y}]) => (
     <tr key={id}>
       <td>{id}</td>
       <td>{name}</td>
