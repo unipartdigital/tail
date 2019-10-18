@@ -47,14 +47,14 @@ async def notifier(app):
             continue
         notice = {
             data['Tag']: {
+                'name': data['Name'],
+                'color': data['Colour'],
                 'x': data['Coord'][0],
                 'y': data['Coord'][1],
                 'z': data['Coord'][2],
                 'r': RADIUS,
             },
         }
-        for k, v in notice.items():
-            v.update(app['tags'].get(k, {}))
         logger.debug("Notifying %d clients: %s", len(app['clients']), notice)
         for queue in app['clients']:
             queue.put_nowait(notice)
@@ -66,12 +66,11 @@ async def cleanup_notifier(app):
     app['notifier'].cancel()
     await app['notifier']
 
-def run(host, port, tags):
+def run(host, port):
     app = web.Application()
     app['clients'] = set()
     app['host'] = host
     app['port'] = port
-    app['tags'] = tags
     app.on_startup.append(start_notifier)
     app.on_cleanup.append(cleanup_notifier)
     app.router.add_static('/dist', dist)
@@ -79,15 +78,9 @@ def run(host, port, tags):
     web.run_app(app)
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-t', '--tags', type=str, default='tags.json')
 parser.add_argument('-p', '--port', type=int, default=9475)
 parser.add_argument('host', type=str)
 
 if __name__ == '__main__':
     args = parser.parse_args()
-    if args.tags is not None:
-        with open(args.tags, 'r') as f:
-            tagdb = json.load(f)
-    else:
-        tagdb = {}
-    run(args.host, args.port, tagdb)
+    run(args.host, args.port)
