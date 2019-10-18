@@ -7,9 +7,9 @@
    xmlns="http://www.w3.org/2000/svg"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   width="4945.4248mm"
-   height="4711.022mm"
-   viewBox="0 0 4945.4248 4711.022"
+   width="9870.4199mm"
+   height="8134.2144mm"
+   viewBox="-0.2 -0.2 10.27 8.53"
    version="1.1"
    id="svg2177"
    sodipodi:docname="floorplan.svg"
@@ -43,30 +43,38 @@
      showgrid="true"
      inkscape:measure-start="6180,9960"
      inkscape:measure-end="8054.12,9475.76"
-     inkscape:zoom="0.32"
-     inkscape:cx="120.78469"
-     inkscape:cy="2283.7209"
+     inkscape:zoom="0.04"
+     inkscape:cx="16210.904"
+     inkscape:cy="13044.07"
      inkscape:window-x="0"
      inkscape:window-y="0"
      inkscape:window-maximized="1"
-     inkscape:current-layer="g1164"
+     inkscape:current-layer="Shape2DView"
      inkscape:document-units="mm"
-     scale-x="1"
-     viewbox-y="600"
-     viewbox-width="7000"
-     viewbox-height="3000">
+     scale-x="0.001"
+     viewbox-y="-0.2"
+     viewbox-width="10.27"
+     viewbox-height="8.53"
+     fit-margin-top="0"
+     fit-margin-left="0"
+     fit-margin-right="0"
+     fit-margin-bottom="0"
+     viewbox-x="-0.2"
+     inkscape:pagecheckerboard="false">
     <inkscape:grid
        type="xygrid"
-       id="grid4240" />
+       id="grid4240"
+       originx="4.5127011"
+       originy="7.8452609" />
   </sodipodi:namedview>
   <g
      id="Shape2DView"
-     transform="matrix(1,0,0,-1,1268.4645,4886.8238)">
+     transform="matrix(1,0,0,-1,855.81826,464.75938)">
     <title
        id="title2174">b'Shape2DView'</title>
     <g
        id="g1164"
-       transform="translate(-1508.2639,-1989.6822)">
+       transform="matrix(0.01,0,0,0.01,-857.90758,436.23859)">
       <path
          inkscape:connector-curvature="0"
          style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
