@@ -52,6 +52,28 @@ def hyperjump2D(b0,bs,bi,di,sigma,theta):
     C = lin.cond(Gbb)
     return X[0:2],C
 
+def hyperlater2D(ref_coord,coords,ranges,sigmas,delta=None,theta=0.045,maxiter=8):
+    if len(ref_coord) != 2:
+        raise ValueError('hyperlater2D only accepts 2D coordinsates')
+    if len(coords) < 3:
+        raise np.linalg.LinAlgError('Not enough inputs: {}'.format(len(coords)))
+    B0 = np.array(ref_coord)
+    B = np.array(coords)
+    R = np.array(ranges)
+    S = np.array(sigmas)
+    X = hypercone(B0,B,R)
+    Y,C = hyperjump2D(B0,X,B,R,S,theta)
+    if delta is None:
+        delta = np.amin(S) / 2
+    N = 1
+    while N < maxiter and dist(X,Y) > delta:
+        X = Y
+        N = N + 1
+        Y,C = hyperjump2D(B0,X,B,R,S,theta)
+    X = np.array((Y[0],Y[1],0))
+    return X,C
+
+
 def hyperjump3D(b0,bs,bi,di,sigma,theta):
     bi0 = bi - b0
     bs0 = bs - b0
@@ -71,26 +93,9 @@ def hyperjump3D(b0,bs,bi,di,sigma,theta):
     C = lin.cond(Gbb)
     return X[0:3],C
 
-def hyperlater2D(ref_coord,coords,ranges,sigmas,delta=None,theta=0.045,maxiter=8):
-    if len(coords) < 3:
-        raise np.linalg.LinAlgError('Not enough inputs: {}'.format(len(coords)))
-    B0 = np.array(ref_coord)[0:2]
-    B = np.array(coords)[:,0:2]
-    R = np.array(ranges)
-    S = np.array(sigmas)
-    X = hypercone(B0,B,R)
-    Y,C = hyperjump2D(B0,X,B,R,S,theta)
-    if delta is None:
-        delta = np.amin(S) / 2
-    N = 1
-    while N < maxiter and dist(X,Y) > delta:
-        X = Y
-        N = N + 1
-        Y,C = hyperjump2D(B0,X,B,R,S,theta)
-    X = np.array((Y[0],Y[1],0))
-    return X,C
-
 def hyperlater3D(ref_coord,coords,ranges,sigmas,delta=None,theta=0.045,maxiter=8):
+    if len(ref_coord) != 3:
+        raise ValueError('hyperlater3D only accepts 3D coordinsates')
     if len(coords) < 4:
         raise np.linalg.LinAlgError('Not enough inputs: {}'.format(len(coords)))
     B0 = np.array(ref_coord)
@@ -109,6 +114,57 @@ def hyperlater3D(ref_coord,coords,ranges,sigmas,delta=None,theta=0.045,maxiter=8
     return Y,C
 
 
-def hyperlater(ref_coord,coords,ranges,sigmas,delta=None,theta=0.045,maxiter=8):
-    return hyperlater3D(ref_coord,coords,ranges,sigmas,delta,theta,maxiter)
+def hyperjump3Dp(b0,bs,bi,di,sigma,theta):
+    bi_xy = bi[:,0:2]
+    bi_z = bi[:,2]
+    b0_xy = b0[0:2]
+    b0_z = b0[2]
+    bs_xy = bs[0:2]
+    bs_z = bs[2]
+    bi0_xy = bi_xy - b0_xy
+    bi0_z = bi_z - b0_z 
+    bs0 = bs - b0
+    bs0_xy = bs_xy - b0_xy
+    # ci0_z = bi_z*bi_z - b0_z*b0_z -2*bs_z*bi0_z
+    #       = (bi_z - b0_z)(bi_z + b0_z) - 2bs_z*bi0_z
+    #       = (bi_z - b0_z)(bi_z + b0_z - 2bs_z)
+    #       = (bi_z - b0_z)((bi_z - bs_z) + (b0_z - bs_z))
+    ci0_z = bi0_z * ((bi_z - bs_z) + (b0_z - bs_z))
+    ds0 = norm(bs0)
+    dis = norm(bi - bs)
+    di0 = di.reshape(-1,1)
+    Gb = np.block([[bi0_xy,di0],[bs0_xy,-ds0],[bs[1],-bs[0],0]])
+    hb = np.block([(dsq(bi_xy)-dsq(b0_xy)-di*di+ci0_z)/2, dot(bs0_xy.T,b0_xy), 0])
+    Cv = ds0*theta
+    Cc = ds0*theta*theta/2
+    Pm = dis*sigma
+    Ps = np.block([1/Pm,1/Cc,1/Cv])
+    Gs = np.diag(Ps*Ps)
+    Gbb = dot(dot(Gb.T,Gs),Gb)
+    Gbh = dot(dot(Gb.T,Gs),hb)
+    X = lin.solve(Gbb,Gbh)
+    C = lin.cond(Gbb)
+    R = np.array((X[0],X[1],bs[2]))
+    return R,C
+
+def hyperlater3Dp(ref_coord,coords,ranges,sigmas,delta=None,theta=0.045,maxiter=8,z_est=0.0):
+    if len(ref_coord) != 3:
+        raise ValueError('hyperlater_pseudo3D only accepts 3D coordinsates')
+    if len(coords) < 4:
+        raise np.linalg.LinAlgError('Not enough inputs: {}'.format(len(coords)))
+    B0 = np.array(ref_coord)
+    B = np.array(coords)
+    R = np.array(ranges)
+    S = np.array(sigmas)
+    X = hypercone(B0[0:2],B[:,0:2],R)
+    X = np.array((X[0],X[1],z_est))
+    Y,C = hyperjump3Dp(B0,X,B,R,S,theta)
+    if delta is None:
+        delta = np.amin(S) / 2
+    N = 1
+    while N < maxiter and dist(X,Y) > delta:
+        X = Y
+        N = N + 1
+        Y,C = hyperjump3Dp(B0,X,B,R,S,theta)
+    return Y,C
 

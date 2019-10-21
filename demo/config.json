@@ -18,12 +18,15 @@
 	"server_port"		: 9475,
 
 	"default_algo"		: "wls",
-
+	
 	"max_dist"		: 20.0,
 	"max_ddoa"		: 20.0,
-	"max_change"		: 5.0
+	"max_change"		: 5.0,
+	"tag_z_estimate"	: -2.50,
+	
+	"force_beacon"		: "A1"
     },
-
+    
     "ANCHORD" :
     {
 	"server_host"		: "resistor.qs.unipart.io",
@@ -126,27 +129,27 @@
     [
         {
             "eui"    : "70b3d5b1e0000129",
-            "name"   : "T0129",
+            "name"   : "Aleksandr",
             "colour" : "#F00000FF",
-            "algo"   : "wls2d"
+            "algo"   : "wls3dp"
         },
         {
             "eui"    : "70b3d5b1e000012c",
-            "name"   : "T012C",
+            "name"   : "Sergei",
             "colour" : "#00F000FF",
-            "algo"   : "wls"
+            "algo"   : "wls3dp"
         },
         {
             "eui"    : "70b3d5b1e000012d",
-            "name"   : "T012D",
+            "name"   : "Oleg",
             "colour" : "#0000F0FF",
-            "algo"   : "swls"
+            "algo"   : "wls3dp"
         },
         {
             "eui"    : "70b3d5b1e000012e",
-            "name"   : "T012E",
+            "name"   : "Ayana",
             "colour" : "#F0F000FF",
-            "algo"   : "test"
+            "algo"   : "wls3dp"
         }
     ]
 }

@@ -59,6 +59,8 @@ class cfg():
     default_algo    = 'wls'
     force_algo      = None
    
+    tag_z_estimate  = -2.50
+
     max_dist        = 25.0
     max_ddoa        = 25.0
     max_change      = 5.0
@@ -234,10 +236,10 @@ class TRX():
             return self.anchor.tx_offset()
     
     def timestamp(self):
-        ##self.get_comp()
+        ##self.rfdebug()
         return self.ts
 
-    def get_comp(self):
+    def rfdebug(self):
         distance = dist(self.anchor.coord, self.src.coord)
         rflevel = RFCalcRxPower(cfg.dw1000_channel, distance, cfg.dw1000_txlevel)
         rxlevel = self.get_rx_level()
@@ -285,6 +287,7 @@ class Tag():
         self.key = bytes.fromhex(eui)
         self.name = name
         self.algo = algo
+        self.colour = colour
         self.beacon = None
         self.common = None
         self.coord = np.zeros(3)
@@ -316,65 +319,6 @@ class Tag():
         if dist(self.cfilt.avg(), npcoord) < cfg.max_change:
             self.coord = npcoord
 
-    def laterate(self):
-        if cfg.force_algo:
-            algo = cfg.force_algo
-        else:
-            algo = self.algo
-        try:
-            if algo == 'wls':
-                self.laterate_wls()
-            elif algo == 'wls2d':
-                self.laterate_wls2d()
-            elif algo == 'swls':
-                self.select_common()
-                self.laterate_swls()
-            elif algo == 'test':
-                self.laterate_test()
-            else:
-                raise ValueError
-            
-            self.server.send_client_msg(Type='TAG', Tag=self.eui, Coord=self.coord.tolist())
-
-            dprint(1, 'Tag::laterate: {} COORD:{}'.format(self.name, self.coord))
-
-        except (KeyError,ValueError,AttributeError,LinAlgError) as err:
-            errhandler('Tag::laterate', err)
-    
-    def laterate_wls(self):
-        dprint(3, ' * Beacon: {} {}'.format(self.beacon.name,self.beacon.eui))
-        bkey = self.beacon.key
-        COORDS = []
-        RANGES = []
-        SIGMAS = []
-        T = [ 0, 0, 0, 0, 0, 0 ]
-        for (akey,anchor) in self.server.anchor_keys.items():
-            if akey != bkey:
-                try:
-                    T[0] = self.blinks[0][akey].timestamp()
-                    T[1] = self.blinks[0][bkey].timestamp()
-                    T[2] = self.blinks[1][bkey].timestamp()
-                    T[3] = self.blinks[1][akey].timestamp()
-                    T[4] = self.blinks[2][akey].timestamp()
-                    T[5] = self.blinks[2][bkey].timestamp()
-                    C = self.beacon.distance_to(anchor)
-                    L = woodoo(T)
-                    D = C - 2*L
-                    if -cfg.max_ddoa < D < cfg.max_ddoa:
-                        COORDS.append(anchor.coord)
-                        RANGES.append(D)
-                        SIGMAS.append(0.1)
-                        dprint(3, ' * Anchor: {} {} LAT:{:.3f} C:{:.3f} D:{:.3f}'.format(anchor.name,anchor.eui,L,C,D))
-                    else:
-                        dprint(3, ' * Anchor: {} {} D:{:.3f} BAD TDOA'.format(anchor.name,anchor.eui,D))
-                except KeyError:
-                    dprint(3, ' * Anchor: {} {} NOT FOUND'.format(anchor.name,anchor.eui))
-                except ZeroDivisionError:
-                    dprint(3, ' * Anchor: {} {} BAD TIMES'.format(anchor.name,anchor.eui))
-        (coord,cond) = hyperlater(self.beacon.coord, COORDS, RANGES, SIGMAS, delta=0.01)
-        dprint(3, 'Tag::laterate_wls: {0} ({1[0]:.3f},{1[1]:.3f},{1[2]:.3f}) COND:{2:.0f}'.format(self.name,coord,cond))
-        self.update_coord(coord)
-        
     def laterate_wls2d(self):
         dprint(3, ' * Beacon: {} {}'.format(self.beacon.name,self.beacon.eui))
         bkey = self.beacon.key
@@ -395,6 +339,39 @@ class Tag():
                     L = woodoo(T)
                     D = C - 2*L
                     if -cfg.max_ddoa < D < cfg.max_ddoa:
+                        COORDS.append((anchor.coord[0],anchor.coord[1]))
+                        RANGES.append(D)
+                        SIGMAS.append(0.1)
+                        dprint(3, ' * Anchor: {} {} LAT:{:.3f} C:{:.3f} D:{:.3f}'.format(anchor.name,anchor.eui,L,C,D))
+                    else:
+                        dprint(3, ' * Anchor: {} {} D:{:.3f} BAD TDOA'.format(anchor.name,anchor.eui,D))
+                except KeyError:
+                    dprint(3, ' * Anchor: {} {} NOT FOUND'.format(anchor.name,anchor.eui))
+                except ZeroDivisionError:
+                    dprint(3, ' * Anchor: {} {} BAD TIMES'.format(anchor.name,anchor.eui))
+        (coord,cond) = hyperlater2D((self.beacon.coord[0],self.beacon.coord[1]), COORDS, RANGES, SIGMAS, delta=0.01)
+        self.update_coord(coord)
+        
+    def laterate_wls3d(self):
+        dprint(3, ' * Beacon: {} {}'.format(self.beacon.name,self.beacon.eui))
+        bkey = self.beacon.key
+        COORDS = []
+        RANGES = []
+        SIGMAS = []
+        T = [ 0, 0, 0, 0, 0, 0 ]
+        for (akey,anchor) in self.server.anchor_keys.items():
+            if akey != bkey:
+                try:
+                    T[0] = self.blinks[0][akey].timestamp()
+                    T[1] = self.blinks[0][bkey].timestamp()
+                    T[2] = self.blinks[1][bkey].timestamp()
+                    T[3] = self.blinks[1][akey].timestamp()
+                    T[4] = self.blinks[2][akey].timestamp()
+                    T[5] = self.blinks[2][bkey].timestamp()
+                    C = self.beacon.distance_to(anchor)
+                    L = woodoo(T)
+                    D = C - 2*L
+                    if -cfg.max_ddoa < D < cfg.max_ddoa:
                         COORDS.append(anchor.coord)
                         RANGES.append(D)
                         SIGMAS.append(0.1)
@@ -405,11 +382,44 @@ class Tag():
                     dprint(3, ' * Anchor: {} {} NOT FOUND'.format(anchor.name,anchor.eui))
                 except ZeroDivisionError:
                     dprint(3, ' * Anchor: {} {} BAD TIMES'.format(anchor.name,anchor.eui))
-        (coord,cond) = hyperlater2D(self.beacon.coord, COORDS, RANGES, SIGMAS, delta=0.01)
-        dprint(3, 'Tag::laterate_wls2d: {0} ({1[0]:.3f},{1[1]:.3f},{1[2]:.3f}) COND:{2:.0f}'.format(self.name,coord,cond))
+        (coord,cond) = hyperlater3D(self.beacon.coord, COORDS, RANGES, SIGMAS, delta=0.01)
+        self.update_coord(coord)
+        
+    def laterate_wls3dp(self):
+        dprint(3, ' * Beacon: {} {}'.format(self.beacon.name,self.beacon.eui))
+        bkey = self.beacon.key
+        COORDS = []
+        RANGES = []
+        SIGMAS = []
+        T = [ 0, 0, 0, 0, 0, 0 ]
+        for (akey,anchor) in self.server.anchor_keys.items():
+            if akey != bkey:
+                try:
+                    T[0] = self.blinks[0][akey].timestamp()
+                    T[1] = self.blinks[0][bkey].timestamp()
+                    T[2] = self.blinks[1][bkey].timestamp()
+                    T[3] = self.blinks[1][akey].timestamp()
+                    T[4] = self.blinks[2][akey].timestamp()
+                    T[5] = self.blinks[2][bkey].timestamp()
+                    C = self.beacon.distance_to(anchor)
+                    L = woodoo(T)
+                    D = C - 2*L
+                    if -cfg.max_ddoa < D < cfg.max_ddoa:
+                        COORDS.append(anchor.coord)
+                        RANGES.append(D)
+                        SIGMAS.append(0.1)
+                        dprint(3, ' * Anchor: {} {} LAT:{:.3f} C:{:.3f} D:{:.3f}'.format(anchor.name,anchor.eui,L,C,D))
+                    else:
+                        dprint(3, ' * Anchor: {} {} D:{:.3f} BAD TDOA'.format(anchor.name,anchor.eui,D))
+                except KeyError:
+                    dprint(3, ' * Anchor: {} {} NOT FOUND'.format(anchor.name,anchor.eui))
+                except ZeroDivisionError:
+                    dprint(3, ' * Anchor: {} {} BAD TIMES'.format(anchor.name,anchor.eui))
+        (coord,cond) = hyperlater3Dp(self.beacon.coord, COORDS, RANGES, SIGMAS, delta=0.01, z_est=cfg.tag_z_estimate)
         self.update_coord(coord)
         
     def laterate_swls(self):
+        self.select_common()
         dprint(3, ' * Beacon: {} {}'.format(self.beacon.name,self.beacon.eui))
         dprint(3, ' * Common: {} {}'.format(self.common.name,self.common.eui))
         ckey = self.common.key
@@ -442,18 +452,97 @@ class Tag():
                     dprint(3, ' * Anchor: {} {} NOT FOUND'.format(anchor.name,anchor.eui))
                 except ZeroDivisionError:
                     dprint(3, ' * Anchor: {} {} BAD TIMES'.format(anchor.name,anchor.eui))
-        (coord,cond) = hyperlater(self.common.coord, COORDS, RANGES, SIGMAS, delta=0.005)
-        dprint(3, 'Tag::laterate_swls: {0} ({1[0]:.3f},{1[1]:.3f},{1[2]:.3f}) COND:{2:.0f}'.format(self.name,coord,cond))
+        (coord,cond) = hyperlater3D(self.common.coord, COORDS, RANGES, SIGMAS, delta=0.005)
         self.update_coord(coord)
     
-    def laterate_test(self):
+    def laterate_swls3dp(self):
+        self.select_common()
+        dprint(3, ' * Beacon: {} {}'.format(self.beacon.name,self.beacon.eui))
+        dprint(3, ' * Common: {} {}'.format(self.common.name,self.common.eui))
+        ckey = self.common.key
+        bkey = self.beacon.key
+        COORDS = []
+        RANGES = []
+        SIGMAS = []
+        T = [ 0, 0, 0, 0, 0, 0 ]
+        for (akey,anchor) in self.server.anchor_keys.items():
+            if akey not in (bkey,ckey):
+                try:
+                    T[0] = self.blinks[0][akey].timestamp()
+                    T[1] = self.blinks[0][ckey].timestamp()
+                    T[2] = self.blinks[1][ckey].timestamp()
+                    T[3] = self.blinks[1][akey].timestamp()
+                    T[4] = self.blinks[2][akey].timestamp()
+                    T[5] = self.blinks[2][ckey].timestamp()
+                    B = self.beacon.distance_to(self.common)
+                    C = self.beacon.distance_to(anchor)
+                    L = woodoo(T)
+                    D = (C - B) - 2*L
+                    if -cfg.max_ddoa < D < cfg.max_ddoa:
+                        COORDS.append(anchor.coord)
+                        RANGES.append(D)
+                        SIGMAS.append(0.1)
+                        dprint(3, ' * Anchor: {} {} LAT:{:.3f} B:{:.3f} C:{:.3f} D:{:.3f}'.format(anchor.name,anchor.eui,L,B,C,D))
+                    else:
+                        dprint(3, ' * Anchor: {} {} D:{:.3f} BAD TDOA'.format(anchor.name,anchor.eui,D))
+                except KeyError:
+                    dprint(3, ' * Anchor: {} {} NOT FOUND'.format(anchor.name,anchor.eui))
+                except ZeroDivisionError:
+                    dprint(3, ' * Anchor: {} {} BAD TIMES'.format(anchor.name,anchor.eui))
+        (coord,cond) = hyperlater3Dp(self.common.coord, COORDS, RANGES, SIGMAS, delta=0.005, z_est=cfg.tag_z_estimate)
+        self.update_coord(coord)
+    
+    def laterate_test1(self):
         ##
         ## Add algorithm here
         ##
         coord = np.zeros(3)
-        dprint(3, 'Tag::laterate_test: {0} ({1[0]:.3f},{1[1]:.3f},{1[2]:.3f})'.format(self.name,coord))
         self.update_coord(coord)
         
+    def laterate_test2(self):
+        ##
+        ## Add algorithm here
+        ##
+        coord = np.zeros(3)
+        self.update_coord(coord)
+        
+    def laterate_test3(self):
+        ##
+        ## Add algorithm here
+        ##
+        coord = np.zeros(3)
+        self.update_coord(coord)
+
+    algos = {
+        'wls'      : laterate_wls3d,
+        'wls2d'    : laterate_wls2d,
+        'wls3d'    : laterate_wls3d,
+        'wls3dp'   : laterate_wls3dp,
+        'swls'     : laterate_swls,
+        'swls3d'   : laterate_swls,
+        'swls3dp'  : laterate_swls3dp,
+        'test'     : laterate_test1,
+        'test1'    : laterate_test1,
+        'test2'    : laterate_test2,
+        'test3'    : laterate_test3,
+    }
+
+    def laterate(self):
+        if cfg.force_algo:
+            algo = cfg.force_algo
+        else:
+            algo = self.algo
+        try:
+            if algo in Tag.algos:
+                Tag.algos[algo](self)
+                dprint(1, 'Tag::laterate[{0}]: {1} ({2[0]:.3f},{2[1]:.3f},{2[2]:.3f})'.format(algo, self.name, self.coord))
+                self.server.send_client_msg(Type='TAG', Tag=self.eui, Name=self.name, Colour=self.colour, Coord=self.coord.tolist())
+            else:
+                raise ValueError('Invalid algorithm \'{}\''.format(algo))
+                
+        except (KeyError,ValueError,AttributeError,LinAlgError) as err:
+            errhandler('Tag::laterate', err)
+    
     def select_beacon(self):
         if cfg.force_beacon:
             self.beacon = cfg.force_beacon

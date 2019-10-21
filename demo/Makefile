@@ -33,7 +33,7 @@ install-client:
 	install -o root -g root -m 755 demoroom.py $(INSTALL_ROOT)/bin/demoroom
 
 install-fluffy:
-	scp *.py *.json *.service Makefile pmattila@fluffy:~/Projects/Tail/rmdemo/
+	scp *.py *.json *.service Makefile pmattila@fluffy:~/Projects/Tail/demo/
 
 
 clean:

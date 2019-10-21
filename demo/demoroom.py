@@ -162,7 +162,7 @@ class Receiver(threading.Thread):
                             if eui in cfg.tags:
                                 tag = cfg.tags[eui]
                                 tag.update(msg['Coord'])
-                                print('TAG:{0} COORD:{1[0]:.3f},{1[1]:.3f},{1[2]:.3f}'.format(msg['Tag'],msg['Coord']))
+                                print('TAG:{0} {1} {2} COORD:{3[0]:.3f},{3[1]:.3f},{3[2]:.3f}'.format(msg['Name'],msg['Tag'], msg['Colour'], msg['Coord']))
 
                     except (ValueError,KeyError,AttributeError) as err:
                         eprint('{}: {}'.format(err.__class__.__name__, err))
