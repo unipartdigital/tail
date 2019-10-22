@@ -11,6 +11,7 @@ import logging
 
 RS = b'\x1f'
 RADIUS = 0.2
+RETRY = 5
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -38,26 +39,54 @@ async def tags(request):
         request.app['clients'].remove(queue)
 
 async def notifier(app):
-    (reader, writer) = await asyncio.open_connection(app['host'], app['port'])
+
+    host = app['host']
+    port = app['port']
+
     while True:
-        raw = await reader.readuntil(RS)
-        data = json.loads(raw.rstrip(RS))
-        logger.debug("Received: %s", data)
-        if data['Type'] != 'TAG':
+
+        # Connect to RTLS server
+        #
+        try:
+            (reader, writer) = await asyncio.open_connection(host, port)
+        except asyncio.CancelledError:
+            pass
+        except OSError as exc:
+            logger.error("Could not connect to %s:%s: %s", host, port, exc)
+            await asyncio.sleep(RETRY)
             continue
-        notice = {
-            data['Tag']: {
-                'name': data['Name'],
-                'color': data['Colour'],
-                'x': data['Coord'][0],
-                'y': data['Coord'][1],
-                'z': data['Coord'][2],
-                'r': RADIUS,
-            },
-        }
-        logger.debug("Notifying %d clients: %s", len(app['clients']), notice)
-        for queue in app['clients']:
-            queue.put_nowait(notice)
+        logger.info("Connected to %s:%s", host, port)
+
+        # Broadcast messages to any attached clients
+        #
+        try:
+            while True:
+                raw = await reader.readuntil(RS)
+                data = json.loads(raw.rstrip(RS))
+                logger.debug("Received: %s", data)
+                if data['Type'] != 'TAG':
+                    continue
+                notice = {
+                    data['Tag']: {
+                        'name': data['Name'],
+                        'color': data['Colour'],
+                        'x': data['Coord'][0],
+                        'y': data['Coord'][1],
+                        'z': data['Coord'][2],
+                        'r': RADIUS,
+                    },
+                }
+                logger.debug("Notifying %d clients: %s",
+                             len(app['clients']), notice)
+                for queue in app['clients']:
+                    queue.put_nowait(notice)
+        except EOFError:
+            logger.info("Disconnected from %s:%s", host, port)
+            await asyncio.sleep(RETRY)
+        except OSError as exc:
+            logger.error(exc)
+        finally:
+            writer.close()
 
 async def start_notifier(app):
     app['notifier'] = asyncio.create_task(notifier(app))
