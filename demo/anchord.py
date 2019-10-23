@@ -66,19 +66,17 @@ def recv_server_msg(tsock, rsock):
     (data,addr) = tsock.recvfrom(4096)
     dprint(3, 'recv_server_msg: {}'.format(data.decode()))
     mesg = json.loads(data.decode())
-    Type = mesg.get('Type', '__NONE__')
+    Type = mesg.get('Type')
     if Type == 'FRAME':
-        Data = mesg.get('Data', None)
+        Data = mesg.get('Data')
         data = bytes.fromhex(Data)
         transmit_frame(rsock, data)
     elif Type == 'REGISTER':
-        tag = mesg.get('Tag', None)
+        tag = mesg.get('Tag')
         register_tag(tag)
     elif Type == 'REMOVE':
-        tag = mesg.get('Tag', None)
+        tag = mesg.get('Tag')
         remove_tag(tag)
-    else:
-        eprint('Unknown server mesg: {}'.format(mesg))
 
 
 def transmit_frame(rsock,frame):
@@ -94,7 +92,7 @@ def transmit_beacon(rsock, ref):
     frame.tail_flags = 0
     frame.tail_beacon = bytes.fromhex(ref)
     rsock.send(frame.encode())
-    #dprint(2, 'transmit_beacon: {}'.format(frame))
+
 
 def recv_blink(tsock,rsock):
     (data,ancl,_,_) = rsock.recvmsg(4096, 1024, 0)
@@ -152,7 +150,6 @@ def socket_loop():
                         
             except Exception as err:
                 eprint('{}: {}'.format(err.__class__.__name__, err))
-                time.sleep(3)
     
     socks.unregister(tsock)
     socks.unregister(rsock)
@@ -233,7 +230,7 @@ def main():
 
     WPANFrame.set_ifaddr(cfg.if_addr)
 
-    cfg.server_raddr = socket.getaddrinfo(cfg.server_host, cfg.server_port, socket.AF_INET6)[0][4]
+    cfg.server_raddr = UDPTailPipe.get_saddr(cfg.server_host, cfg.server_port)[4]
     cfg.anchor_laddr = (cfg.anchor_addr, cfg.anchor_port, 0, 0)
 
     dprint(1, 'Tail Anchor daemon starting...')

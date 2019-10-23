@@ -63,12 +63,17 @@ class cfg():
 
     max_dist        = 25.0
     max_ddoa        = 25.0
-    max_change      = 5.0
+
+    min_change      = 0.01
+    max_change      = 5.00
     
-    filter_len      = 100
+    coord_filter_len  = 1
+    cqual_filter_len  = 10
+    anchor_filter_len = 100
     
     force_beacon    = None
     force_common    = None
+    
     random_beacon   = False
     random_common   = False
 
@@ -291,7 +296,8 @@ class Tag():
         self.beacon = None
         self.common = None
         self.coord = np.zeros(3)
-        self.cfilt = GeoFilter(np.zeros(3), cfg.filter_len)
+        self.coord_filt = GeoFilter(np.zeros(3), cfg.coord_filter_len)
+        self.cqual_filt = GeoFilter(np.zeros(3), cfg.cqual_filter_len)
         self.blinks = None
         self.ranging = False
         self.beacon_timer = Timeout(server.timer, cfg.tag_beacon_timer, Tag.beacon_expire, (self,))
@@ -314,10 +320,13 @@ class Tag():
     def distance_to(self, obj):
         return dist(self.coord, obj.coord)
 
-    def update_coord(self, npcoord):
-        self.cfilt.update(npcoord)
-        if dist(self.cfilt.avg(), npcoord) < cfg.max_change:
-            self.coord = npcoord
+    def update_coord(self, new_coord):
+        self.coord_filt.update(new_coord)
+        self.cqual_filt.update(new_coord)
+        if dist(self.cqual_filt.avg(), self.coord_filt.avg()) < cfg.max_change:
+            if dist(self.coord, self.coord_filt.avg()) > cfg.min_change:
+                self.coord = self.coord_filt.avg()
+        self.server.send_client_msg(Type='TAG', Tag=self.eui, Name=self.name, Colour=self.colour, Coord=self.coord.tolist())
 
     def laterate_wls2d(self):
         dprint(3, ' * Beacon: {} {}'.format(self.beacon.name,self.beacon.eui))
@@ -536,10 +545,8 @@ class Tag():
             if algo in Tag.algos:
                 Tag.algos[algo](self)
                 dprint(1, 'Tag::laterate[{0}]: {1} ({2[0]:.3f},{2[1]:.3f},{2[2]:.3f})'.format(algo, self.name, self.coord))
-                self.server.send_client_msg(Type='TAG', Tag=self.eui, Name=self.name, Colour=self.colour, Coord=self.coord.tolist())
             else:
                 raise ValueError('Invalid algorithm \'{}\''.format(algo))
-                
         except (KeyError,ValueError,AttributeError,LinAlgError) as err:
             errhandler('Tag::laterate', err)
     
@@ -859,7 +866,7 @@ class Server():
             key1 = (anchor_a,anchor_b)
             key2 = (anchor_b,anchor_a)
             if key1 not in self.anchor_twrs:
-                filt = GeoFilter(np.array(1), cfg.filter_len)
+                filt = GeoFilter(np.array(1), cfg.anchor_filter_len)
                 self.anchor_twrs[key1] = filt
                 self.anchor_twrs[key2] = filt
             self.anchor_twrs[key1].update(distance)

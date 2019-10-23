@@ -36,6 +36,8 @@ class cfg():
 
     config_json = 'config.json'
 
+    tags = {}
+
 
 def eprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
@@ -72,30 +74,31 @@ class GeoFilter():
 
 class Tag():
 
-    def __init__(self, name, eui, colour, algo=None):
+    def __init__(self, room, eui):
         self.eui = eui
-        self.name = name
-        self.colour = colour
+        self.name = None
+        self.colour = None
         self.coord = np.ones(3) * -10
         self.cfilt = GeoFilter(np.zeros(3), cfg.coord_filter_len)
         self.bfilt = GeoFilter(np.zeros(3), cfg.bubble_filter_len)
+        self.p1 = room.ax.plot([], [], 'o', ms=10)
+        self.p2 = room.ax.plot([], [], 'o', mfc='#00008010', mec='#00000000', ms=1)
+        self.p3 = room.ax.annotate('', (0,0))
 
-    def plot(self, ax):
-        self.p1 = ax.plot([], [], 'o', mfc=self.colour, ms=10)
-        self.p2 = ax.plot([], [], 'o', mfc='#00008010', mec='#00000000', ms=1)
-        self.p3 = ax.annotate('', (0,0))
-
-    def update(self,X):
-        self.cfilt.update(X)
-        self.bfilt.update(X)
+    def update(self, name, coord, colour):
+        self.cfilt.update(coord)
+        self.bfilt.update(coord)
         self.coord = self.cfilt.avg()
+        self.colour = colour
+        self.name = name
 
-    def draw(self):
+    def redraw(self):
         mean = self.bfilt.avg()
         mstd = self.bfilt.dev()
         mstd = min(mstd,5.0)
         ppl.setp(self.p1, xdata=self.coord[0])
         ppl.setp(self.p1, ydata=self.coord[1])
+        ppl.setp(self.p1, mfc=self.colour)
         ppl.setp(self.p2, xdata=mean[0])
         ppl.setp(self.p2, ydata=mean[1])
         ppl.setp(self.p2, ms=mstd*cfg.std_pixels)
@@ -109,6 +112,7 @@ class Tag():
 class Room():
 
     def __init__(self):
+        self.tags = {}
         self.fig = ppl.figure()
         self.fig.set_size_inches(cfg.room_w)
         self.ax = self.fig.add_subplot(1,1,1)
@@ -121,26 +125,25 @@ class Room():
             self.ax.plot(anchor['coord'][0],anchor['coord'][1],'rx')
             self.ax.annotate(name, (anchor['coord'][0]-0.3,anchor['coord'][1]-0.3))
 
-        cfg.tags = {}
-        
-        for arg in cfg.config.get("TAGS"):
-            tag = Tag(**arg)
-            tag.plot(self.ax)
-            cfg.tags[tag.eui] = tag
-
         self.fig.show()
+
+    def update_tag(self, eui, name, coord, colour):
+        if eui not in self.tags:
+            self.tags[eui] = Tag(self,eui)
+        self.tags[eui].update(name,coord,colour)
     
-    def update(self):
-        for eui in cfg.tags:
-            cfg.tags[eui].draw()
+    def redraw(self):
+        for tag in self.tags.values():
+            tag.redraw()
         self.fig.canvas.draw()
 
 
 class Receiver(threading.Thread):
 
-    def __init__(self,host,port):
+    def __init__(self,room,host,port):
         threading.Thread.__init__(self)
         self.saddr = TCPTailPipe.get_saddr(host,port)
+        self.room = room
 
     def run(self):
         Xcnt = 1
@@ -157,12 +160,9 @@ class Receiver(threading.Thread):
                 while self.running:
                     try:
                         msg = json.loads(tpipe.recvmsg())
-                        if msg['Type'] == 'TAG' and msg['Tag']:
-                            eui = msg['Tag']
-                            if eui in cfg.tags:
-                                tag = cfg.tags[eui]
-                                tag.update(msg['Coord'])
-                                print('TAG:{0} {1} {2} COORD:{3[0]:.3f},{3[1]:.3f},{3[2]:.3f}'.format(msg['Name'],msg['Tag'], msg['Colour'], msg['Coord']))
+                        if msg['Type'] == 'TAG':
+                            self.room.update_tag(msg['Tag'], msg['Name'], msg['Coord'], msg['Colour'])
+                            print('TAG:{0} {1} {2} COORD:{3[0]:.3f},{3[1]:.3f},{3[2]:.3f}'.format(msg['Name'],msg['Tag'], msg['Colour'], msg['Coord']))
 
                     except (ValueError,KeyError,AttributeError) as err:
                         eprint('{}: {}'.format(err.__class__.__name__, err))
@@ -210,12 +210,12 @@ def main():
         cfg.coord_filter_len = args.filter
     
     room = Room()
-    recv = Receiver(cfg.server_host, cfg.server_port)
+    recv = Receiver(room, cfg.server_host, cfg.server_port)
             
     try:
         recv.start()
         while True:
-            room.update()
+            room.redraw()
 
     except KeyboardInterrupt:
         eprint('Exiting...')
