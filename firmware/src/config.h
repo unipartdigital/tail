@@ -55,7 +55,8 @@
 	X(tag_listen_period, 0x002e) \
 	X(xtal_ppm,          0x002f) \
 	X(tag_jitter,        0x0030) \
-	X(tag_jitter_idle,   0x0031)
+	X(tag_jitter_idle,   0x0031) \
+	X(tag_key,           0x0032)
 
 #define CONFIG_KEY_INVALID 0x0000
 

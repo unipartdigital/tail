@@ -7,7 +7,7 @@
 
 void drbg_error(void);
 bool drbg_ready(void);
-uint8_t *drbg_generate(void);
+const uint8_t *drbg_generate(void);
 void drbg_update(uint32_t);
 void increase_vector(uint8_t *);
 void drbg_init(void);
