@@ -1,0 +1,28 @@
+/* -*- c -*-
+ *
+ * Device Tree Overlay for Tail production tester DUT
+ *
+ * This is intended to be loaded and unloaded at runtime via e.g.
+ *
+ * mkdir /sys/kernel/config/device-tree/overlays/tailtest_dut
+ * cat tailtest_dut.dtbo > \
+ *       /sys/kernel/config/device-tree/overlays/tailtest_dut/dtbo
+ *
+ * rmdir /sys/kernel/config/device-tree/overlays/tailtest_dut
+ *
+ */
+
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "brcm,bcm2708";
+
+	/* Enable DUT EEPROM */
+	fragment@0 {
+		target = <&tailtest_dut_eeprom>;
+		__overlay__ {
+			status = "okay";
+		};
+	};
+};

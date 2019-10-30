@@ -7,3 +7,6 @@
 [submodule "firmware/efm32-base"]
 	path = firmware/efm32-base
 	url = https://github.com/ryankurte/efm32-base
+[submodule "tester/hats"]
+	path = tester/eeprom/hats
+	url = https://github.com/raspberrypi/hats.git

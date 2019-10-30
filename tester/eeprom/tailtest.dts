@@ -1,0 +1,72 @@
+/* -*- c -*-
+ *
+ * Device Tree Overlay for Tail production tester adapter
+ *
+ * This is intended to be placed within the ID EEPROM of the
+ * production tester adapter.
+ *
+ */
+
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "brcm,bcm2708";
+
+	/* Enable SPI0 controller */
+	fragment@0 {
+		target = <&spi0>;
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	/* Enable generic SPI device for SPI0 CE0 */
+	fragment@1 {
+		target = <&spidev0>;
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	/* Disable generic SPI device for SPI0 CE1 */
+	fragment@2 {
+		target = <&spidev1>;
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+
+	/* Enable I2C0 controller and adapter's own ID EEPROM */
+	fragment@3 {
+		target = <&i2c0>;
+		__overlay__ {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			status = "okay";
+
+			eeprom@50 {
+				compatible = "atmel,24c128";
+				reg = <0x50>;
+			};
+		};
+	};
+
+	/* Enable I2C1 controller with DUT ID EEPROM disabled */
+	fragment@4 {
+		target = <&i2c1>;
+		__overlay__ {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			status = "okay";
+
+			tailtest_dut_eeprom: eeprom@50 {
+				compatible = "atmel,24c128";
+				reg = <0x50>;
+				status = "disabled";
+			};
+		};
+	};
+};
