@@ -9,7 +9,7 @@ EEPDUMP		= $(EEPROMUTILS)/eepdump
 all : tools tailtest.dtbo tailtest.eep tailtest_dut.dtbo
 
 %.dtbo : %.dts Makefile
-	$(DTC) -@ -I dts -O dtb -o $@ $<
+	$(DTC) -Wno_unit_address_vs_reg -@ -I dts -O dtb -o $@ $<
 
 %.dtso : %.dtbo
 	$(DTC) -@ -I dtb -O dts -o $@ $<
