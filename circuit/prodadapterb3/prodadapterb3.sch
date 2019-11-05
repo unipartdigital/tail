@@ -426,7 +426,7 @@ F 3 "" H 3750 1450 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	2900 3800 1900 3800
+	1900 3800 2900 3800
 Wire Wire Line
 	1900 2300 1900 4050
 Wire Wire Line
@@ -435,9 +435,9 @@ Wire Wire Line
 	2900 3100 1900 3100
 Connection ~ 1900 3100
 Wire Wire Line
-	1900 3950 4500 3950
+	4500 3950 1900 3950
 Wire Wire Line
-	4500 3950 4500 2100
+	4500 2100 4500 3950
 Wire Wire Line
 	4500 2100 3400 2100
 Connection ~ 1900 3800
@@ -465,7 +465,6 @@ F 3 "" H 1900 4050 50  0001 C CNN
 	1    1900 4050
 	1    0    0    -1  
 $EndComp
-NoConn ~ 2900 1900
 NoConn ~ 2900 2000
 NoConn ~ 2900 2100
 NoConn ~ 2900 2200
@@ -481,7 +480,6 @@ NoConn ~ 2900 2900
 NoConn ~ 2900 2800
 NoConn ~ 2900 2600
 NoConn ~ 2900 2500
-NoConn ~ 2900 2700
 NoConn ~ 6500 2200
 NoConn ~ 7000 2200
 NoConn ~ 7000 2300
@@ -528,4 +526,22 @@ F 3 "" H 8150 2100 50  0001 C CNN
 $EndComp
 Connection ~ 6250 1900
 Connection ~ 7100 1900
+Wire Wire Line
+	2150 2700 2900 2700
+Wire Wire Line
+	2150 1800 2150 2700
+Wire Wire Line
+	2150 1900 2900 1900
+Connection ~ 2150 1900
+$Comp
+L +3.3V #PWR011
+U 1 1 5DC1768B
+P 2150 1800
+F 0 "#PWR011" H 2150 1650 50  0001 C CNN
+F 1 "+3.3V" H 2150 1940 50  0000 C CNN
+F 2 "" H 2150 1800 50  0001 C CNN
+F 3 "" H 2150 1800 50  0001 C CNN
+	1    2150 1800
+	1    0    0    -1  
+$EndComp
 $EndSCHEMATC
