@@ -10,6 +10,7 @@
 #include "aes.h"
 #include "drbg.h"
 #include "entropy.h"
+#include "uart.h"
 
 /* These uses the AES hardware, but is only used internally by DRBG.
    Do not use them for encryption/authentication/anything else!
@@ -21,8 +22,15 @@ uint8_t drbg_generated[16]; /* most recently generated value */
 int32_t drbg_samples;
 int32_t drbg_samples_required;
 
+/* Initialize the drbg. Only drbg_samples_required absolutely has to be set,
+   but setting the other values allows for deterministic re-initialization.
+   The values for drbg_key and drbg_vector are deterministic, but not magical;
+   they could be anything. */
 void drbg_init(void) {
+    drbg_samples = 0;
     drbg_samples_required = entropy_samples_til_ready();
+    memset(drbg_key, 0xaa, 16);
+    memset(drbg_vector, 0x99, 16);
 }
 
 /* Note that this is intentionally ignoring a difference in byte order
@@ -43,12 +51,12 @@ void drbg_update(uint32_t entropy_sample) {
 
     increase_vector(drbg_vector);
     aes_init();
-    AES_ECB128((uint8_t *)new_key, drbg_vector, 1, drbg_key, 1);
+    AES_ECB128((uint8_t *)new_key, drbg_vector, 16, drbg_key, 1);
     /* Xor with the lowest chunk of the key the size of the entropy sample */
     new_key[3] ^= entropy_sample;
 
     increase_vector(drbg_vector);
-    AES_ECB128(drbg_vector, drbg_vector, 1, drbg_key, 1);
+    AES_ECB128(drbg_vector, drbg_vector, 16, drbg_key, 1);
     aes_deinit();
     memcpy(drbg_key, new_key, 16);
 
@@ -56,15 +64,18 @@ void drbg_update(uint32_t entropy_sample) {
         drbg_samples++;
 }
 
-uint8_t *drbg_generate(void) {
+const uint8_t *drbg_generate(void) {
     if (!drbg_ready())
         return NULL;
     increase_vector(drbg_vector);
-    AES_ECB128(drbg_generated, drbg_vector, 1, drbg_key, 1);
+    aes_ecb128(drbg_generated, drbg_vector, 16, drbg_key, 1);
     return drbg_generated;
 }
 
 bool drbg_ready(void) {
+    /* If drbg_ready is called before drbg_init, it definitely is not ready. */
+    if (!drbg_samples_required)
+        return 0;
     return drbg_samples >= drbg_samples_required;
 }
 

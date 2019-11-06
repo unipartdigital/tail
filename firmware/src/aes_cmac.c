@@ -7,8 +7,8 @@
 
 /* https://tools.ietf.org/html/rfc4493 */
 void generate_subkey(uint8_t *k1, uint8_t *k2, const uint8_t *k) {
-    uint8_t const_zero[16];
-    uint8_t const_rb[16];
+    uint8_t const_zero[16] __attribute__((aligned(4)));
+    uint8_t const_rb[16] __attribute__((aligned(4)));
     int key_msb;
 
     set16bytes(const_zero, 0, 0);
