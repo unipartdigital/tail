@@ -11,6 +11,7 @@
 #include "timer.h"
 #include "lfsr.h"
 #include "event.h"
+#include "crypto.h"
 
 #include "em_gpio.h"
 
@@ -220,7 +221,7 @@ tag_data_t tag_data = {
 #define TAIL_MAGIC_RESET_RESPONSE           0xdada
 
 #define TAIL_FRAME_BLINK                    0x00
-#define TAIL_FRAME_BLINK_IV                 0x08
+#define TAIL_FRAME_BLINK_COOKIE             0x08
 #define TAIL_FRAME_BLINK_IE                 0x04
 #define TAIL_FRAME_BLINK_EIE                0x02
 
@@ -696,7 +697,6 @@ void tag_start(void)
 
     int frame_type = TAIL_FRAME_BLINK;
     int flags = 0;
-
     if (device.receive_after_transmit)
     	flags |= TAIL_FLAGS_LISTEN;
 
@@ -707,6 +707,11 @@ void tag_start(void)
     ftoffset = offset;
     txbuf[offset++] = frame_type;
     txbuf[offset++] = flags;
+
+    if (crypto_get_cookie(txbuf + offset)) {
+        frame_type |= TAIL_FRAME_BLINK_COOKIE;
+        offset += 16;
+    }
 
     radio_wakeup_adc_readings(&voltage, &temperature);
 
@@ -781,8 +786,10 @@ void tag_start(void)
 #endif
 
     if (iecount > 0)
-    	txbuf[ftoffset] = frame_type | TAIL_FRAME_BLINK_IE;
+        frame_type |= TAIL_FRAME_BLINK_IE;
 
+    /* The frame type is finally fully known; write it. */
+    txbuf[ftoffset] = frame_type;
     txbuf[iecountoffset] = iecount;
 
     radio_writepayload(txbuf, offset, 0);

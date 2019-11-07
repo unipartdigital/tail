@@ -19,6 +19,7 @@
 #include "timer.h"
 #include "event.h"
 #include "entropy.h"
+#include "crypto.h"
 
 #define CLOCK_DEBUG 0
 
@@ -211,6 +212,7 @@ int main(void)
     if (config_get(config_key_rxdelay, (uint8_t *)&word, 4) > 0)
         proto_rx_delay(word);
 
+    crypto_init();
     proto_init();
 
     while (1) {
