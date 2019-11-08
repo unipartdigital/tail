@@ -38,7 +38,8 @@ class cfg():
     blink_size      = 64
     blink_delay     = None
     blink_count     = None
-    
+
+
 
 def SendBlink(rsock):
     frame = TailFrame()
@@ -91,7 +92,7 @@ class rxThread(threading.Thread):
                             self.recv_time()
                         self.count += 1
                 except Exception as err:
-                    pr.error('{}: {}'.format(type(err).__name__, err))
+                    eprint('{}: {}'.format(err.__class__.__name__, err))
 
     def stop(self):
         self.running = False
@@ -117,7 +118,7 @@ def SocketLoop():
                      socket.SOF_TIMESTAMPING_TX_SOFTWARE |
                      socket.SOF_TIMESTAMPING_RX_SOFTWARE |
                      socket.SOF_TIMESTAMPING_SOFTWARE)
-    rsock.bind(cfg.if_bind)
+    rsock.bind((cfg.if_name, 0))
 
     tx = txThread(rsock)
     rx = rxThread(rsock)
@@ -142,7 +143,6 @@ def main():
 
     parser = argparse.ArgumentParser(description="uTrack Connector daemon")
 
-    parser.add_argument('-D', '--debug', action='count', default=0)
     parser.add_argument('-v', '--verbose', action='count', default=0)
     parser.add_argument('-I', '--interface', type=str, default=cfg.if_name)
     parser.add_argument('-P', '--promiscuous-mode', action='store_true', default=False)
@@ -160,10 +160,7 @@ def main():
     
     args = parser.parse_args()
 
-    pr.DEBUG = args.debug
-
-    cfg.verbose = args.verbose
-    WPANFrame.verbosity = cfg.verbose
+    WPANFrame.verbosity = args.verbose
     
     cfg.blink_dst = bytes.fromhex(args.dest)
     cfg.blink_size = args.size
@@ -173,13 +170,9 @@ def main():
     cfg.promisc = args.promiscuous_mode
     
     cfg.if_name  = args.interface
-    cfg.if_bind  = (cfg.if_name, 0)
-
-    addrs = netifaces.ifaddresses(cfg.if_name).get(netifaces.AF_PACKET)
-    cfg.if_eui64 = addrs[0]['addr'].replace(':','')
-    cfg.if_addr = bytes.fromhex(cfg.if_eui64)
-
-    WPANFrame.set_ifaddr(cfg.if_addr, 0xffff)
+    cfg.if_addr  = GetDTAttrRaw('decawave,eui64')
+    cfg.if_eui64 = cfg.if_addr.hex()
+    WPANFrame.set_ifaddr(cfg.if_addr)
 
     cfg.dw1000_profile = args.profile
     cfg.dw1000_channel = args.channel
@@ -192,7 +185,7 @@ def main():
     if cfg.dw1000_power is not None:
         cfg.dw1000_smart = bool(cfg.dw1000_power & 0xff000000)
 
-    if cfg.verbose > 1:
+    if args.verbose > 1:
         print('UWB dump starting...')
         print('  profile   : {}'.format(cfg.dw1000_profile))
         print('  channel   : {}'.format(cfg.dw1000_channel))
