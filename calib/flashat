@@ -1,6 +1,6 @@
 #!/bin/bash
 
-CHIP=${CHIP:-24c64}
+CHIP=${CHIP:-24c128}
 I2C_BUS=${I2C_BUS:-0}
 I2C_ADDR=${I2C_ADDR:-50}
 
@@ -17,6 +17,11 @@ error()
 checkmod()
 {
     lsmod | fgrep -q at24
+}
+
+checkdev()
+{
+    test -d ${DEV}
 }
 
 compile()
@@ -69,26 +74,32 @@ READ=$(tempfile)
 
 if ! checkmod
 then
-	MLOAD=yes
+	MLOAD=YES
 	modprobe i2c_dev  || error "modprobe i2c_dev failed"
 	modprobe at24 write_timeout=250  || error "modprobe at24 failed"
+fi
+
+if ! checkdev
+then
+	DLOAD=YES
+        echo "${CHIP} 0x${I2C_ADDR}" > ${SYS}/new_device
 fi
 
 test -f ${FILE}   || error "File ${FILE} does not exist"
 test -d ${SYS}    || error "Directory ${SYS} does not exist"
 
-test -d ${DEV}    || ( echo "${CHIP} 0x${I2C_ADDR}" > ${SYS}/new_device )
-test -d ${DEV}    || error "Directory ${DEV} does not exist"
-
 dd if="${FILE}" of=${DEV}/eeprom oflag=sync status=none || error "dd to eeprom failed"
 dd of="${READ}" if=${DEV}/eeprom bs=1k status=none || error "dd from eeprom failed"
-
-echo "0x${I2C_ADDR}" > ${SYS}/delete_device
 
 cmp -n ${SIZE} -s ${FILE} ${READ} ; OK=$?
 rm -f ${READ}
 
-if [ "${MLOAD}" == 'yes' ]
+if [ "${DLOAD}" == YES ]
+then
+        echo "0x${I2C_ADDR}" > ${SYS}/delete_device
+fi
+
+if [ "${MLOAD}" == YES ]
 then
 	rmmod at24
 	rmmod i2c_dev

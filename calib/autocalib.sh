@@ -1,9 +1,24 @@
 #!/bin/bash
 #
-# DW1000 Hat interactive calibration script
+# DW1000 Hat calibration script
 #
-# Usage: autocalib.sh HOST <EUI64>
+# Usage: autocalib.sh INIT|XTALT|BASIC|CALIB <EUI64>
 #
+
+##
+## Device Under Test - DUT
+##
+DUT='magpi5'
+
+##
+## Reference anchors
+##
+REFS='
+  magpi1
+  magpi2
+  magpi3
+  magpi4
+'
 
 ##
 ## Default profile
@@ -15,8 +30,7 @@ DEFPROF='CH5-12+6'
 ##
 ## ID,CH,PCODE,PRF,PSR,PWR,COARSE,FINE
 ##
-DWCHS="/tmp/dwchs-$$"
-cat<<MEOW>${DWCHS}
+DWCHS='
 CH5-9+3,5,10,64,1024,-9.3,3,8
 CH5-9+6,5,10,64,1024,-9.3,6,8
 CH5-9+9,5,10,64,1024,-9.3,9,8
@@ -25,20 +39,6 @@ CH5-12+3,5,10,64,1024,-12.3,3,8
 CH5-12+6,5,10,64,1024,-12.3,6,8
 CH5-15+0,5,10,64,1024,-15.3,0,8
 CH5-15+3,5,10,64,1024,-15.3,3,8
-MEOW
-
-##
-## Reference anchors
-##
-REFS='
-  magpi1
-  magpi2
-  magpi3
-  magpi4
-  magpi5
-  magpi6
-  magpi7
-  magpi8
 '
 
 ##
@@ -47,17 +47,17 @@ REFS='
 
 PPM_OFFSET=${PPM_OFFSET:-0.0}
 
-PROFILE=${PROFILE:-'CH5-12+6'}
 CHANNEL=${CHANNEL:-5}
 PCODE=${PCODE:-12}
 PRF=${PRF:-64}
 PSR=${PSR:-1024}
 
+LEVEL=${LEVEL:--12.3}
 DIST=${DIST:-7.90}
 COUNT=${COUNT:-100}
 DELAY=${DELAY:-0.020}
 WAIT=${WAIT:-0.5}
-IPVER=${IPVER:-6}
+IPVER=${IPVER:-}
 
 XTALT=17
 SPIMAX=20000000
@@ -75,7 +75,7 @@ DWLST="/tmp/dwlst-$$"
 :> ${DWTMP}
 :> ${DWLST}
 
-export HOST=$1
+export MODE=$1
 export EUI64=$2
 
 
@@ -85,9 +85,13 @@ export EUI64=$2
 
 mesg()
 {
-    echo "***"
-    echo "*** $*"
-    echo "***"
+    echo -e "\n*** $*"
+}
+
+error()
+{
+    mesg "$*"
+    exit 1
 }
 
 fail()
@@ -100,19 +104,42 @@ usage()
 {
 cat<<MEOW
 
-Usage: $0 <HOST> <EUI64>
+Usage: $0 INIT|XTALT|BASIC|CALIB <EUI64>
 
 MEOW
 }
 
 alive()
 {
-    ping -${IPVER} -c 3 -i 0.2 -W 1 -q "$@" 2>/dev/null >/dev/null
+    ping ${IPVER} -c 3 -i 0.2 -W 1 -q "$@" 2>/dev/null >/dev/null
 }
 
 picheck()
 {
-    alive ${HOST} && ssh -${IPVER} root@${HOST} true 2>/dev/null 2>/dev/null
+    alive $1 && ssh ${IPVER} root@$1 true 2>/dev/null >/dev/null
+}
+
+system_check()
+{
+    local PIDS=''
+    local RET=0
+    
+    echo -n "Checking system..."
+    
+    for HOST in ${DUT} ${REFS}
+    do
+	picheck ${HOST} &
+	PIDS+=" ${HOST}:$!"
+    done
+
+    for KEY in ${PIDS}
+    do
+	PID=${KEY##*:}
+	HOST=${KEY%%:*}
+	wait ${PID} || error "Host ${HOST} not available"
+    done
+
+    echo "done"
 }
 
 prepare_dtree()
@@ -185,37 +212,53 @@ MEOW
 				decawave,eui64 = /bits/ 64 <0x${EUI64}>;
 				decawave,antd = <${ANTD16} ${ANTD64}>;
 				decawave,xtalt = <${XTALT}>;
+MEOW
+    if [ -s "${DWLST}" ]
+    then
+	cat<<MEOW>>${EUI64}.dts
 				decawave,default = "${DEFPROF}";
 				decawave,calib {
 MEOW
 
-    N=0
-    cat "${DWLST}" | while IFS=, read ID CH PRF ANTD POWER REST
-    do
-	if [ -n "${ID}" ]
-	then
-	    cat<<MEOW>>${EUI64}.dts
+	N=0
+	cat "${DWLST}" | while IFS=, read ID CH PRF ANTD POWER REST
+	do
+	    if [ -n "${ID}" ]
+	    then
+		cat<<MEOW>>${EUI64}.dts
 					calib@$N {
-						id = "${ID}";
-						ch = <${CH}>;
+						 id = "${ID}";
+						 ch = <${CH}>;
 						prf = <${PRF}>;
 						antd = <${ANTD}>;
 						power = <${POWER}>;
 					};
 MEOW
-	    let N+=1
-	fi
-    done
+		let N+=1
+	    fi
+	done
+
+	cat<<MEOW>>${EUI64}.dts
+				};
+MEOW
+    fi
     
     cat<<MEOW>>${EUI64}.dts
-				};
 			};
 		};
 	};
-
 	__overrides__ {
 		dw1000_eui = <&dw1000>,"decawave,eui64#0";
+MEOW
+
+    if [ -s "${DWLST}" ]
+    then
+	cat<<MEOW>>${EUI64}.dts
 		dw1000_profile = <&dw1000>,"decawave,default";
+MEOW
+    fi
+    
+    cat<<MEOW>>${EUI64}.dts
 	};
 };
 MEOW
@@ -231,83 +274,100 @@ MEOW
 
 flash()
 {
-    prepare_dtree
-
     gzip -c ${EUI64}.eep |
-	ssh -${IPVER} root@${HOST} "
-	    gunzip -c > /tmp/${EUI64}.eep &&
-	    flashat /tmp/${EUI64}.eep" ||
+	ssh ${IPVER} root@${DUT} "
+	    gunzip -c > /etc/${EUI64}.eep &&
+	    true /etc/${EUI64}.eep" ||
 	        fail "Remote hat EEPROM programming"
 }
 
 remboot()
 {
-    ssh -${IPVER} root@${HOST} reboot 2>/dev/null >/dev/null
-
-    sleep 5
+    echo -n "Rebooting ${DUT}"
     
-    N=60
-    while ! picheck ${HOST}
+    ssh ${IPVER} root@${DUT} reboot 2>/dev/null >/dev/null
+
+    for i in {1..5}
     do
-	let N-=1
-	test $N -lt 1 && return 1
 	sleep 1
+	echo -n '.'
     done
+
+    for i in {1..100}
+    do
+	if picheck ${DUT}
+	then
+	    echo 'done'
+	    return 0
+	fi
+	sleep 0.01
+	echo -n '.'
+    done
+
+    echo 'fail'
     
-    return 0
+    return 1
 }
 
-eui64check()
+remflash()
 {
-    [[ -n "$1" ]] && [[ "$1" =~ '70b3d5b1e' ]]
+    mesg "Starting flashing ${DUT} <${EUI64}>"
+    
+    check_eui64 ${EUI64}
+    prepare_dtree
+    flash 
+    remboot
 }
 
-
-if ! picheck
-then
-    mesg "Host ${HOST} is unreachable"
-    exit 1
-fi
-    
-if eui64check "${EUI64}"
-then
-    mesg "Starting initial flashing for ${HOST} <${EUI64}>"
-    
-    echo "Programming the DW1000 Hat EEPROM..."
-    if ! flash
-    then
-	fail "Initial programming"
-    fi
-    
-    echo "Initial programming successful. Rebooting remotely..."
-    if ! remboot
-    then
-	fail "Remote reboot"
-    fi
-fi
-
-EUI64=$( ./dwattr.py ${HOST} --print-eui )
-
-if eui64check "${EUI64}"
-then
-    mesg "Starting calibration process for ${HOST} <${EUI64}>"
-
-    ./calibrate.py *${HOST} ${REFS} -vv --profile=${PROFILE} --channel=${CHANNEL} --prf=${PRF} --pcode=${PCODE} --txpsr=${PSR} --ppm-offset=${PPM_OFFSET} -X -w ${WAIT} -d ${DELAY} -n ${COUNT} ${EXTRA} > ${DWTMP}
+calibrate_xtalt()
+{
+    ./calibrate.py *${DUT} ${REFS} -X -vv --channel=${CHANNEL} --prf=${PRF} --pcode=${PCODE} --txpsr=${PSR} --ppm-offset=${PPM_OFFSET} -P ${LEVEL} -L ${DIST} -w ${WAIT} -d ${DELAY} -n ${COUNT} ${EXTRA} > ${DWTMP}
 
     XTALT=$( cat $DWTMP | egrep '^XTALT' | cut -d, -f 3 )
+    ANTDC=$( cat $DWTMP | egrep '^ANTD'  | cut -d, -f 3 )
     
     if [[ "${XTALT}" -lt 1 ]] || [[ "${XTALT}" -gt 31 ]]
     then
 	fail "XTALT calibration"
     fi
-	    
-    cat ${DWCHS} | while IFS=, read ID CH PCODE PRF PSR LEVEL COARSE FINE
+}
+
+calibrate_antd()
+{
+    ./calibrate.py *${DUT} ${REFS} -A -vv --channel=${CHANNEL} --prf=16 --pcode=${PCODE} --txpsr=${PSR} -P ${LEVEL} -L ${DIST} -w ${WAIT} -d ${DELAY} -n ${COUNT} ${EXTRA} > ${DWTMP}
+    
+    ANTD16=$( cat $DWTMP | egrep '^ANTD'  | cut -d, -f 3 )
+    
+    if [[ "${ANTD16}" -lt 0x3900 ]] || [[ "${ANTD16}" -gt 0x4100 ]]
+    then
+	fail "ANTD PRF16 calibration"
+    fi
+    
+    ./calibrate.py *${DUT} ${REFS} -A -vv --channel=${CHANNEL} --prf=64 --pcode=${PCODE} --txpsr=${PSR} -P ${LEVEL} -L ${DIST} -w ${WAIT} -d ${DELAY} -n ${COUNT} ${EXTRA} > ${DWTMP}
+    
+    ANTD64=$( cat $DWTMP | egrep '^ANTD'  | cut -d, -f 3 )
+    
+    if [[ "${ANTD64}" -lt 0x3900 ]] || [[ "${ANTD64}" -gt 0x4100 ]]
+    then
+	fail "ANTD PRF64 calibration"
+    fi
+}
+
+calibrate_profiles()
+{
+    mesg "Starting calibration process for ${DUT} <${EUI64}>"
+
+    EUI64=$( ./dwattr.py ${DUT} --print-eui )
+
+    eui64check "${EUI64}"  || fail "Missing initial programming in DT"
+
+    echo ${DWCHS} | while IFS=, read ID CH PCODE PRF PSR LEVEL COARSE FINE
     do
 	if [ -n "${ID}" ]
 	then
 	    mesg "Calibrating <$ID> CH:${CH} PCODE:${PCODE} PRF:${PRF} PSR:${PSR} Level:${LEVEL}dBm"
 	    
-	    ./calibrate.py ${HOST}* ${REFS} -vv --profile=${PROFILE} --channel=${CH} --prf=${PRF} --pcode=${PCODE} --txpsr=${PSR} -T -A -P ${LEVEL} -L ${DIST} -C ${COARSE} -F ${FINE} -w ${WAIT} -d ${DELAY} -n ${COUNT} ${EXTRA} > ${DWTMP}
+	    ./calibrate.py ${DUT}* ${REFS} -T -A -vv --channel=${CH} --prf=${PRF} --pcode=${PCODE} --txpsr=${PSR} -P ${LEVEL} -L ${DIST} -C ${COARSE} -F ${FINE} -w ${WAIT} -d ${DELAY} -n ${COUNT} ${EXTRA} > ${DWTMP}
 	    
 	    TXPWR=$( cat $DWTMP | egrep '^TXPWR' | cut -d, -f 3 )
 	    TXKEY=$( cat $DWTMP | egrep '^TXPWR' | cut -d, -f 4,5 )
@@ -322,24 +382,51 @@ then
 	    POWER=0x$P$P$P$P
 
 	    echo "$ID,$CH,$PRF,$ANTDC,$POWER,$TXKEY,$LEVEL" >> ${DWLST}
-	    
-	    echo "***"
 	    echo "*** Calibration done: ${ID} Ch:${CH} PRF:${PRF} XTALT:${XTALT} TXPWR:${TXKEY}:${TXPWR} ANTD:${ANTDC}"
-	    echo "***"
 	fi
     done
-    
-    echo '***'
-    echo '*** Calibration:'
-    echo '***'
-    cat "${DWLST}" | while IFS=, read ID CH PRF ANTD TXPWR TXP1 TXP2 LEVEL
-    do
-	echo "*** $ID CH:$CH PRF:$PRF ANTD:$ANTD LEVEL:$LEVEL POWER:$TXP1+$TXP2:$TXPWR"
-    done
-    echo "***"
-    
-    echo "Programming the DW1000 Hat EEPROM..."
-    flash || fail "Flash programming"
-    mesg "Programming ${HOST} done."
+}
 
-fi
+check_eui64()
+{
+    [[ -n "$1" ]] && [[ "$1" =~ '70b3d5b1e' ]] || error "Invalid EUI64: $1"
+}
+
+read_eui64()
+{
+    EUI64=$( ./dwattr.py ${HOST} --print-eui )
+    check_eui64 ${EUI64}
+}
+
+
+trap 'echo Interrupt; exit 1' INT HUP
+
+system_check || error "System unavailable"
+
+case "${MODE}" in
+
+    INIT)   remflash
+	    ;;
+    
+    XTALT)  read_eui64
+	    calibrate_xtalt
+	    remflash
+	    ;;
+    
+    BASIC)  read_eui64
+	    calibrate_xtalt
+	    calibrate_antd
+	    remflash
+	    ;;
+    
+    CALIB)  read_eui64
+	    calibrate_xtalt
+	    calibrate_antd
+    	    calibrate_profiles
+	    remflash
+	    ;;
+
+    *)      usage
+	    ;;
+esac
+

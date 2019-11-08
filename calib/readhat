@@ -1,32 +1,61 @@
 #!/bin/bash
 
-FILE="$1"
-CHIP=${CHIP:-24c64}
-
+CHIP=${CHIP:-24c128}
 I2C_BUS=${I2C_BUS:-0}
 I2C_ADDR=${I2C_ADDR:-50}
 
 SYS=/sys/class/i2c-adapter/i2c-${I2C_BUS}
 DEV=${SYS}/${I2C_BUS}-00${I2C_ADDR}
 
-error() { echo "*** ERROR: $*"; exit 1; }
 
-#modprobe i2c_dev  || error "modprobe i2c_dev failed"
-#modprobe at24 write_timeout=250  || error "modprobe at24 failed"
+error()
+{
+    echo "*** ERROR: $*"
+    exit 1
+}
 
-test -d ${SYS}    || error "Directory ${SYS} does not exist"
+checkmod()
+{
+    lsmod | fgrep -q at24
+}
 
-if [ ! -d ${DEV} ]
+checkdev()
+{
+    test -d ${DEV}
+}
+
+if [ -z "$1" ]
 then
-    echo "${CHIP} 0x${I2C_ADDR}" > ${SYS}/new_device
+	error "No filename given"
 fi
 
-test -f ${DEV}/eeprom    || error "File ${DEV}/eeprom does not exist"
+READ="$1"
 
-dd of="${FILE}" if=${DEV}/eeprom bs=64 status=none || error "dd from eeprom failed"
+if ! checkmod
+then
+	MLOAD=YES
+	modprobe i2c_dev  || error "modprobe i2c_dev failed"
+	modprobe at24 write_timeout=250  || error "modprobe at24 failed"
+fi
 
-#echo "0x${I2C_ADDR}" > ${SYS}/delete_device
+if ! checkdev
+then
+	DLOAD=YES
+        echo "${CHIP} 0x${I2C_ADDR}" > ${SYS}/new_device
+fi
 
-#rmmod at24
-#rmmod i2c_dev
+test -d ${SYS} || error "Directory ${SYS} does not exist"
+
+dd of="${READ}" if=${DEV}/eeprom bs=1k status=none
+
+if [ "${DLOAD}" == YES ]
+then
+        echo "0x${I2C_ADDR}" > ${SYS}/delete_device
+fi
+
+if [ "${MLOAD}" == YES ]
+then
+	rmmod at24
+	rmmod i2c_dev
+fi
 

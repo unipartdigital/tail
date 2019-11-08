@@ -1,60 +1,48 @@
 #!/usr/bin/python3
 #
-# DW1000 attribute tool for Tail algorithm development
+# DW1000 attribute tool for Tail
 #
 
 import sys
-import socket
-import pprint
 import argparse
-import tail
 
-from tail import DW1000
-from tail import eprint
-
-from config import *
-
-VERBOSE = 0
+from tail import *
+from blinks import *
 
 
 def main():
     
-    global VERBOSE
-    
-    parser = argparse.ArgumentParser(description="DW1000 attrbute tool")
+    parser = argparse.ArgumentParser(description="DW1000 attribute tool")
 
-    DW1000.AddParserArguments(parser)
-    DW1000.AddPrintArguments(parser)
+    DW1000.add_device_arguments(parser)
+    DW1000.add_print_arguments(parser)
     
-    parser.add_argument('-v', '--verbose', action='count', default=0)
-    parser.add_argument('-p', '--port', type=int, default=RPC_PORT)
-    parser.add_argument('-s', '--summary', action='store_true', default=False)
-    
+    parser.add_argument('-v', '--verbose', action='store_true', default=False)
+    parser.add_argument('-p', '--port', type=int, default=8912)
     parser.add_argument('remote', type=str, nargs='+', help="Remote address")
     
     args = parser.parse_args()
     
-    VERBOSE = args.verbose
+    rpc = RPC()
     
-    rpc = tail.RPC(('',args.port))
-
-    remotes = [ ]
+    remotes = []
     for host in args.remote:
+        name = host.split('.')[0]
         try:
-            anchor = DW1000(host,args.port,rpc)
+            anchor = DW1000(rpc, name, host, args.port)
+            anchor.connect()
             remotes.append(anchor)
-        except (ValueError,OSError,ConnectionRefusedError):
-            eprint('Remote {} not accessible'.format(host))
+        except (ValueError,ConnectionError) as err:
+            eprint(f'Remote {host} not accessible')
 
-    DW1000.HandleArguments(args,remotes)
-    DW1000.HandlePrintArguments(args,remotes)
+    DW1000.handle_device_arguments(args ,remotes)
+    DW1000.handle_print_arguments(args, remotes)
 
-    if VERBOSE > 0:
-        DW1000.PrintAllRemoteAttrs(remotes,args.summary)
+    if args.verbose:
+        DW1000.print_all_remote_attrs(remotes,True)
 
     rpc.stop()
 
 
-if __name__ == "__main__":
-    main()
+if __name__ == "__main__": main()
 
