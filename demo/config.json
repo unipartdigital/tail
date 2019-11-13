@@ -22,7 +22,6 @@
 	"max_dist"		: 20.0,
 	"max_ddoa"		: 20.0,
 	"max_change"		: 5.0,
-	"tag_z_estimate"	: -2.50,
 
 	"force_beacon"		: "A1"
     },

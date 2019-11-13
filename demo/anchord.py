@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 #
-# One-way Ranging Anchor daemon
+# Tail Anchor daemon prototype
 #
 
 import os
@@ -11,6 +11,7 @@ import select
 import socket
 import netifaces
 import argparse
+import traceback
 
 from tail import *
 
@@ -34,14 +35,11 @@ class cfg():
     anchor_addr     = ''
     anchor_port     = 8912
 
-    server_host     = 'localhost'
+    server_host     = None
     server_port     = 8913
 
     config_json     = '/etc/tail.json'
 
-
-def eprint(*args, **kwargs):
-    print(*args, file=sys.stderr, **kwargs)
 
 def dprint(level, *args, **kwargs):
     if cfg.debug >= level:
@@ -57,63 +55,136 @@ def remove_tag(eui):
     TAGS.pop(eui, None)
     
 
-def send_server_msg(tsock, **args):
-    data = json.dumps(args)
-    dprint(3, 'send_server_msg: {}'.format(data))
-    tsock.sendto(data.encode(), cfg.server_raddr)
+CLIENTS = {}
+CLIPOLL = select.poll()
 
-def recv_server_msg(tsock, rsock):
-    (data,addr) = tsock.recvfrom(4096)
-    dprint(3, 'recv_server_msg: {}'.format(data.decode()))
-    mesg = json.loads(data.decode())
-    Type = mesg.get('Type')
-    if Type == 'FRAME':
-        Data = mesg.get('Data')
-        data = bytes.fromhex(Data)
-        transmit_frame(rsock, data)
-    elif Type == 'REGISTER':
-        tag = mesg.get('Tag')
-        register_tag(tag)
-    elif Type == 'REMOVE':
-        tag = mesg.get('Tag')
-        remove_tag(tag)
+def accept_client(pipe):
+    CLIPOLL.register(pipe.sock, select.POLLIN)
+    CLIENTS[pipe.sock.fileno()] = pipe
+
+def remove_client(pipe):
+    CLIPOLL.unregister(pipe.sock)
+    del CLIENTS[pipe.sock.fileno()]
+    pipe.close()
+
+def client_sendmsg(pipe,mesg):
+    try:
+        pipe.sendmsg(mesg)
+    except ConnectionError:
+        remove_client(pipe)
+
+def client_recvmsg(pipe):
+    try:
+        pipe.fillmsg()
+    except ConnectionError:
+        remove_client(pipe)
 
 
-def transmit_frame(rsock,frame):
+def send_client_bcast(**args):
+    mesg = json.dumps(args)
+    dprint(3, 'send_client_bcast: {}'.format(mesg))
+    for pipe in list(CLIENTS.values()):
+        client_sendmsg(pipe,mesg)
+
+def send_client_msg(pipe, **args):
+    mesg = json.dumps(args)
+    dprint(3, 'send_client_msg: {}'.format(mesg))
+    pipe.sendmsg(mesg)
+
+def recv_client_msg(pipe, rsock):
+    client_recvmsg(pipe)
+    while pipe.hasmsg():
+        data = pipe.getmsg()
+        mesg = json.loads(data)
+        dprint(3, 'recv_client_msg: {}'.format(mesg))
+        Type = mesg.get('Type')
+        if Type == 'FRAME':
+            Data = mesg.get('Data')
+            data = bytes.fromhex(Data)
+            transmit_frame(rsock, data)
+        elif Type == 'BEACON':
+            bid = mesg.get('Beacon')
+            sub = mesg.get('SubType')
+            transmit_beacon(rsock, bid, sub)
+        elif Type == 'REGISTER':
+            tag = mesg.get('Tag')
+            register_tag(tag)
+        elif Type == 'REMOVE':
+            tag = mesg.get('Tag')
+            remove_tag(tag)
+        elif Type == 'RPC':
+            recv_client_rpc(pipe,rsock,mesg)
+        else:
+            eprint('Unknown server message received: {}'.format(mesg))
+
+def recv_client_rpc(pipe, rsock, mesg):
+    Seqn = mesg.get('Seqn')
+    Func = mesg.get('Func')
+    Args = mesg.get('Args')
+    if Func == 'GETEUI':
+        Args['Value'] = cfg.if_eui64
+        send_client_msg(pipe, Type='RPC', Seqn=Seqn, Func=Func, Args=Args)
+    elif Func == 'GETDTATTR':
+        Args['Value'] = GetDTAttr(Args['Attr'],Args['Format'])
+        send_client_msg(pipe, Type='RPC', Seqn=Seqn, Func=Func, Args=Args)
+    elif Func == 'GETDWATTR':
+        Args['Value'] = GetDWAttr(Args['Attr'])
+        send_client_msg(pipe, Type='RPC', Seqn=Seqn, Func=Func, Args=Args)
+    elif Func == 'SETDWATTR':
+        SetDWAttr(Args['Attr'], Args['Value'])
+        Args['Value'] = GetDWAttr(Args['Attr'])
+        send_client_msg(pipe, Type='RPC', Seqn=Seqn, Func=Func, Args=Args)
+    else:
+        eprint('Unknown RPC message received: {}'.format(mesg))
+
+
+def transmit_frame(rsock, frame):
     rsock.send(frame)
 
-def transmit_beacon(rsock, ref):
+def transmit_beacon(rsock, ref, sub=0, flags=0):
     frame = TailFrame()
     frame.set_src_addr(cfg.if_addr)
     frame.set_dst_addr(0xffff)
     frame.tail_protocol = 1
     frame.tail_frmtype = 1
-    frame.tail_subtype = 0
-    frame.tail_flags = 0
+    frame.tail_subtype = sub
+    frame.tail_flags = flags
     frame.tail_beacon = bytes.fromhex(ref)
     rsock.send(frame.encode())
 
 
-def recv_blink(tsock,rsock):
+def recv_blink(rsock):
     (data,ancl,_,_) = rsock.recvmsg(4096, 1024, 0)
     frame = TailFrame(data,ancl)
     dprint(2, 'recv_blink: {}'.format(frame))
     if frame.tail_protocol == 1:
         anc = cfg.if_eui64
         src = frame.get_src_eui()
-        send_server_msg(tsock, Type='RX', Anchor=anc, Src=src, TSInfo=dict(frame.timestamp.tsinfo), Frame=data.hex())
+        if frame.timestamp is None:
+            eprint('RX frame timestamp missing ANC:{} ANCL:{} FRAME:{}'.format(anc,ancl,frame))
+        elif frame.timestamp.tsinfo.rawts == 0 or frame.timestamp.hires == 0:
+            eprint('RX frame timestamp invalid ANC:{} ANCL:{} FRAME:{}'.format(anc,ancl,frame))
+        tms = { 'swts': int(frame.timestamp.sw), 'hwts': int(frame.timestamp.hw), 'hires': int(frame.timestamp.hires) }
+        tsi = dict(frame.timestamp.tsinfo)
+        send_client_bcast(Type='RX', Anchor=anc, Src=src, Times=tms, TSInfo=tsi, Frame=data.hex())
         if frame.tail_frmtype == 0:
             if src in TAGS:
                 transmit_beacon(rsock,src)
                 remove_tag(src)
 
-def recv_times(tsock,rsock):
+def recv_times(rsock):
     (data,ancl,_,_) = rsock.recvmsg(4096, 1024, socket.MSG_ERRQUEUE)
     frame = TailFrame(data,ancl)
     dprint(2, 'recv_times: {}'.format(frame))
     if frame.tail_protocol == 1:
         anc = cfg.if_eui64
-        send_server_msg(tsock, Type='TX', Anchor=anc, Src=anc, TSInfo=dict(frame.timestamp.tsinfo), Frame=data.hex())
+        if frame.timestamp is None:
+            eprint('TX frame timestamp missing ANC:{} ANCL:{} FRAME:{}'.format(anc,ancl,frame))
+        elif frame.timestamp.tsinfo.rawts == 0 or frame.timestamp.hires == 0:
+            eprint('TX frame timestamp invalid ANC:{} ANCL:{} FRAME:{}'.format(anc,ancl,frame))
+        tms = { 'swts': int(frame.timestamp.sw), 'hwts': int(frame.timestamp.hw), 'hires': int(frame.timestamp.hires) }
+        tsi = dict(frame.timestamp.tsinfo)
+        send_client_bcast(Type='TX', Anchor=anc, Src=anc, Times=tms, TSInfo=tsi, Frame=data.hex())
 
 
 def socket_loop():
@@ -123,39 +194,39 @@ def socket_loop():
                          socket.SOF_TIMESTAMPING_RX_HARDWARE |
                          socket.SOF_TIMESTAMPING_TX_HARDWARE |
                          socket.SOF_TIMESTAMPING_RAW_HARDWARE |
-                         socket.SOF_TIMESTAMPING_TX_SOFTWARE |
                          socket.SOF_TIMESTAMPING_RX_SOFTWARE |
                          socket.SOF_TIMESTAMPING_SOFTWARE)
-    rsock.bind(cfg.if_bind)
+    rsock.bind((cfg.if_name,0))
+    CLIPOLL.register(rsock, select.POLLIN)
 
-    tsock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
-    tsock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    tsock.bind(cfg.anchor_laddr)
+    tpipe = TCPTailPipe()
+    tpipe.listen(cfg.anchor_addr, cfg.anchor_port)
+    CLIPOLL.register(tpipe.sock, select.POLLIN)
 
-    socks = select.poll()
-    socks.register(rsock, select.POLLIN)
-    socks.register(tsock, select.POLLIN)
+    if cfg.server_host is not None:
+        upipe = UDPTailPipe()
+        upipe.bind(cfg.anchor_addr, cfg.anchor_port)
+        upipe.connect(cfg.server_host, cfg.server_port)
+        accept_client(upipe)
 
     while True:
-        for (fd,flags) in socks.poll(1000):
+        for (fd,flags) in CLIPOLL.poll(1000):
             try:
                 if fd == rsock.fileno():
                     if flags & select.POLLIN:
-                        recv_blink(tsock,rsock)
+                        recv_blink(rsock)
                     if flags & select.POLLERR:
-                        recv_times(tsock,rsock)
-                elif fd == tsock.fileno():
+                        recv_times(rsock)
+                elif fd in CLIENTS:
                     if flags & select.POLLIN:
-                        recv_server_msg(tsock,rsock)
-                        
+                        recv_client_msg(CLIENTS[fd],rsock)
+                elif fd == tpipe.sock.fileno():
+                    if flags & select.POLLIN:
+                        accept_client(tpipe.accept())
+
             except Exception as err:
                 eprint('{}: {}'.format(err.__class__.__name__, err))
     
-    socks.unregister(tsock)
-    socks.unregister(rsock)
-
-    tsock.close()
-    rsock.close()
 
 
 def main():
@@ -163,6 +234,7 @@ def main():
     parser = argparse.ArgumentParser(description="Tail anchor daemon")
 
     parser.add_argument('-D', '--debug', action='count', default=0)
+    parser.add_argument('-v', '--verbose', action='count', default=0)
     parser.add_argument('-I', '--interface', type=str, default=None)
     parser.add_argument('-s', '--server', type=str, default=None)
     parser.add_argument('-p', '--port', type=int, default=None)
@@ -197,14 +269,16 @@ def main():
         except AttributeError:
             eprint('Invalid DW1000 config {}: {}'.format(key,value))
 
-    if args.debug:
-        cfg.debug = args.debug
+    WPANFrame.verbosity = args.verbose
+    cfg.debug = args.debug
+
     if args.server:
         cfg.server_host = args.server
     if args.port:
         cfg.server_port = args.port
     if args.interface:
         cfg.if_name = args.interface
+
     if args.profile:
         cfg.dw1000_profile = args.profile
     if args.channel:
@@ -220,20 +294,11 @@ def main():
     if args.rate:
         cfg.dw1000_rate = args.rate
     
-    WPANFrame.verbosity = max((0, cfg.debug - 2))
-
-    cfg.if_bind  = (cfg.if_name, 0)
-
-    addrs = netifaces.ifaddresses(cfg.if_name).get(netifaces.AF_PACKET)
-    cfg.if_eui64 = addrs[0]['addr'].replace(':','')
-    cfg.if_addr = bytes.fromhex(cfg.if_eui64)
-
+    cfg.if_addr  = GetDTAttrRaw('decawave,eui64')
+    cfg.if_eui64 = cfg.if_addr.hex()
     WPANFrame.set_ifaddr(cfg.if_addr)
 
-    cfg.server_raddr = UDPTailPipe.get_saddr(cfg.server_host, cfg.server_port)[4]
-    cfg.anchor_laddr = (cfg.anchor_addr, cfg.anchor_port, 0, 0)
-
-    dprint(1, 'Tail Anchor daemon starting...')
+    dprint(1, 'Tail Anchor <{}> daemon starting...'.format(cfg.if_eui64))
 
     try:
         SetDWAttr('channel', cfg.dw1000_channel)

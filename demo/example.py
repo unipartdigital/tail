@@ -19,10 +19,8 @@ def eprint(*args, **kwargs):
 
 def msg_loop(host,port):
 
-    saddr = TCPTailPipe.get_saddr(host, port)
-
     tpipe = TCPTailPipe()
-    tpipe.connect(saddr)
+    tpipe.connect(host,port)
 
     while True:
         try:
