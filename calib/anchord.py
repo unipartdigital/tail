@@ -82,13 +82,13 @@ def client_recvmsg(pipe):
 
 def send_client_bcast(**args):
     mesg = json.dumps(args)
-    dprint(3, f'send_client_bcast: {mesg}')
+    dprint(3, 'send_client_bcast: {}'.format(mesg))
     for pipe in list(CLIENTS.values()):
         client_sendmsg(pipe,mesg)
 
 def send_client_msg(pipe, **args):
     mesg = json.dumps(args)
-    dprint(3, f'send_client_msg: {mesg}')
+    dprint(3, 'send_client_msg: {}'.format(mesg))
     pipe.sendmsg(mesg)
 
 def recv_client_msg(pipe, rsock):
@@ -96,7 +96,7 @@ def recv_client_msg(pipe, rsock):
     while pipe.hasmsg():
         data = pipe.getmsg()
         mesg = json.loads(data)
-        dprint(3, f'recv_client_msg: {mesg}')
+        dprint(3, 'recv_client_msg: {}'.format(mesg))
         Type = mesg.get('Type')
         if Type == 'FRAME':
             Data = mesg.get('Data')
@@ -115,7 +115,7 @@ def recv_client_msg(pipe, rsock):
         elif Type == 'RPC':
             recv_client_rpc(pipe,rsock,mesg)
         else:
-            eprint(f'Unknown server message received: {mesg}')
+            eprint('Unknown server message received: {}'.format(mesg))
 
 def recv_client_rpc(pipe, rsock, mesg):
     Seqn = mesg.get('Seqn')
@@ -135,7 +135,7 @@ def recv_client_rpc(pipe, rsock, mesg):
         Args['Value'] = GetDWAttr(Args['Attr'])
         send_client_msg(pipe, Type='RPC', Seqn=Seqn, Func=Func, Args=Args)
     else:
-        eprint(f'Unknown RPC message received: {mesg}')
+        eprint('Unknown RPC message received: {}'.format(mesg))
 
 
 def transmit_frame(rsock, frame):
@@ -156,14 +156,14 @@ def transmit_beacon(rsock, ref, sub=0, flags=0):
 def recv_blink(rsock):
     (data,ancl,_,_) = rsock.recvmsg(4096, 1024, 0)
     frame = TailFrame(data,ancl)
-    dprint(2, f'recv_blink: {frame}')
+    dprint(2, 'recv_blink: {}'.format(frame))
     if frame.tail_protocol == 1:
         anc = cfg.if_eui64
         src = frame.get_src_eui()
         if frame.timestamp is None:
-            eprint(f'RX frame timestamp missing ANC:{anc} ANCL:{ancl} FRAME:{frame}')
+            eprint('RX frame timestamp missing ANC:{} ANCL:{} FRAME:{}'.format(anc,ancl,frame))
         elif frame.timestamp.tsinfo.rawts == 0 or frame.timestamp.hires == 0:
-            eprint(f'RX frame timestamp invalid ANC:{anc} ANCL:{ancl} FRAME:{frame}')
+            eprint('RX frame timestamp invalid ANC:{} ANCL:{} FRAME:{}'.format(anc,ancl,frame))
         tms = { 'swts': int(frame.timestamp.sw), 'hwts': int(frame.timestamp.hw), 'hires': int(frame.timestamp.hires) }
         tsi = dict(frame.timestamp.tsinfo)
         send_client_bcast(Type='RX', Anchor=anc, Src=src, Times=tms, TSInfo=tsi, Frame=data.hex())
@@ -175,13 +175,13 @@ def recv_blink(rsock):
 def recv_times(rsock):
     (data,ancl,_,_) = rsock.recvmsg(4096, 1024, socket.MSG_ERRQUEUE)
     frame = TailFrame(data,ancl)
-    dprint(2, f'recv_times: {frame}')
+    dprint(2, 'recv_times: {}'.format(frame))
     if frame.tail_protocol == 1:
         anc = cfg.if_eui64
         if frame.timestamp is None:
-            eprint(f'TX frame timestamp missing ANC:{anc} ANCL:{ancl} FRAME:{frame}')
+            eprint('TX frame timestamp missing ANC:{} ANCL:{} FRAME:{}'.format(anc,ancl,frame))
         elif frame.timestamp.tsinfo.rawts == 0 or frame.timestamp.hires == 0:
-            eprint(f'TX frame timestamp invalid ANC:{anc} ANCL:{ancl} FRAME:{frame}')
+            eprint('TX frame timestamp invalid ANC:{} ANCL:{} FRAME:{}'.format(anc,ancl,frame))
         tms = { 'swts': int(frame.timestamp.sw), 'hwts': int(frame.timestamp.hw), 'hires': int(frame.timestamp.hires) }
         tsi = dict(frame.timestamp.tsinfo)
         send_client_bcast(Type='TX', Anchor=anc, Src=anc, Times=tms, TSInfo=tsi, Frame=data.hex())
@@ -298,7 +298,7 @@ def main():
     cfg.if_eui64 = cfg.if_addr.hex()
     WPANFrame.set_ifaddr(cfg.if_addr)
 
-    dprint(1, f'Tail Anchor <{cfg.if_eui64}> daemon starting...')
+    dprint(1, 'Tail Anchor <{}> daemon starting...'.format(cfg.if_eui64))
 
     try:
         SetDWAttr('channel', cfg.dw1000_channel)
