@@ -1013,9 +1013,9 @@ void radio_gpio(int pin, int mode, int dir, int value)
 
     int dirpin = pin;
     if (pin > 3)
-        dirpin++;
+        dirpin += 4;
     if (pin > 7)
-        dirpin++;
+        dirpin += 4;
     radio_write32(RREG(GPIO_DIR), (dir << dirpin) | (1 << (dirpin + 4)));
     radio_write32(RREG(GPIO_DOUT), (value << dirpin) | (1 << (dirpin + 4)));
 }
