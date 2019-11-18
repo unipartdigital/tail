@@ -25,6 +25,7 @@ import tf930
 import instruments
 
 import serial
+import spidev
 
 config = configparser.ConfigParser()
 config.read('tester.ini')
@@ -47,6 +48,19 @@ limit_precondition = config.get('Limits', 'Precondition', fallback='50')
 limit_charge = config.get('Limits', 'Charge', fallback='200')
 limit_sleep = config.get('Limits', 'Sleep', fallback='5')
 
+target = None
+try:
+    with open('/proc/device-tree/hat/product', 'r') as infile:
+        lines = str(infile.readlines())
+        if "Pi Tail Production Tester Adapter" in lines:
+            target = 'hat'
+except:
+    target = 'tag'
+
+if not target:
+    print("Hardware error: Unknown target")
+    sys.exit(1)
+
 def check_config(name, value):
     if value == '':
         print("Config error: Must set value for "+name)
@@ -65,7 +79,7 @@ test_update_event = None
 
 if real_hardware:
     from gpiozero.pins.pigpio import PiGPIOFactory
-    from gpiozero import LED, PWMLED, Device, OutputDevice
+    from gpiozero import LED, PWMLED, Device, InputDevice, OutputDevice
     Device.pin_factory = PiGPIOFactory()
 
 def create_tf930():
@@ -286,7 +300,23 @@ class GPIORelay(OutputDevice):
             self._check_open()
             raise
 
-        
+class InputPin:
+    def __init__(self, name, gpio):
+        self.pin_name = name
+        self.gpio = gpio
+        if real_hardware:
+            self.pin = InputDevice(gpio, pull_up=None, active_state=True)
+
+    def name(self):
+        return self.pin_name
+
+    @property
+    def state(self):
+        if real_hardware:
+            return self.pin.value
+        else:
+            return False
+
 class Relay:
     def __init__(self, name, gpio):
         self.relay_name = name
@@ -335,6 +365,26 @@ class Relays:
         return map(lambda x: x.name(), self.relays)
 
     def relay(self, name):
+        return self.dict[name]
+
+class Inputs:
+    def __init__(self, list=None):
+        self.inputs = []
+        self.dict = dict()
+        for (name, gpio) in list:
+            self.add(InputPin(name, gpio))
+
+    def add(self, obj):
+        name = obj.name()
+        if name in self.dict.keys():
+            raise Exception('Duplicate input {}'.format(name))
+        self.inputs.append(obj)
+        self.dict[name] = obj
+
+    def names(self):
+        return map(lambda x: x.name(), self.input)
+
+    def input(self, name):
         return self.dict[name]
 
 class CheckHardware(threading.Thread):
@@ -445,6 +495,263 @@ class CheckHardware(threading.Thread):
 
         self.output = '\n'.join(output)
         self.initialised_flag = True
+
+class Tag:
+    def __init__(self, device):
+        self.uart = serial.Serial(device, 9600, timeout=3)
+
+    def close(self):
+        self.uart.close()
+
+    def sendctrlc(self):
+        self.uart.write(('\003').encode('utf-8'))
+
+    def firmware_send(self, cmd):
+        time.sleep(0.2) # Allow time for the UART to finish transmitting
+        self.uart.reset_input_buffer()
+        self.uart.write((cmd + "\r\n").encode('utf-8'))
+
+    def receive_match(self, target):
+        found = False
+        while True:
+            rawline = self.uart.readline().decode('utf-8')
+            line = rawline.rstrip()
+            #self.output += "$${}$$".format(line)
+            if target in line:
+                found = True
+                break
+            if not ('\n' in rawline):
+                break
+        return found
+
+    def firmware_cmd(self, cmd):
+        time.sleep(0.2) # Allow time for the UART to finish transmitting
+        self.uart.reset_input_buffer()
+        self.uart.write((cmd + "\r\n").encode('utf-8'))
+        #self.output += cmd + "\r\n"
+        result = []
+        while True:
+            rawline = self.uart.readline().decode('utf-8')
+            line = rawline.rstrip()
+            #self.output += rawline
+            if line == ">":
+                break
+            if not ('\n' in rawline):
+                break
+            result.append(line)
+        #self.output += ">>>{}<<<".format(str(result))
+        if not result:
+            return None
+        if result.pop(0) != cmd:
+            return None
+        if result == ['Unrecognised command']:
+            return None
+        return result
+
+    def rgpio(self, led, mode, direction, value):
+        if self.firmware_cmd('rgpio {} {} {} {}'.format(led, mode, direction, value)) == None:
+            return False
+        return True
+
+    def set_xtal(self, xtal):
+        if self.firmware_cmd('xtal {}'.format(xtal)) == None:
+            return False
+        return True
+
+    def prepare_xtal_trim(self):
+        self.dut.firmware_cmd('stop')
+        self.dut.firmware_cmd('wake')
+
+    def read_config(self, key):
+        return self.firmware_cmd('config {}'.format(key))
+
+    def write_config(self, key, value):
+        if self.dut.firmware_cmd('config {} {}'.format(key, value)) != []:
+            return False
+        return True
+
+    def flush_config(self):
+        return True
+
+    def read_eui(self):
+        eui = self.read_config('eui')
+        if eui == None:
+            return None
+        if eui[0] != "Key not found":
+            if (eui[0].startswith('eui: ')):
+                oe = eui[0][5:]
+                return netaddr.EUI('-'.join(reversed(oe.split())))
+        return None
+
+    def write_eui(self, eui):
+        value = ' '.join(str(x) for x in reversed(list(self.eui.words)))
+        return self.dut.write_config('eui', value)
+
+    def reading(self, name):
+        r_value = self.dut.firmware_cmd(name)
+        if not r_value:
+            return None # Read failure
+        try:
+            value = float(r_value[0])
+        except:
+            return None # Parse error
+        return value
+
+    def rawbattery(self):
+        return reading('rawbattery')
+
+    def volts(self):
+        return reading('volts')
+
+    def rawvolts(self):
+        return reading('rawvolts')
+
+    def temp(self):
+        return reading('temp')
+
+    def rawtemp(self):
+        return reading('rawtemp')
+
+GPIO_CTRL = 0x26
+GPIO_MODE = 0x00
+GPIO_DIR  = 0x08
+GPIO_DOUT = 0x0C
+
+FS_CTRL   = 0x2B
+FS_XTALT  = 0x0E
+
+class Hat:
+    def __init__(self, bus, device):
+        self.spi = spidev.SpiDev()
+        self.spi.open(bus, device)
+        self.spi.max_speed_hz = 1000000
+        self.spi.mode = 0
+        self.config = {}
+
+    def close(self):
+        self.spi.close()
+
+    def header(self, file, reg, write):
+        b = [file]
+        if write:
+            b[0] = b[0] | 0x80
+        if reg is not 0:
+            b[0] = b[0] | 0x40
+            b.append(reg & 0x7f)
+            if reg >> 7 is not 0:
+                b.append(reg >> 7)
+                b[1] = b[1] | 0x80
+        return b
+
+    def read(self, file, reg, bytes):
+        h = self.header(file, reg, False)
+        hlen = len(h)
+        data = h + [0] * bytes
+        result = self.spi.xfer2(data)
+        del result[:hlen]
+        return result
+
+    def write(self, file, reg, bytes):
+        h = self.header(file, reg, True)
+        data = h + bytes
+        result = self.spi.xfer2(data)
+
+    def identify(self):
+        result = self.read(0, 0, 4)
+        return result == [48, 1, 202, 222]
+
+    def rgpio(self, pin, mode, direction, value):
+        if (pin < 0) or (pin > 8):
+            return False
+        modepin = (pin + 3) * 2
+        reg = self.read(GPIO_CTRL, GPIO_MODE, 4)
+        reg = int.from_bytes(reg, byteorder='little')
+        reg = reg & ~(3 << modepin)
+        reg = reg | (mode << modepin)
+        self.write(GPIO_CTRL, GPIO_MODE, list(reg.to_bytes(4, byteorder='little')))
+
+        dirpin = pin
+        if pin > 3:
+            dirpin += 4
+        if pin > 7:
+            dirpin += 4
+        dir = (direction << dirpin) | (1 << (dirpin + 4))
+        dout = (value << dirpin) | (1 << (dirpin + 4))
+        self.write(GPIO_CTRL, GPIO_DIR, list(dir.to_bytes(4, byteorder='little')))
+        self.write(GPIO_CTRL, GPIO_DOUT, list(dout.to_bytes(4, byteorder='little')))
+        return True
+
+    def set_xtal(self, xtal):
+        self.write(FS_CTRL, FS_XTALT, [xtal | 0x60])
+
+    def prepare_xtal_trim(self):
+        relays.relay('uart').state = True
+        pass
+
+    def write_config(self, key, value):
+        self.config[key] = value
+        return True
+
+    def flush_config(self):
+        return True
+
+    def read_eui(self):
+        return None
+
+    def write_eui(self, eui):
+        return self.write_config('eui', str(eui))
+
+    def read_adc(self):
+        self.write(0x28, 0x11, [0x80])
+        self.write(0x28, 0x11, [0x0a])
+        self.write(0x28, 0x11, [0x0f])
+        self.write(0x2a, 0x00, [0x01])
+        self.write(0x2a, 0x00, [0x00])
+        voltage     = self.read(0x2a, 0x03, 1)[0]
+        temperature = self.read(0x2a, 0x04, 1)[0]
+        return (voltage, temperature)
+
+    def read_otp(self, address, bytes):
+        self.write(0x2d, 0x04, [address & 0xff, address >> 8])
+        self.write(0x2d, 0x06, [3])
+        return self.read(0x2d, 0x0a, bytes)
+
+    def read_adc(self):
+        self.write(0x28, 0x11, [0x80])
+        self.write(0x28, 0x12, [0x0a])
+        self.write(0x28, 0x12, [0x0f])
+        self.write(0x2a, 0x00, [0x01])
+        self.write(0x2a, 0x00, [0x00])
+        voltage     = self.read(0x2a, 0x03, 1)[0]
+        temperature = self.read(0x2a, 0x04, 1)[0]
+        return (voltage, temperature)
+
+    def volts_cal(self):
+        return self.read_otp(0x08, 1)[0]
+
+    def temp_cal(self):
+        return self.read_otp(0x09, 1)[0]
+
+    def volts(self):
+        return 1000 * (self.rawvolts() - self.volts_cal()) / 173 + 3300
+
+    def rawvolts(self):
+        return self.read_adc()[0]
+
+    def temp(self):
+        return 1000 * (self.rawtemp() - self.temp_cal()) / 1140 + 23
+
+    def rawtemp(self):
+        return self.read_adc()[1]
+
+    def sleep(self):
+        self.write(0x2c, 0x00, [0, 0])
+        self.write(0x2c, 0x06, [3]) # Wakeup on pin, sleep enable
+        self.write(0x2c, 0x02, [0])
+        self.write(0x2c, 0x02, [2]) # Save
+
+    def assert_irq(self, state):
+        self.rgpio(8, 1, 0, state)
 
 class Test(threading.Thread):
     def __init__(self, output):
@@ -590,8 +897,8 @@ class Test(threading.Thread):
         return True
 
     # Leaves the power on for the next test
-    def test_regulator(self):
-        relays.relay('power_3v7').state = True
+    def test_regulator(self, power_relay):
+        relays.relay(power_relay).state = True
         relays.relay('dut_on').state = True
         relays.relay('neg_ground').state = True
         relays.relay('measure_3v3').state = True
@@ -603,6 +910,62 @@ class Test(threading.Thread):
             return False
         return True
 
+    def tag_test_regulator(self):
+        return self.test_regulator('power_3v7')
+
+    def hat_test_regulator(self):
+        return self.test_regulator('power_5v')
+
+    def test_hat_alive(self):
+        relays.relay('jtag').state = True
+        relays.relay('reset').state = True
+        time.sleep(0.1)
+        relays.relay('reset').state = False
+        time.sleep(0.1)
+        return self.dut.identify()
+
+    def test_hat_power(self):
+        relays.relay('power_5v').state = False
+        time.sleep(0.1)
+        if self.dut.identify():
+            return False
+        relays.relay('power_5v').state = True
+        relays.relay('reset').state = True
+        time.sleep(0.1)
+        relays.relay('reset').state = False
+        time.sleep(0.1)
+        return self.dut.identify()
+
+    def test_hat_reset(self):
+        relays.relay('reset').state = True
+        time.sleep(0.1)
+        if self.dut.identify():
+            return False
+        relays.relay('reset').state = False
+        time.sleep(0.1)
+        return self.dut.identify()
+
+    def test_hat_irq(self):
+        if inputs.input('irq').state:
+            return False
+        self.dut.assert_irq(True)
+        if not inputs.input('irq').state:
+            return False
+        self.dut.assert_irq(False)
+        if inputs.input('irq').state:
+            return False
+        return True
+
+    # If we ever have a hat with the wakeup line connected...
+    def test_hat_wakeup(self):
+        self.dut.sleep()
+        time.sleep(0.1)
+        if self.dut.identify():
+            return False
+        # Turn on wakeup line
+        time.sleep(0.1)
+        return self.dut.identify()
+        
     def flash(self):
         relays.relay('dut_on').state = True
         relays.relay('jtag').state = True
@@ -634,25 +997,25 @@ class Test(threading.Thread):
         relays.relay('dut_on').state = True
         relays.relay('uart').state = True
         time.sleep(4)
-        if self.firmware_cmd('stop') == None:
+        if self.dut.firmware_cmd('stop') == None:
             return False
         # The firmware needs to bring the radio out of sleep a couple of
         # times before the voltage and temperature readings are valid
-        self.firmware_cmd('prepare')
-        self.firmware_cmd('prepare')
+        self.dut.firmware_cmd('prepare')
+        self.dut.firmware_cmd('prepare')
         return True
 
     def test_battery_adc(self):
         relays.relay('neg_ground').state = True
         relays.relay('measure_bat').state = True
         v_reg = self.voltage()
-        r_adc = self.firmware_cmd('rawbattery')
-        if not r_adc:
+        v_adc = self.dut.rawbattery()
+        if not v_adc:
             self.output += " Failed to get ADC reading"
             return False
         relays.relay('measure_bat').state = False
         relays.relay('neg_ground').state = False
-        v_adc = float(r_adc[0]) / 1000
+        v_adc = v_adc / 1000
         self.output += " {} ({}) {:.2%}".format(v_adc, v_reg, (v_adc - v_reg) / v_reg)
         self.record({
             'battery_adc' : {
@@ -665,35 +1028,25 @@ class Test(threading.Thread):
         relays.relay('neg_ground').state = True
         relays.relay('measure_3v3').state = True
         v_reg = self.voltage()
-        r_volts = self.firmware_cmd('volts')
-        if not r_volts:
+        v_volts = self.dut.volts()
+        if not v_volts:
             self.output += " Failed to get voltage reading"
             return False
-        r_rawvolts = self.firmware_cmd('rawvolts')
-        if not r_volts:
+        v_rawvolts = self.dut.rawvolts()
+        if not v_rawvolts:
             self.output += " Failed to get raw voltage reading"
             return False
-        r_temp = self.firmware_cmd('temp')
-        if not r_temp:
+        t_temp = self.dut.temp()
+        if not t_temp:
             self.output += " Failed to get temperature reading"
             return False
-        r_rawtemp = self.firmware_cmd('rawtemp')
-        if not r_temp:
+        t_rawtemp = self.dut.rawtemp()
+        if not t_rawtemp:
             self.output += " Failed to get raw temperature reading"
             return False
-        try:
-            v_volts = float(r_volts[0])
-            t_temp = float(r_temp[0])
-        except:
-            self.output += " Can't parse {} / {}".format(r_volts[0], r_temp[0])
-            return False
-        try:
-            v_rawvolts = float(r_rawvolts[0])
-            t_rawtemp = float(r_rawtemp[0])
-        except:
-            self.output += " Can't parse {} / {}".format(r_rawvolts[0], r_rawtemp[0])
-            return False
+        v_volts = v_volts / 1000
         self.output += " {}V / {}°C".format(v_volts, t_temp)
+        self.output += " {} / {}".format(v_rawvolts, t_rawtemp)
         relays.relay('measure_3v3').state = False
         relays.relay('neg_ground').state = False
         self.record({
@@ -704,17 +1057,16 @@ class Test(threading.Thread):
                 'v_rawvolts' : v_rawvolts,
                 't_rawtemp' : t_rawtemp,
             }})
-        if self.firmware_cmd('config xtal_volts {}'.format(str(v_rawvolts))) != []:
+        if not self.dut.write_config('xtal_volts', str(v_rawvolts)):
             return False
-        if self.firmware_cmd('config xtal_temp {}'.format(str(t_rawtemp))) != []:
+        if not self.dut.write_config('xtal_temp', str(t_rawtemp)) != []:
             return False
         return abs(v_reg - v_volts) < 0.1
 
     def xtal_trim(self):
         output = self.output
-        self.firmware_cmd('stop')
-        self.firmware_cmd('wake')
-        self.firmware_cmd('rgpio 0 2 0 0')
+        self.dut.prepare_xtal_trim()
+        self.dut.rgpio(0, 2, 0, 0)
         self.frequency_setup()
         f_target = 62.4 * 1000 * 1000
         xtal = 15
@@ -724,7 +1076,7 @@ class Test(threading.Thread):
         f_last = None
         xtal_last = None
         while True:
-            self.firmware_cmd('xtal ' + str(xtal))
+            self.dut.set_xtal(xtal)
             f_last = f
             f = self.frequency()
             ppm = 1000000 * ((f - f_target) / f_target)
@@ -747,7 +1099,7 @@ class Test(threading.Thread):
         if abs(f - f_target) > abs(f_last - f_target):
             xtal = xtal_last
             f = f_last
-        self.firmware_cmd('xtal ' + str(xtal))
+        self.dut.set_xtal(xtal)
         self.record({
             'xtal' : {
                 'trim' : xtal,
@@ -757,37 +1109,36 @@ class Test(threading.Thread):
         ppm = 1000000 * ((f - f_target) / f_target)
         xtal_ppm = round(ppm * 100) % 65536
         self.output = output + " {}: {:.02f} ppm".format(xtal, ppm)
-        self.firmware_cmd('rgpio 0 1 0 0')
-        if self.firmware_cmd('config xtal_trim ' + str(xtal)) != []:
+        self.dut.rgpio(0, 1, 0, 0)
+        if not self.dut.write_config('xtal_trim', str(xtal)):
             return False
-        if self.firmware_cmd('config xtal_ppm ' + str(xtal_ppm % 256) + ' ' + str(int(xtal_ppm / 256))) != []:
+        if not self.dut.write_config('xtal_ppm', str(xtal_ppm % 256) + ' ' + str(int(xtal_ppm / 256))):
             return False
         return True
 
     def xtal_sweep(self):
         output = self.output
-        self.firmware_cmd('stop')
-        self.firmware_cmd('wake')
-        self.firmware_cmd('rgpio 0 2 0 0')
+        self.dut.prepare_xtal_trim()
+        self.dut.rgpio(0, 2, 0, 0)
         self.frequency_setup()
         f_target = 62.4 * 1000 * 1000
         sweep = []
         for xtal in range(32):
-            self.firmware_cmd('xtal ' + str(xtal))
+            self.dut.set_xtal(xtal)
             f = self.frequency()
             ppm = 1000000 * ((f - f_target) / f_target)
             self.output = output + " {}: {:.02f} ppm".format(xtal, ppm)
             sweep.append(f)
 
-        self.firmware_cmd('xtal ' + str(self.xtal))
+        self.dut.set_xtal(xtal)
         self.record({
             'xtal_sweep' : sweep
             })
-        self.firmware_cmd('rgpio 0 1 0 0')
+        self.dut.rgpio(0, 1, 0, 0)
         return True
 
     def read_chip_id(self):
-        id = self.firmware_cmd('chipid')
+        id = self.dut.firmware_cmd('chipid')
         if not id:
             return False
         id = id[0]
@@ -798,21 +1149,17 @@ class Test(threading.Thread):
         return True
 
     def assign_eui(self):
-        oldeui = self.firmware_cmd('config eui')
-        if oldeui == None:
-            return False
-        if oldeui[0] != "Key not found":
+        oldeui = self.dut.read_eui()
+        if oldeui:
             self.output += " (preserved)"
-            if (oldeui[0].startswith('eui: ')):
-                oe = oldeui[0][5:]
-                self.eui = netaddr.EUI('-'.join(reversed(oe.split())))
+            self.eui = oldeui
         else:
             self.eui = self.get_next_eui()
         if not self.eui:
             return False
         self.record( { 'eui' : str(self.eui) })
         self.output += " {}".format(self.eui)
-        if self.firmware_cmd('config eui ' + ' '.join(str(x) for x in reversed(list(self.eui.words)))) != []:
+        if not self.dut.write_eui(self.eui):
             return False
         return True
 
@@ -824,46 +1171,49 @@ class Test(threading.Thread):
             self.output += "\n[color=#ff0000]Unable to read config file {}[/color]".format(config_file)
             return False
         for line in lines:
-            result = self.firmware_cmd(line.strip())
+            result = self.dut.firmware_cmd(line.strip())
             if result != []:
                 return False
-        return True
+        return self.dut.flush_config()
+
+    def program_eeprom(self):
+        return self.dut.flush_config()
 
     def test_leds(self):
         relays.relay('neg_ground').state = True
         leds = [0, 1, 2, 3]
         # Set all LEDs high impedance
         for led in leds:
-            if self.firmware_cmd('rgpio {} 0 1 0'.format(led)) == None:
+            if not self.dut.rgpio(led, 0, 1, 0):
                 return False
         for led in leds:
             self.output += " {}".format(led)
             relays.relay('measure_led{}'.format(led)).state = True
-            if self.firmware_cmd('rgpio {} 0 0 0'.format(led)) == None:
+            if not self.dut.rgpio(led, 0, 0, 0):
                 return False
             v = self.voltage()
             if v > 0.5:
                 self.output += " LED {} not low".format(led)
                 return False
-            if self.firmware_cmd('rgpio {} 0 0 1'.format(led)) == None:
+            if not self.dut.rgpio(led, 0, 0, 1):
                 return False
             v = self.voltage()
             if v < 2.5:
                 self.output += " LED {} not high".format(led)
                 return False
-            if self.firmware_cmd('rgpio {} 0 1 0'.format(led)) == None:
+            if not self.dut.rgpio(led, 0, 1, 0):
                 return False
             for l in leds:
                 if l != led:
                     #self.output += " ({} on)".format(l)
-                    if self.firmware_cmd('rgpio {} 0 0 1'.format(l)) == None:
+                    if not self.dut.rgpio(l, 0, 0, 1):
                         return False
             v = self.voltage()
             if v > 0.5:
                 self.output += "LED {} shorted".format(led)
                 return False
             for l in leds:
-                if self.firmware_cmd('rgpio {} 0 1 0'.format(l)) == None:
+                if not self.dut.rgpio(l, 0, 1, 0):
                     return False
             v = self.diode()
             if v < 1.0:
@@ -871,15 +1221,15 @@ class Test(threading.Thread):
                 return False
             relays.relay('measure_led{}'.format(led)).state = False
         for led in leds:
-            if self.firmware_cmd('rgpio {} 1 0 0'.format(led)) == None:
+            if not self.dut.rgpio(led, 1, 0, 0):
                 return False
         relays.relay('neg_ground').state = False
         return True
 
     def test_sleep_current(self):
         v = self.voltage(0.5)
-        self.firmware_cmd('stop')
-        self.firmware_cmd('sleep')
+        self.dut.firmware_cmd('stop')
+        self.dut.firmware_cmd('sleep')
         relays.relay('neg_batsw').state = True
         relays.relay('measure_bat').state = True
         relays.relay('dut_sense').state = True
@@ -900,27 +1250,27 @@ class Test(threading.Thread):
         return i_sleep <= float(limit_sleep)
 
     def test_bootloader_entry(self):
-        self.firmware_send('reset')
+        self.dut.firmware_send('reset')
         for _ in range(10):
-            self.sendctrlc()
+            self.dut.sendctrlc()
             time.sleep(0.5)
-        if self.receive_match('ChipID'):
+        if self.dut.receive_match('ChipID'):
             return True
         return False
 
     def test_firmware_entry(self):
-        self.firmware_send('reset')
+        self.dut.firmware_send('reset')
         time.sleep(3)
-        if self.receive_match('Ready for action'):
+        if self.dut.receive_match('Ready for action'):
             return True
         return False
 
-    tests = [
+    tests_tag = [
                 all_relays_off,
                 check_no_battery,
                 check_off,
                 test_charger,
-                test_regulator,
+                tag_test_regulator,
                 flash,
                 drain,
                 test_firmware_boot,
@@ -938,54 +1288,25 @@ class Test(threading.Thread):
                 drain,
             ]
 
+    tests_hat = [
+                all_relays_off,
+                hat_test_regulator,
+                test_hat_alive,
+                test_hat_power,
+                test_hat_reset,
+                test_hat_irq,
+                #test_hat_wakeup,
+                test_radio_adc,
+                xtal_trim,
+                xtal_sweep,
+                test_leds,
+                assign_eui,
+                program_eeprom,
+            ]
+
     def cleanup(self):
         # Reset all hardware to a safe state
         pass
-
-    def sendctrlc(self):
-        self.uart.write(('\003').encode('utf-8'))
-
-    def firmware_send(self, cmd):
-        time.sleep(0.2) # Allow time for the UART to finish transmitting
-        self.uart.reset_input_buffer()
-        self.uart.write((cmd + "\r\n").encode('utf-8'))
-
-    def receive_match(self, target):
-        found = False
-        while True:
-            rawline = self.uart.readline().decode('utf-8')
-            line = rawline.rstrip()
-            #self.output += "$${}$$".format(line)
-            if target in line:
-                found = True
-                break
-            if not ('\n' in rawline):
-                break
-        return found
-
-    def firmware_cmd(self, cmd):
-        time.sleep(0.2) # Allow time for the UART to finish transmitting
-        self.uart.reset_input_buffer()
-        self.uart.write((cmd + "\r\n").encode('utf-8'))
-        #self.output += cmd + "\r\n"
-        result = []
-        while True:
-            rawline = self.uart.readline().decode('utf-8')
-            line = rawline.rstrip()
-            #self.output += rawline
-            if line == ">":
-                break
-            if not ('\n' in rawline):
-                break
-            result.append(line)
-        #self.output += ">>>{}<<<".format(str(result))
-        if not result:
-            return None
-        if result.pop(0) != cmd:
-            return None
-        if result == ['Unrecognised command']:
-            return None
-        return result
 
     def run(self):
         try:
@@ -1000,10 +1321,16 @@ class Test(threading.Thread):
         all_pass = True
         self.eui = None
         try:
-            self.uart = serial.Serial(device_dut, 9600, timeout=3)
+            if target == 'hat':
+                self.tests = self.tests_hat
+                self.dut = Hat(0, 0)
+            else:
+                self.tests = self.tests_tag
+                self.dut = Tag(device_dut)
         except:
-            self.output += "\n[color=#ff0000]Failed to open UART[/color]"
+            self.output += "\n[color=#ff0000]Failed to initialise DUT[/color]"
             self.stopping = True
+
         if (frequencycounter == None) or (multimeter == None) or (gpsdo == None):
             self.output += "\n[color=#ff0000]Test equipment not available.[/color]"
             self.stopping = True
@@ -1025,7 +1352,7 @@ class Test(threading.Thread):
             self.output += "\n[color=#00ff00]TEST PASSED[/color] [color=#ffff00]{}[/color]".format(self.eui)
         else:
             self.output += "\n[color=#ff0000]TEST FAILED[/color]"
-        self.uart.close()
+        self.dut.close()
         gpsdo_lock.release()
         multimeter_lock.release()
         frequencycounter_lock.release()
@@ -1062,29 +1389,50 @@ class Test(threading.Thread):
 
 pwmoutput = PWMOutput('pwm', 18)
 
-relays = Relays(
-    [
-        ('power_5v',         17),
-        ('pullup_5v',        27),
-        ('power_3v7',        22),
-        ('dummy_load',       23),
-        ('dut_on',           24),
-        ('dut_sense',        10),
-        ('short_3v3',         9),
-        ('measure_isense+',  25),
-        ('measure_bat',      11),
-        ('measure_batsw',     8),
-        ('measure_3v3',       7),
-        ('measure_led3',      5),
-        ('measure_led2',      6),
-        ('measure_led1',     12),
-        ('measure_led0',     13),
-        ('neg_isense-',      19),
-        ('neg_batsw',        16),
-        ('neg_ground',       26),
-        ('jtag',             21),
-        ('uart',             20),
-    ])
+if target == 'hat':
+    relays = Relays(
+        [
+            ('power_5v',         17),
+            ('dut_on',           23),
+            ('reset',            24),
+            ('measure_3v3',       7),
+            ('measure_led3',      5),
+            ('measure_led2',      6),
+            ('measure_led1',     12),
+            ('measure_led0',     13),
+            ('neg_ground',       26),
+            ('jtag',             21),
+            ('uart',             20),
+        ])
+    inputs = Inputs(
+        [
+            ('irq',              25),
+        ])
+
+else:
+    relays = Relays(
+        [
+            ('power_5v',         17),
+            ('pullup_5v',        27),
+            ('power_3v7',        22),
+            ('dummy_load',       23),
+            ('dut_on',           24),
+            ('dut_sense',        10),
+            ('short_3v3',         9),
+            ('measure_isense+',  25),
+            ('measure_bat',      11),
+            ('measure_batsw',     8),
+            ('measure_3v3',       7),
+            ('measure_led3',      5),
+            ('measure_led2',      6),
+            ('measure_led1',     12),
+            ('measure_led0',     13),
+            ('neg_isense-',      19),
+            ('neg_batsw',        16),
+            ('neg_ground',       26),
+            ('jtag',             21),
+            ('uart',             20),
+        ])
 
 if __name__ == '__main__':
     TesterApp().run()
