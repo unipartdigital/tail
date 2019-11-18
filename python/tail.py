@@ -585,6 +585,7 @@ class WPANFrame:
         if WPANFrame.verbosity == 0:
             ret = 'WPAN Frame'
             ret += ' size:{}'.format(self.frame_len)
+            ret += ' seq:{}'.format(self.frame_seqnum)
             ret += ' src:{}'.format(self.src_addr.hex())
             ret += ' dst:{}'.format(self.dst_addr.hex())
         else:
@@ -606,7 +607,7 @@ class WPANFrame:
             ret += fattrnl('Src PanID', '{:04x}'.format(self.src_panid), 2)
             ret += fattrnl('Dst Addr', self.dst_addr.hex(), 2)
             ret += fattrnl('Dst PanID', '{:04x}'.format(self.dst_panid), 2)
-            
+
         return ret
 
 

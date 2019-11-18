@@ -933,10 +933,8 @@ class Server():
             
     def socket_loop(self):
 
-        saddr = TCPTailPipe.get_saddr(cfg.server_addr, cfg.server_port)
-        
         tpipe = TCPTailPipe()
-        tpipe.listen(saddr)
+        tpipe.listen(cfg.server_addr, cfg.server_port)
     
         self.sockets.register(tpipe.sock, select.POLLIN)
 

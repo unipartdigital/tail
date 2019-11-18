@@ -510,14 +510,8 @@ class Blinks():
 
     def get_blink(self,index,rem):
         if isinstance(rem,DW1000):
-            key = rem.name
             rem = rem.eui
-        else:
-            key = rem
-        try:
-            return self.blinks[index]['anchors'][rem]
-        except KeyError:
-            raise IndexError(key[-1:])
+        return self.blinks[index]['anchors'][rem]
     
     def get_blink_time(self,index):
         return self.blinks[index]['time']
@@ -596,21 +590,33 @@ class Blinks():
     def blink_bid(self,rem,bid):
         self.rpc.sendmsg(rem, Type='BEACON', Beacon=f'{bid:08x}', SubType=9)
    
-    def blinks_accounted_for(self,bid,ancs):
-        return all( anc.eui in self.blinks[bid]['anchors'] for anc in ancs )
+    def blinks_accounted_for(self,bids,ancs):
+        for bid in bids:
+            for anc in ancs:
+                if anc.eui not in self.blinks[bid]['anchors']:
+                    return bid
+        return 0
         
     def wait_blinks(self,bids,ancs,wait=1.0):
         until = time.time() + wait
+        delay = (until - time.time()) / 2
+        missing = 1
+        while missing and delay > 0.0001:
+            missing = self.blinks_accounted_for(bids,ancs)
+            if missing:
+                with self.blinks[missing]['wait']:
+                    self.blinks[missing]['wait'].wait(delay)
+            delay = (until - time.time()) / 2
         for bid in bids:
-            with self.blinks[bid]['wait']:
-                while not self.blinks_accounted_for(bid,ancs):
-                    delay = until - time.time()
-                    if delay < 0.0001:
-                        raise TimeoutError
-                    self.blinks[bid]['wait'].wait(delay/2)
+            for anc in ancs:
+                if anc.eui not in self.blinks[bid]['anchors']:
+                    eprint(f'ID:{bid} ANCHORS:{anc.eui} missing')
         
+
     def handle_blink(self,data):
         try:
+            #eprint(f'handle_blink: {data}')
+
             eui = data.get('Anchor')
             src = data.get('Src')
             tms = data.get('Times')

@@ -142,7 +142,8 @@ class Receiver(threading.Thread):
 
     def __init__(self,room,host,port):
         threading.Thread.__init__(self)
-        self.saddr = TCPTailPipe.get_saddr(host,port)
+        self.host = host
+        self.port = port
         self.room = room
 
     def run(self):
@@ -156,7 +157,7 @@ class Receiver(threading.Thread):
         
         while self.running:
             try:
-                tpipe.connect(self.saddr)
+                tpipe.connect(self.host, self.port)
                 while self.running:
                     try:
                         msg = json.loads(tpipe.recvmsg())

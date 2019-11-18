@@ -35,17 +35,20 @@ class cfg():
     promisc         = False
 
     blink_dst       = 'ffff'
-    blink_size      = 64
     blink_delay     = None
     blink_count     = None
 
 
 
-def SendBlink(rsock):
+def SendBlink(rsock,bid):
     frame = TailFrame()
     frame.set_src_addr(cfg.if_addr)
     frame.set_dst_addr(cfg.blink_dst)
-    frame.tail_payload = b'\xbb' * cfg.blink_size
+    frame.tail_protocol = 1
+    frame.tail_frmtype = 1
+    frame.tail_subtype = 15
+    frame.tail_flags = 0
+    frame.tail_beacon = struct.pack('>Q', bid)
     rsock.send(frame.encode())
 
 
@@ -59,8 +62,9 @@ class txThread(threading.Thread):
     def run(self):
         if cfg.blink_delay:
             self.running = True
+            self.count = 1
             while self.running:
-                SendBlink(self.rsock);
+                SendBlink(self.rsock, self.count);
                 time.sleep(cfg.blink_delay)
                 self.count += 1
                 if cfg.blink_count is not None:
@@ -83,7 +87,7 @@ class rxThread(threading.Thread):
         socks = select.poll()
         socks.register(self.rsock, select.POLLIN)
         while self.running:
-            for (fd,flags) in socks.poll(1000):
+            for (fd,flags) in socks.poll(100):
                 try:
                     if fd == self.rsock.fileno():
                         if flags & select.POLLIN:
@@ -114,10 +118,7 @@ def SocketLoop():
     rsock.setsockopt(socket.SOL_SOCKET, socket.SO_TIMESTAMPING,
                      socket.SOF_TIMESTAMPING_RX_HARDWARE |
                      socket.SOF_TIMESTAMPING_TX_HARDWARE |
-                     socket.SOF_TIMESTAMPING_RAW_HARDWARE |
-                     socket.SOF_TIMESTAMPING_TX_SOFTWARE |
-                     socket.SOF_TIMESTAMPING_RX_SOFTWARE |
-                     socket.SOF_TIMESTAMPING_SOFTWARE)
+                     socket.SOF_TIMESTAMPING_RAW_HARDWARE)
     rsock.bind((cfg.if_name, 0))
 
     tx = txThread(rsock)
@@ -128,10 +129,10 @@ def SocketLoop():
 
     try:
         while True:
-            time.sleep(1)
+            time.sleep(0.1)
     
     except KeyboardInterrupt:
-        print('Exiting...')
+        eprint('Exiting...')
 
     tx.stop()
     rx.stop()
@@ -146,9 +147,8 @@ def main():
     parser.add_argument('-v', '--verbose', action='count', default=0)
     parser.add_argument('-I', '--interface', type=str, default=cfg.if_name)
     parser.add_argument('-P', '--promiscuous-mode', action='store_true', default=False)
-    parser.add_argument('-s', '--size', type=int, default=cfg.blink_size)
-    parser.add_argument('-c', '--count', type=int, default=cfg.blink_count)
     parser.add_argument('-i', '--interval', type=float, default=cfg.blink_delay)
+    parser.add_argument('-c', '--count', type=int, default=cfg.blink_count)
     parser.add_argument('--dest', type=str, default=cfg.blink_dst)
     parser.add_argument('--profile', type=str, default=cfg.dw1000_profile)
     parser.add_argument('--channel', type=int, default=cfg.dw1000_channel)
@@ -163,7 +163,6 @@ def main():
     WPANFrame.verbosity = args.verbose
     
     cfg.blink_dst = bytes.fromhex(args.dest)
-    cfg.blink_size = args.size
     cfg.blink_count = args.count
     cfg.blink_delay = args.interval
     
