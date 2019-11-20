@@ -12,6 +12,8 @@ import select
 import threading
 import traceback
 
+import numpy as np
+
 from tail import *
 from dwarf import *
 
@@ -27,8 +29,8 @@ class Timer:
     def get(self):
         return self.timer - self.start
     
-    def nap(self,delta):
-        self.timer += delta
+    def nap(self,delay):
+        self.timer += delay
         while True:
             sleep = self.timer - time.time()
             if sleep < Timer.SLEEP_MIN:
@@ -36,7 +38,8 @@ class Timer:
             time.sleep(sleep/2)
         return self.get()
 
-    def sync(self):
+    def sync(self,delay=0.0):
+        self.nap(delay)
         self.timer = time.time()
         return self.get()
 
@@ -97,6 +100,7 @@ class DW1000:
         self.pipe.connect(self.host,self.port)
         self.rpc.add_device(self)
         self.eui = self.get_eui()
+        self.register_udp_bcast()
 
     def disconnect(self):
         self.rpc.del_device(self)
@@ -105,7 +109,24 @@ class DW1000:
 
     def sendmsg(self,msg):
         self.pipe.sendmsg(msg)
-        
+
+    def sendudp(self,msg):
+        self.rpc.sendudpmsgto(msg,self.pipe.remote)
+
+    def sendargs(self,**kwargs):
+        msg = json.dumps(kwargs)
+        self.sendmsg(msg)
+
+    def sendargsudp(self,**kwargs):
+        msg = json.dumps(kwargs)
+        self.sendudp(msg)
+
+    def register_udp_bcast(self):
+        self.sendargs(Type='UDP', Port=self.rpc.uport)
+
+    def unregister_udp_bcast(self):
+        self.sendargs(Type='NOUDP')
+
     def get_eui(self):
         args = self.rpc.call(self, Func='GETEUI')
         return args.get('Value',None)
@@ -129,6 +150,11 @@ class DW1000:
         for attr in DW1000.PRINT_ATTRS:
             val = self.get_dw1000_attr(attr)
             eprint('  {:20s}: {}'.format(attr,val))
+
+    def distance_to(self,rem):
+        D = self.coord - rem.coord
+        return np.sqrt(np.dot(D,D.T))
+
 
     ##
     ## Static members
@@ -194,14 +220,13 @@ class DW1000:
         return [ c, f ]
 
     def tx_power_list_to_code(lst):
-        c = int(lst[0]) / 3
-        d = int(lst[1]) * 2
+        c = int(lst[0] / 3)
+        d = int(lst[1] * 2)
         if c<0 or c>6:
             raise ValueError
         if d<0 or d>31:
             raise ValueError
-        c = (6 - c) << 5
-        return (c|d)
+        return (((6 - c) << 5) | d)
 
     def tx_power_string_to_code(txpwr):
         T = txpwr.split('+')
@@ -219,8 +244,7 @@ class DW1000:
                 raise ValueError
             if b != d/2:
                 raise ValueError
-            c = (6 - c) << 5
-            return (c|d)
+            return (((6 - c) << 5) | d)
         elif n == 1:
             a = int(txpwr,0)
             return a
@@ -271,29 +295,25 @@ class DW1000:
         raise ValueError
 
     def validate_txpsr(psr):
-        if isinstance(psr,str):
-            psr = int(psr)
+        psr = int(psr)
         if psr in (64,128,256,512,1024,2048,4096):
             return psr
         raise ValueError(f'Invalid PSR {psr}')
     
     def validate_rate(rate):
-        if isinstance(rate,str):
-            rate = int(rate)
+        rate = int(rate)
         if rate in (110,850,6800):
             return rate
         raise ValueError(f'Invalid rate {rate}')
 
     def validate_prf(prf):
-        if isinstance(prf,str):
-            prf = int(prf)
+        prf = int(prf)
         if prf in (16,64):
             return prf
         raise ValueError(f'Invalid PRF {prf}')
 
     def validate_channel(ch):
-        if isinstance(ch,str):
-            ch = int(ch)
+        ch = int(ch)
         if ch in (1,2,3,4,5,7):
             return ch
         raise ValueError(f'Invalid Channel {ch}')
@@ -308,14 +328,20 @@ class DW1000:
 
 
 class RPC:
-    
-    def __init__(self):
+
+    def __init__(self, udp_port=8913):
         self.running = False
         self.seqnum = 1
         self.pipes = {}
-        self.fdset = set()
         self.calls = {}
         self.handler = {}
+        self.socks = select.poll()
+        self.uport = udp_port
+        self.upipe = UDPTailPipe()
+        self.upipe.bind('', udp_port)
+        self.ufile = self.upipe.fileno()
+        self.pipes[self.ufile] = self.upipe
+        self.socks.register(self.upipe, select.POLLIN)
         self.lock = threading.Lock()
         self.thread = threading.Thread(target=self.run)
         self.thread.start()
@@ -323,21 +349,29 @@ class RPC:
     def run(self):
         self.running = True
         while self.running:
-            (rset,wset,eset) = select.select(list(self.fdset),[],[],0.1)
-            for rsock in rset:
-                if rsock in self.pipes:
-                    pipe = self.pipes[rsock]
-                    pipe.fillmsg()
-                    while pipe.hasmsg():
-                        self.recvmsg(pipe.getmsg())
-
+            for (fd,flags) in self.socks.poll(100):
+                if flags & select.POLLIN:
+                    if fd in self.pipes:
+                        self.recvpipe(self.pipes[fd])
+ 
     def stop(self):
         self.running = False
-        
+
+    def sendudpmsgto(self,msg,addr):
+        self.upipe.sendmsgto(msg,addr)
+
+    def recvpipe(self,pipe):
+        try:
+            pipe.fillbuf()
+            while pipe.hasmsg():
+                mesg = pipe.getmsg()
+                self.recvmsg(mesg)
+        except Exception as err:
+            errhandler('recvpipe: Unable to decode', err)
+    
     def recvmsg(self,mesg):
         try:
             data = json.loads(mesg)
-            #eprint(f'recvmsg: {data}')
             Type = data.get('Type')
             if Type in self.handler:
                 self.handler[Type](data)
@@ -347,24 +381,22 @@ class RPC:
                 hand = f'RPC:{func}:{seqn}'
                 if hand in self.handler:
                     self.handler[hand](data)
+            else:
+                raise ValueError
 
         except Exception as err:
-            errhandler('Invalid RPC message received', err)
+            errhandler('Invalid message received', err)
             
-    def sendmsg(self,dev,**kwargs):
-        mesg = json.dumps(kwargs)
-        dev.sendmsg(mesg)
-
     def add_device(self,dev):
         self.lock.acquire()
-        self.fdset.add(dev.pipe.sock)
-        self.pipes[dev.pipe.sock] = dev.pipe
+        self.socks.register(dev.pipe.sock, select.POLLIN)
+        self.pipes[dev.pipe.fileno()] = dev.pipe
         self.lock.release()
 
     def del_device(self,dev):
         self.lock.acquire()
-        self.fdset.discard(dev.pipe.sock)
-        self.pipes.pop(dev.pipe.sock,None)
+        self.socks.unregister(dev.pipe.sock)
+        self.pipes.pop(dev.pipe.fileno(),None)
         self.lock.release()
 
     def register(self,name,func):
@@ -416,16 +448,16 @@ class RPC:
             self.calls[seqn]['data'] = data
             self.calls[seqn]['wait'].set()
 
-    def call(self,dev,Func,**kwargs):
+    def call(self,rem,Func,**kwargs):
         Seqn = self.get_seqnum()
         self.init_call(Func,Seqn)
-        self.sendmsg(dev,Type='RPC',Func=Func,Seqn=Seqn,Args=kwargs)
+        rem.sendargs(Type='RPC',Func=Func,Seqn=Seqn,Args=kwargs)
         data = self.wait_call_return(Func,Seqn)
         return data.get('Args',{})
 
-    def call_void(self,dev,Func,**kwargs):
+    def call_void(self,rem,Func,**kwargs):
         seqn = self.get_seqnum()
-        self.sendmsg(dev,Type='RPC',Func=Func,Seqn=seqn,Args=kwargs)
+        rem.sendargs(Type='RPC',Func=Func,Seqn=seqn,Args=kwargs)
 
 
 
@@ -484,6 +516,7 @@ class Blinks():
         self.bid = 1
         self.blinks = {}
         self.timer = Timer()
+        self.verbose = 0
         rpc.register('TX', self.handle_blink)
         rpc.register('RX', self.handle_blink)
 
@@ -496,8 +529,8 @@ class Blinks():
     def nap(self,delay):
         return self.timer.nap(delay)
 
-    def sync(self):
-        return self.timer.sync()
+    def sync(self,delay=0):
+        return self.timer.sync(delay)
         
     def get_euis_at(self,index,direction):
         euis = []
@@ -584,11 +617,11 @@ class Blinks():
 
     def blink(self,rem):
         bid = self.create_blink()
-        self.rpc.sendmsg(rem, Type='BEACON', Beacon=f'{bid:08x}', SubType=9)
+        rem.sendargsudp(Type='BEACON', Beacon=f'{bid:08x}', SubType=9)
         return bid
 
     def blink_bid(self,rem,bid):
-        self.rpc.sendmsg(rem, Type='BEACON', Beacon=f'{bid:08x}', SubType=9)
+        rem.sendargsudp(Type='BEACON', Beacon=f'{bid:08x}', SubType=9)
    
     def blinks_accounted_for(self,bids,ancs):
         for bid in bids:
@@ -607,29 +640,28 @@ class Blinks():
                 with self.blinks[missing]['wait']:
                     self.blinks[missing]['wait'].wait(delay)
             delay = (until - time.time()) / 2
-        for bid in bids:
-            for anc in ancs:
-                if anc.eui not in self.blinks[bid]['anchors']:
-                    eprint(f'ID:{bid} ANCHORS:{anc.eui} missing')
+        if self.verbose > 0:
+            for bid in bids:
+                for anc in ancs:
+                    if anc.eui not in self.blinks[bid]['anchors']:
+                        eprint(f'wait_blinks: ID:{bid} ANCHORS:{anc.name} missing')
         
 
     def handle_blink(self,data):
-        try:
-            #eprint(f'handle_blink: {data}')
-
-            eui = data.get('Anchor')
-            src = data.get('Src')
-            tms = data.get('Times')
-            tsi = data.get('TSInfo')
-            frd = data.get('Frame')
-            frm = TailFrame(bytes.fromhex(frd))
-            (bid,) = struct.unpack('>Q', frm.tail_beacon)
-
-            if bid in self.blinks:
-                blk = Blink(eui,bid,src,frm,tms,tsi)
-                with self.blinks[bid]['wait']:
-                    self.blinks[bid]['anchors'][eui] = blk
-                    self.blinks[bid]['wait'].notify_all()
+        if self.verbose > 1:
+            eprint(f'handle_blink: {data}')
+        eui = data.get('Anchor')
+        src = data.get('Src')
+        tms = data.get('Times')
+        tsi = data.get('TSInfo')
+        frd = data.get('Frame')
+        frm = TailFrame(bytes.fromhex(frd))
+        (bid,) = struct.unpack('>Q', frm.tail_beacon)
         
-        except Exception as err:
-            errhandler('handle_blink', err)
+        if bid in self.blinks:
+            blk = Blink(eui,bid,src,frm,tms,tsi)
+            with self.blinks[bid]['wait']:
+                self.blinks[bid]['anchors'][eui] = blk
+                self.blinks[bid]['wait'].notify_all()
+
+
