@@ -20,7 +20,10 @@ install-anchor:
 	install -o root -g root -m 644 anchor.service $(ANCHOR_ROOT)/lib/systemd/system/
 
 install-fluffy:
-	scp *.py pmattila@fluffy:~/Projects/Tail/calib/
+	scp -4 *.py *.sh *.json *.service pmattila@fluffy:~/Projects/Tail/calib/
+
+install-resistor:
+	scp -6 *.py *.sh *.json *.service pmattila@resistor:~/Projects/Tail/calib/
 
 
 clean:

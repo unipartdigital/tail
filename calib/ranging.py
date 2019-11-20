@@ -59,6 +59,7 @@ def TWR(blk, remotes, timing):
     dut1 = remotes[0]
     dut2 = remotes[1]
 
+    blk.sync()
     i1 = blk.blink(dut1)
     blk.nap(timing[0])
     i2 = blk.blink(dut2)
@@ -94,6 +95,7 @@ def TWR(blk, remotes, timing):
     
     F2 = blk.get_xtal_ratio(i1, dut2)
     F4 = blk.get_xtal_ratio(i2, dut1)
+    F4 = 1.0  - 1.0/(1.0 - F4)
 
     Pwr = blk.get_rx_level(i2, dut1)
     Fpp = blk.get_fp_level(i2, dut1)
@@ -169,6 +171,7 @@ def T3WR(blk, remotes, timing):
     dtx = remotes[1]
     drx = remotes[2]
 
+    blk.sync()
     i1 = blk.blink(dtx)
     blk.nap(timing[0])
     i2 = blk.blink(dut)
