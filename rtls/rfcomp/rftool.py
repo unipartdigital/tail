@@ -15,7 +15,8 @@ import matplotlib.pyplot as plot
 class cfg():
 
     channel    = 5
-    rxlevel    = -75
+    rxlevel    = None
+    txlevel    = -12.3
     distance   = 5.04
 
 
@@ -101,8 +102,8 @@ def main():
     parser.add_argument('-v', '--verbose', action='count', default=0, help='Increase verbosity')
     parser.add_argument('-c', '--channel', type=int, default=cfg.channel, help='channel')
     parser.add_argument('-d', '--distance', type=float, default=cfg.distance, help='calibration distance')
-    parser.add_argument('-l', '--rxlevel', type=float, default=None, help='calibration rx level')
-    parser.add_argument('-t', '--txlevel', type=float, default=None, help='calibration tx level')
+    parser.add_argument('-l', '--rxlevel', type=float, default=cfg.rxlevel, help='calibration rx level')
+    parser.add_argument('-t', '--txlevel', type=float, default=cfg.txlevel, help='calibration tx level')
     parser.add_argument('-P', '--plot', action='store_true', default=False)
     
     parser.add_argument('points', type=float, nargs='*', help="distance points")
