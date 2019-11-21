@@ -2,9 +2,9 @@
     "CALIBRATOR" :
     {
 	"blink_count"      : 100,
-	"blink_delay"      : 0.050,
-	"blink_wait"       : 0.500,
-	"blink_interval"   : 0.100
+	"blink_delay"      : 0.010,
+	"blink_wait"       : 0.250,
+	"blink_interval"   : 0.010
     },
 
     "DW1000" :

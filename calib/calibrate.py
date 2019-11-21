@@ -46,7 +46,7 @@ class cfg():
     def setarg(name, value):
         if value is not None:
             setattr(cfg, name, value)
-    
+
 
 def dprint(level, *args, **kwargs):
     if cfg.debug >= level:
@@ -79,7 +79,7 @@ def estimate_xtal_ppm(blk, dut, refs):
             i2 = blk.blink(dut)
             
             blk.wait_blinks((i1,i2),devs,cfg.blink_wait)
-        
+            
             Temp = blk.get_temp(i1,dut)
             Volt = blk.get_volt(i1,dut)
 
@@ -142,14 +142,25 @@ def estimate_xtal_ppm(blk, dut, refs):
 
 def calibrate_xtalt(blk, dut, refs):
     
-    xtalt = int(dut.get_dw1000_attr('xtalt'))
-    
-    best_xtalt = 17
-    best_error = 1000
-    
-    veprint(1, 'Calibrating {} <{}> XTALT [{}]'.format(dut.name,dut.eui,xtalt))
+    veprint(1, 'Calibrating {} <{}> XTALT'.format(dut.name,dut.eui))
+
+    TL = 0
+    TH = 31
+
+    trims = [ None ] * 32
     
     for loop in range(10):
+
+        if TH - TL == 1:
+            if trims[TL] and trims[TH]:
+                if trims[TL] < 0.0 and trims[TH] > 0.0:
+                    if abs(trims[TL]) < abs(trims[TH]):
+                        best = TL
+                    else:
+                        best = TH
+                    break
+        
+        xtalt = (TH + TL) // 2
 
         dut.set_dw1000_attr('xtalt', xtalt)
         
@@ -157,43 +168,28 @@ def calibrate_xtalt(blk, dut, refs):
 
         Eavg += cfg.ppm_offset
         fail = 100 * (1.0 - Rate)
-        
+
+        trims[xtalt] = Eavg
+
         if cfg.verbose > 2:
-            eprint(f'STATISTICS [{loop}]                                ')
+            eprint(f'STATISTICS [{loop}] [{TL}:{TH}]')
             eprint(f'    Samples:   {Tcnt} [{fail:.1f}%]')
             eprint(f'    XTALT:     {xtalt}')
             eprint(f'    PPM:       {Eavg:+.3f}ppm [{Estd:.3f}ppm]')
             eprint(f'    Temp:      {Tavg:.1f}°C [{Tstd:.2f}°C]')
             eprint(f'    Volt:      {Vavg:.3f}V [{Vstd:.3f}V]')
         else:
-            veprint(2)
             veprint(1, f' [{loop}] {xtalt} => {Eavg:+.3f}ppm ')
 
         if -100 < Eavg < 100 and Estd < 10:
-
-            if math.fabs(Eavg) < best_error:
-                best_error = math.fabs(Eavg)
-                best_xtalt = xtalt
-            
-            if Eavg > 8.0:
-                xtalt -= int(Eavg/4)
-            elif Eavg > 1.0:
-                xtalt -= 1
-            elif Eavg < -8.0:
-                xtalt -= int(Eavg/4)
-            elif Eavg < -1.0:
-                xtalt += 1
-            elif -1.0 < Eavg < 1.0:
-                break
-
-            if xtalt < 1:
-                xtalt = 1
-            if xtalt > 30:
-                xtalt = 30
+            if Eavg < 0.0:
+                TL = xtalt
+            else:
+                TH = xtalt
     
-    dut.set_dw1000_attr('xtalt', best_xtalt)
+    dut.set_dw1000_attr('xtalt', best)
     
-    return (best_xtalt,Eavg)
+    return best
 
 
 def estimate_txpower(blk, dut, refs):
@@ -242,7 +238,7 @@ def estimate_txpower(blk, dut, refs):
             veprints(2,'0')
         else:
             veprints(2,'.')
-            
+        
     veprint(2)
     
     if len(Power) < cfg.blink_count:
@@ -274,65 +270,53 @@ def calibrate_txpower(blk, dut, refs, txpwr, rxpwr):
 
     veprint(1, 'Calibrating {} <{}> Initial TxPWR:{} Target RxPWR:{:.1f}dBm'.format(dut.name,dut.eui,txpwr,rxpwr))
 
-    tx_pwr = txpwr
-    rx_pwr = rxpwr
+    TL = 0
+    TH = 31
 
-    best_power = [0,0]
-    best_error = 1000
+    errors = [ None ] * 32
 
     for loop in range(10):
 
-        dut.set_dw1000_attr('tx_power', DW1000.tx_power_list_to_code(tx_pwr))
+        if TH - TL == 1:
+            if errors[TL] and errors[TH]:
+                if errors[TL] < 0.0 and errors[TH] > 0.0:
+                    if abs(errors[TL]) < abs(errors[TH]):
+                        txpwr[1] = TL / 2
+                    else:
+                        txpwr[1] = TH / 2
+                    break
+        
+        TX = (TH + TL) // 2
+        txpwr[1] = TX / 2
+
+        dut.set_dw1000_attr('tx_power', DW1000.tx_power_list_to_code(txpwr))
 
         (Tcnt,Rate,Plog,Pstl,Flog,Fstl,Tavg,Tstd,Vavg,Vstd) = estimate_txpower(blk, dut, refs)
-    
+
         fail = 100 * (1.0 - Rate)
 
         if cfg.verbose > 2:
-            eprint(f'STATISTICS [{loop}]                               ')
+            eprint(f'STATISTICS [{loop}] [{TL}:{TX}:{TH}]')
             eprint(f'    Samples:   {Tcnt} [{fail:.1f}%]')
             eprint(f'    Temp:      {Tavg:.1f}°C [{Tstd:.2f}°C]')
             eprint(f'    Volt:      {Vavg:.3f}V [{Vstd:.3f}V]')
-            eprint(f'    TxPWR:     [{tx_pwr[0]:.0f}{tx_pwr[1]:+.1f}]')
+            eprint(f'    TxPWR:     [{txpwr[0]:.0f}{txpwr[1]:+.1f}]')
             eprint(f'    RxPWR:     {Plog:.1f}dBm [{Pstl:.2f}dBm]')
             eprint(f'    FpPWR:     {Flog:.1f}dBm [{Fstl:.2f}dBm]')
         else:
-            veprint(2)
-            veprint(1, f' [{loop}] TxPwr: {tx_pwr[0]:.0f}{tx_pwr[1]:+.1f}dBm RxPWR:{Plog:.1f}dBm FpPWR:{Flog:.1f}dBm')
+            veprint(1, f' [{loop}] TxPwr: {txpwr[0]:.0f}{txpwr[1]:+.1f}dBm RxPWR:{Plog:.1f}dBm FpPWR:{Flog:.1f}dBm')
 
-        ##
-        ## Adjust Tx Power
-        ##
+        errors[TX] = Perr = Plog - rxpwr
 
-        error = Plog - rx_pwr
+        if -20 < Perr < 20 and Pstl < 10.0:
+            if Perr < 0.0:
+                TL = TX
+            else:
+                TH = TX
 
-        if math.fabs(error) < best_error:
-            best_error = math.fabs(error)
-            best_power = tx_pwr
-
-        if -0.2 < error < 0.2:
-            break
-
-        if tx_pwr[1] > 2 and error > 3.0:
-            tx_pwr[1] -= 2.0
-        elif tx_pwr[1] > 1 and error > 1.5:
-            tx_pwr[1] -= 1.0
-        elif tx_pwr[1] > 0 and error > 0.2:
-            tx_pwr[1] -= 0.5
-
-        elif tx_pwr[1] < 14.0 and error < -3.0:
-            tx_pwr[1] += 2.0
-        elif tx_pwr[1] < 15.0 and error < -1.5:
-            tx_pwr[1] += 1.0
-        elif tx_pwr[1] < 15.5 and error < -0.2:
-            tx_pwr[1] += 0.5
-        
-        if tx_pwr[1] == 0 or tx_pwr[1] == 15.5:
-            break
-        
-    dut.set_dw1000_attr('tx_power', DW1000.tx_power_list_to_code(best_power))
+    dut.set_dw1000_attr('tx_power', DW1000.tx_power_list_to_code(txpwr))
     
-    return (best_power,Plog)
+    return txpwr
 
 
 def ranging(blk, dut, rem):
@@ -346,7 +330,7 @@ def ranging(blk, dut, rem):
     i3 = blk.blink(dut)
 
     blk.wait_blinks((i1,i2,i3),(dut,rem),cfg.blink_wait)
-        
+    
     T1 = blk.get_rawts(i1, dut)
     T2 = blk.get_rawts(i1, rem)
     T3 = blk.get_rawts(i2, rem)
@@ -390,7 +374,7 @@ def tringing(blk, dut, dtx, drx):
     i3 = blk.blink(dtx)
 
     blk.wait_blinks((i1,i2,i3),(dut,dtx,drx),cfg.blink_wait)
-        
+    
     T1 = blk.get_rawts(i1, drx)
     T2 = blk.get_rawts(i1, dut)
     T3 = blk.get_rawts(i2, dut)
@@ -446,25 +430,9 @@ def calibrate_antd(blk, dut, grps):
         for i in range(cfg.blink_count):
             for drx in grps[1]:
                 for dtx in grps[2]:
-                    
                     try:
                         Err = tringing(blk,dut,dtx,drx)
                         Errs.append(Err)
-
-                    except KeyError:
-                        veprints(2,'?')
-                    except ValueError:
-                        veprints(2,'!')
-                    except TimeoutError:
-                        veprints(2,'T')
-                    except RuntimeError:
-                        veprints(2,'R')
-                    except ZeroDivisionError:
-                        veprints(2,'0')
-                    else:
-                        veprints(2,'.')
-                        
-                    try:
                         Err = tringing(blk,dut,drx,dtx)
                         Errs.append(Err)
 
@@ -481,6 +449,8 @@ def calibrate_antd(blk, dut, grps):
                     else:
                         veprints(2,'.')
         
+        veprint(2)
+        
         if len(Errs) < 10:
             raise RuntimeError('calibrate_antd: Not enough measurements')
 
@@ -495,19 +465,14 @@ def calibrate_antd(blk, dut, grps):
             print(f'    Corr:      {corr:+.1f}')
             print(f'    ANTD:      {current:#04x}')
         else:
-            veprint(2)
             veprint(1, f' [{loop}] Error: {Eavg:.3f}m [{Estd:.3f}] {corr:+.1f}')
         
-        ##
-        ## Adjust ANTD
-        ## 
-
-        error = Eavg / (Cabs / DW1000_CLOCK_HZ)
+        error = Eavg / (Cabs / DW1000_CLOCK_HZ) / 2
 
         if -0.75 < error < 0.75:
             break
         
-        corr += error / 2
+        corr += error
         
     return (current,corr)
 
@@ -579,7 +544,6 @@ def main():
     parser.add_argument('-i', '--interval', type=float)
     parser.add_argument('-P', '--power', type=float)
     parser.add_argument('-C', '--coarse', type=int)
-    parser.add_argument('-F', '--fine', type=int)
     parser.add_argument('-L', '--distance', type=float)
     parser.add_argument('-O', '--ppm-offset', type=float)
     
@@ -680,20 +644,18 @@ def main():
 
     if args.coarse is not None:
         txpwr[0] = args.coarse
-    if args.fine is not None:
-        txpwr[1] = args.fine
 
     try:
         if args.calib_xtalt:
             for dut in duts:
-                (xtalt,ppm) = calibrate_xtalt(blk,dut,refs)
+                xtalt = calibrate_xtalt(blk,dut,refs)
                 print('XTALT,{:s},{:d}'.format(dut.name,xtalt))
-                
+        
         if args.calib_txpower:
             for dut in duts:
-                (txp,rxp) = calibrate_txpower(blk,dut,refs,txpwr=txpwr,rxpwr=rxpwr)
-                print('TXPWR,{0:s},0x{1:02x},{2[0]:},{2[1]:}'.format(dut.name,DW1000.tx_power_list_to_code(txp),txp))
-    
+                txpwr = calibrate_txpower(blk,dut,refs,txpwr,rxpwr)
+                print('TXPWR,{0:s},0x{1:02x},{2[0]:},{2[1]:}'.format(dut.name,DW1000.tx_power_list_to_code(txpwr),txpwr))
+        
         if args.calib_antd:
             for dut in duts:
                 (antd,corr) = calibrate_antd(blk,dut,grps)

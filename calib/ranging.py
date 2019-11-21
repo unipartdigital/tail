@@ -30,9 +30,9 @@ class cfg():
     rpc_port = 8912
     
     blink_count    = 100
-    blink_delay    = 0.100
-    blink_wait     = 0.500
-    blink_interval = 1.000
+    blink_delay    = 0.010
+    blink_wait     = 0.250
+    blink_interval = 0.100
 
     window         = 1.000
     binsize        = 2 / DW1000_CLOCK_GHZ
