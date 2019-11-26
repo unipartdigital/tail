@@ -33,10 +33,10 @@ class cfg:
     if_name         = 'wpan0'
 
     anchor_addr     = ''
-    anchor_port     = 8912
+    anchor_port     = 9812
 
     server_host     = None
-    server_port     = 8913
+    server_port     = 9813
 
     config_json     = '/etc/tail.json'
 
@@ -95,7 +95,7 @@ def recv_udp_client(pipe):
             if addr in socks.udp_addrs:
                 mesg = json.loads(data)
                 recv_client_msg(socks.udp_addrs[addr], mesg)
-    except Exception as err:
+    except ConnectionError as err:
         errhandler('recv_udp_client: Unable to receive', err)
 
 
@@ -202,11 +202,13 @@ def recv_blink():
     if frame.tail_protocol == 1:
         anc = cfg.if_eui64
         src = frame.get_src_eui()
-        if frame.timestamp is None:
-            eprint('RX frame timestamp missing ANC:{} ANCL:{} FRAME:{}'.format(anc,ancl,frame))
-        elif frame.timestamp.tsinfo.rawts == 0 or frame.timestamp.hires == 0:
-            eprint('RX frame timestamp invalid ANC:{} ANCL:{} FRAME:{}'.format(anc,ancl,frame))
-        tms = { 'swts': int(frame.timestamp.sw), 'hwts': int(frame.timestamp.hw), 'hires': int(frame.timestamp.hires) }
+        if frame.timestamp is not None:
+            tms = { 'swts': int(frame.timestamp.sw), 'hwts': int(frame.timestamp.hw), 'hires': int(frame.timestamp.hires) }
+            if frame.timestamp.hw == 0 or frame.timestamp.hires == 0:
+                eprint('RX frame timestamp invalid anchor:{} ancl:{} frame:{}'.format(anc,ancl,frame))
+        else:
+            tms = { 'swts': None, 'hwts': None, 'hires': None }
+            eprint('RX frame timestamp missing anchor:{} ancl:{} frame:{}'.format(anc,ancl,frame))
         tsi = dict(frame.timestamp.tsinfo)
         send_udp_client(Type='RX', Anchor=anc, Src=src, Times=tms, TSInfo=tsi, Frame=data.hex())
         if frame.tail_frmtype == 0:
@@ -220,11 +222,13 @@ def recv_times():
     dprint(4, 'recv_times: {}'.format(frame))
     if frame.tail_protocol == 1:
         anc = cfg.if_eui64
-        if frame.timestamp is None:
-            eprint('TX frame timestamp missing ANC:{} ANCL:{} FRAME:{}'.format(anc,ancl,frame))
-        elif frame.timestamp.tsinfo.rawts == 0 or frame.timestamp.hires == 0:
-            eprint('TX frame timestamp invalid ANC:{} ANCL:{} FRAME:{}'.format(anc,ancl,frame))
-        tms = { 'swts': int(frame.timestamp.sw), 'hwts': int(frame.timestamp.hw), 'hires': int(frame.timestamp.hires) }
+        if frame.timestamp is not None:
+            tms = { 'swts': int(frame.timestamp.sw), 'hwts': int(frame.timestamp.hw), 'hires': int(frame.timestamp.hires) }
+            if frame.timestamp.hw == 0 or frame.timestamp.hires == 0:
+                eprint('TX frame timestamp invalid anchor:{} ancl:{} frame:{}'.format(anc,ancl,frame))
+        else:
+            tms = { 'swts': None, 'hwts': None, 'hires': None }
+            eprint('TX frame timestamp missing anchor:{} ancl:{} frame:{}'.format(anc,ancl,frame))
         tsi = dict(frame.timestamp.tsinfo)
         send_udp_client(Type='TX', Anchor=anc, Src=anc, Times=tms, TSInfo=tsi, Frame=data.hex())
 
@@ -258,7 +262,7 @@ def socket_loop():
         register_udp_client(socks.upipe, cfg.server_host, cfg.server_port)
 
     while True:
-        for (fd,flags) in socks.poll.poll():
+        for (fd,flags) in socks.poll.poll(100):
             try:
                 if fd == rfd:
                     if flags & select.POLLIN:
@@ -327,12 +331,12 @@ def main():
     WPANFrame.verbosity = args.verbose
     cfg.debug = args.debug
 
+    if args.interface:
+        cfg.if_name = args.interface
     if args.server:
         cfg.server_host = args.server
     if args.port:
         cfg.server_port = args.port
-    if args.interface:
-        cfg.if_name = args.interface
 
     if args.profile:
         cfg.dw1000_profile = args.profile

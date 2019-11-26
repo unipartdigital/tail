@@ -29,7 +29,7 @@ class cfg():
 
     output           = None
 
-    rpc_port         = 8912
+    rpc_port         = 9812
     
     blink_count      = 1000000
     blink_delay      = 0.100

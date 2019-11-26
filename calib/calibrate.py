@@ -39,7 +39,7 @@ class cfg():
     txlevel         = -12.3
     ppm_offset      = 0.0
 
-    rpc_port        = 8912
+    rpc_port        = 9812
     
     config_json     = '/etc/calibrator.json'
 
@@ -219,9 +219,10 @@ def estimate_txpower(blk, dut, refs):
                 try:
                     Plin = blk.get_rx_level(i1,dev)
                     Flin = blk.get_fp_level(i1,dev)
-                    
-                    Power.append(Plin)
-                    Fpath.append(Flin)
+
+                    if Plin and Flin:
+                        Power.append(Plin)
+                        Fpath.append(Flin)
                     
                 except KeyError:
                     veprints(2,'?')

@@ -18,7 +18,7 @@ def main():
     DW1000.add_print_arguments(parser)
     
     parser.add_argument('-v', '--verbose', action='store_true', default=False)
-    parser.add_argument('-p', '--port', type=int, default=8912)
+    parser.add_argument('-p', '--port', type=int, default=9812)
     parser.add_argument('remote', type=str, nargs='+', help="Remote address")
     
     args = parser.parse_args()

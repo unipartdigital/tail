@@ -27,7 +27,7 @@ class cfg():
     verbose = 0
     debug = 0
     
-    rpc_port = 8912
+    rpc_port = 9812
     
     blink_count    = 100
     blink_delay    = 0.010
