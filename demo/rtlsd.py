@@ -125,7 +125,7 @@ class Timeout():
             try:
                 self.func(*self.args)
             except Exception as err:
-                errhandler('Timeout::expire', err)
+                errhandler('Timeout::expire callback failed:', err)
 
     def arm(self, delay=None):
         if not self.armed:
@@ -548,7 +548,7 @@ class Tag():
             else:
                 raise ValueError('Invalid algorithm \'{}\''.format(algo))
         except (KeyError,ValueError,AttributeError,LinAlgError) as err:
-            errhandler('Tag::laterate', err)
+            dprint(1, 'Tag::laterate failed: {}'.format(err))
     
     def select_beacon(self):
         if cfg.force_beacon:
@@ -731,7 +731,7 @@ class Anchor():
             self.server.add_anchor_twr(self, self.ranging_peer, D)
         
         except (KeyError,ValueError,AttributeError,LinAlgError) as err:
-            errhandler('Anchor::TWR', err)
+            dprint(1, 'Anchor::TWR failed: {}'.format(err))
 
     def wakeup_expire(self):
         dprint(3, 'Anchor::wakeup_expire')
