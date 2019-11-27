@@ -329,7 +329,7 @@ class DW1000:
 
 class RPC:
 
-    def __init__(self, udp_port=8913):
+    def __init__(self, udp_port=9813):
         self.running = False
         self.seqnum = 1
         self.pipes = {}
@@ -367,7 +367,7 @@ class RPC:
                 mesg = pipe.getmsg()
                 self.recvmsg(mesg)
         except Exception as err:
-            errhandler('recvpipe: Unable to decode', err)
+            errhandler('RPC::recvpipe: Unable to decode', err)
     
     def recvmsg(self,mesg):
         try:
@@ -381,11 +381,9 @@ class RPC:
                 hand = f'RPC:{func}:{seqn}'
                 if hand in self.handler:
                     self.handler[hand](data)
-            else:
-                raise ValueError
 
         except Exception as err:
-            errhandler('Invalid message received', err)
+            errhandler('RPC::recvmsg: Invalid message received: {}'.format(mesg), err)
             
     def add_device(self,dev):
         self.lock.acquire()
