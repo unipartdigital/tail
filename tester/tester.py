@@ -144,7 +144,7 @@ class TestScreen(Screen):
                 self.ids['status'].text = "[color=ff0000]" + status + "[/color]"
             else:
                 self.ready = True
-                self.ids['status'].text = "Ready for testing"
+                self.ids['status'].text = "Ready for testing a " + target
 
     def stop(self):
         if self.hardware_check_thread:
@@ -559,14 +559,14 @@ class Tag:
         return True
 
     def prepare_xtal_trim(self):
-        self.dut.firmware_cmd('stop')
-        self.dut.firmware_cmd('wake')
+        self.firmware_cmd('stop')
+        self.firmware_cmd('wake')
 
     def read_config(self, key):
         return self.firmware_cmd('config {}'.format(key))
 
     def write_config(self, key, value):
-        if self.dut.firmware_cmd('config {} {}'.format(key, value)) != []:
+        if self.firmware_cmd('config {} {}'.format(key, value)) != []:
             return False
         return True
 
@@ -584,11 +584,11 @@ class Tag:
         return None
 
     def write_eui(self, eui):
-        value = ' '.join(str(x) for x in reversed(list(self.eui.words)))
-        return self.dut.write_config('eui', value)
+        value = ' '.join(str(x) for x in reversed(list(eui.words)))
+        return self.write_config('eui', value)
 
     def reading(self, name):
-        r_value = self.dut.firmware_cmd(name)
+        r_value = self.firmware_cmd(name)
         if not r_value:
             return None # Read failure
         try:
@@ -598,19 +598,19 @@ class Tag:
         return value
 
     def rawbattery(self):
-        return reading('rawbattery')
+        return self.reading('rawbattery')
 
     def volts(self):
-        return reading('volts')
+        return self.reading('volts')
 
     def rawvolts(self):
-        return reading('rawvolts')
+        return self.reading('rawvolts')
 
     def temp(self):
-        return reading('temp')
+        return self.reading('temp')
 
     def rawtemp(self):
-        return reading('rawtemp')
+        return self.reading('rawtemp')
 
 GPIO_CTRL = 0x26
 GPIO_MODE = 0x00
@@ -733,7 +733,7 @@ class Hat:
         return self.read_otp(0x09, 1)[0]
 
     def volts(self):
-        return 1000 * (self.rawvolts() - self.volts_cal()) / 173 + 3300
+        return (self.rawvolts() - self.volts_cal()) / 173 + 3.3
 
     def rawvolts(self):
         return self.read_adc()[0]
@@ -1044,7 +1044,6 @@ class Test(threading.Thread):
         if not t_rawtemp:
             self.output += " Failed to get raw temperature reading"
             return False
-        v_volts = v_volts / 1000
         self.output += " {}V / {}°C".format(v_volts, t_temp)
         self.output += " {} / {}".format(v_rawvolts, t_rawtemp)
         relays.relay('measure_3v3').state = False
