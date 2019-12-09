@@ -19,7 +19,7 @@ server-dev :
 clean :
 	$(RM) dist/*
 
-install : npm-build
+install :
 	mkdir -p $(DESTDIR)/dist
 	install -m 755 server.py $(DESTDIR)/
 	install -m 644 dist/* $(DESTDIR)/dist/
