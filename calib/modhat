@@ -1,0 +1,79 @@
+#!/bin/bash
+#
+# DW1000 Hat calibration writer
+#
+# Usage: modhat.sh
+#
+
+XTALT=''
+TXPWR=''
+ANTD16=''
+ANTD64=''
+PROG='no'
+
+while getopts "X:T:A:a:" OPT
+do
+    case "$OPT" in
+	X)  XTALT=${OPTARG}
+	    PROG=YES
+            ;;
+	T)  TXPWR=${OPTARG}
+	    ;;
+	A)  ANTD64=${OPTARG}
+	    PROG=YES
+	    ;;
+	a)  ANTD16=${OPTARG}
+	    PROG=YES
+	    ;;
+    esac
+done
+
+DTSFILE="/tmp/dtsfile-$$"
+:>${DTSFILE}
+
+
+##
+## Functions
+##
+
+prepare_dts()
+{
+    cat<<MEOW>>${DTSFILE}
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "brcm,bcm2708";
+
+	fragment@0 {
+		target = <&dw1000@0>;
+		__overlay__ {
+MEOW
+    if [ -n "${ANTD16}" -a -n "${ANTD64}" ]
+    then
+        echo "			decawave,antd = <${ANTD16} ${ANTD64}>;" >>${DTSFILE}
+    fi
+    if [ -n "${XTALT}" ]
+    then
+        echo "			decawave,xtalt = <${XTALT}>;" >>${DTSFILE}
+    fi
+
+    cat<<MEOW>>${DTSFILE}
+		};
+	};
+};
+MEOW
+}
+
+
+prepare_dts
+
+if [ "$PROG" == "YES" ]
+then
+    echo pihat-eeprom --merge --dts ${DTSFILE}
+fi
+
+cat ${DTSFILE}
+
+rm -f ${DTSFILE}
+

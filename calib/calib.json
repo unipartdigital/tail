@@ -1,0 +1,26 @@
+{
+    "DW1000" :
+    {
+	"profile"	: null,
+	"channel"	: 5,
+	"pcode"		: 12,
+	"prf"		: 64,
+	"rate"		: 850,
+	"txpsr"		: 1024,
+	"smart"		: 0,
+	"power"		: "0x88888888",
+	"txlevel"       : -12.3
+    },
+
+    "CALIBRATE" :
+    {
+	"calib_antd"       : false,
+	"calib_xtalt"      : false,
+	"calib_txpower"    : false,
+	
+	"blink_count"      : 100,
+	"blink_delay"      : 0.010,
+	"blink_wait"       : 0.250,
+	"blink_interval"   : 0.010
+    }
+}

@@ -1,0 +1,85 @@
+{
+    "ANCHORS" :
+    [
+        {
+            "name"     : "M11",
+            "host"     : "magpi11.qs.unipart.io",
+	    "role"     : "DUT",
+	    "coord"    : [0.0, 0.0, 0.0],
+	    "offset"   : [0.0475, 0.020, 0.115],
+	    "rotation" : [0, 0, 0]
+        },
+        {
+            "name"     : "M1",
+            "host"     : "magpi1.qs.unipart.io",
+	    "role"     : "REF",
+	    "group"    : 1,
+	    "coord"    : [2.520, 4.365, 0.0],
+	    "offset"   : [0.1425, 0.020, 0.115],
+	    "rotation" : [0, 0, 120]
+        },
+        {
+            "name"     : "M2",
+            "host"     : "magpi2.qs.unipart.io",
+	    "role"     : "REF",
+	    "group"    : 1,
+	    "coord"    : [2.520, 4.365, 0.0],
+	    "offset"   : [0.0475, 0.020, 0.115],
+	    "rotation" : [0, 0, 120]
+        },
+        {
+            "name"     : "M3",
+            "host"     : "magpi3.qs.unipart.io",
+	    "role"     : "REF",
+	    "group"    : 1,
+	    "coord"    : [2.520, 4.365, 0.0],
+	    "offset"   : [-0.0475, 0.020, 0.115],
+	    "rotation" : [0, 0, 120]
+        },
+        {
+            "name"     : "M4",
+            "host"     : "magpi4.qs.unipart.io",
+	    "role"     : "REF",
+	    "group"    : 1,
+	    "coord"    : [2.520, 4.365, 0.0],
+	    "offset"   : [-0.1425, 0.020, 0.115],
+	    "rotation" : [0, 0, 120]
+        },
+        {
+            "name"     : "M5",
+            "host"     : "magpi5.qs.unipart.io",
+	    "role"     : "REF",
+	    "group"    : 2,
+	    "coord"    : [-2.520, 4.365, 0.0],
+	    "offset"   : [0.1425, 0.020, 0.115],
+	    "rotation" : [0, 0, 240]
+        },
+        {
+            "name"     : "M6",
+            "host"     : "magpi6.qs.unipart.io",
+	    "role"     : "REF",
+	    "group"    : 2,
+	    "coord"    : [-2.520, 4.365, 0.0],
+	    "offset"   : [0.0475, 0.020, 0.115],
+	    "rotation" : [0, 0, 240]
+        },
+        {
+            "name"     : "M7",
+            "host"     : "magpi7.qs.unipart.io",
+	    "role"     : "REF",
+	    "group"    : 2,
+	    "coord"    : [-2.520, 4.365, 0.0],
+	    "offset"   : [-0.0475, 0.020, 0.115],
+	    "rotation" : [0, 0, 240]
+        },
+        {
+            "name"     : "M8",
+            "host"     : "magpi8.qs.unipart.io",
+	    "role"     : "REF",
+	    "group"    : 2,
+	    "coord"    : [-2.520, 4.365, 0.0],
+	    "offset"   : [-0.1425, 0.020, 0.115],
+	    "rotation" : [0, 0, 240]
+        }
+    ]
+}

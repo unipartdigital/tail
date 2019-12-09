@@ -8,6 +8,7 @@ import math
 import argparse
 
 import numpy as np
+import subprocess as sub
 
 from tail import *
 from dwarf import *
@@ -21,6 +22,15 @@ class cfg():
     debug           = 0
     verbose         = 0
 
+    setup_json      = "setup.json"
+    calib_json      = "calib.json"
+
+    program         = False
+
+    calib_antd      = False
+    calib_xtalt     = False
+    calib_txpower   = False
+    
     dw1000_profile  = None
     dw1000_channel  = 5
     dw1000_pcode    = 12
@@ -29,19 +39,17 @@ class cfg():
     dw1000_txpsr    = 1024
     dw1000_smart    = 0
     dw1000_power    = '0x88888888'
+    dw1000_txlevel  = -12.3
 
     blink_count     = 100
     blink_delay     = 0.050
     blink_wait      = 0.500
     blink_interval  = 0.250
 
-    distance        = 5.04
-    txlevel         = -12.3
     ppm_offset      = 0.0
-
     rpc_port        = 9812
-    
-    config_json     = '/etc/calibrator.json'
+
+    anchors         = []
 
     def setarg(name, value):
         if value is not None:
@@ -122,7 +130,7 @@ def estimate_xtal_ppm(blk, dut, refs):
             
     veprint(2)
             
-    if len(Errs) < cfg.blink_count/2:
+    if len(Errs) < cfg.blink_count:
         raise RuntimeError('estimate_xtal_ppm: Not enough measurements')
     
     Eavg = np.mean(Errs)
@@ -181,12 +189,14 @@ def calibrate_xtalt(blk, dut, refs):
         else:
             veprint(1, f' [{loop}] {xtalt} => {Eavg:+.3f}ppm ')
 
-        if -100 < Eavg < 100 and Estd < 10:
+        if -100 < Eavg < 100 and Estd < 3:
             if Eavg < 0.0:
                 TL = xtalt
             else:
                 TH = xtalt
-    
+
+    veprint(1, 'Calibrating {} <{}> XTALT {}'.format(dut.name,dut.eui,best))
+
     dut.set_dw1000_attr('xtalt', best)
     
     return best
@@ -221,8 +231,14 @@ def estimate_txpower(blk, dut, refs):
                     Flin = blk.get_fp_level(i1,dev)
 
                     if Plin and Flin:
-                        Power.append(Plin)
-                        Fpath.append(Flin)
+                        Dist = dut.distance_to(dev)
+                        Pest = RFCalcRxPower(cfg.dw1000_channel, Dist, cfg.dw1000_txlevel)
+                        
+                        Plog = RxPower2dBm(Plin,cfg.dw1000_prf) - Pest
+                        Flog = RxPower2dBm(Flin,cfg.dw1000_prf) - Pest
+                        
+                        Power.append(Plog)
+                        Fpath.append(Flog)
                     
                 except KeyError:
                     veprints(2,'?')
@@ -247,29 +263,24 @@ def estimate_txpower(blk, dut, refs):
     
     Pavg = np.mean(Power)
     Pstd = np.std(Power)
-    Plog = RxPower2dBm(Pavg,cfg.dw1000_prf)
-    Pstl = RxPower2dBm(Pavg+Pstd,cfg.dw1000_prf) - Plog
-    
     Favg = np.mean(Fpath)
     Fstd = np.std(Fpath)
-    Flog = RxPower2dBm(Favg,cfg.dw1000_prf)
-    Fstl = RxPower2dBm(Favg+Fstd,cfg.dw1000_prf) - Flog
-    
     Tavg = np.mean(Temps)
     Tstd = np.std(Temps)
-    
     Vavg = np.mean(Volts)
     Vstd = np.std(Volts)
-
+    
     Tcnt = len(Temps)
     Rate = Tcnt / cfg.blink_count
     
-    return (Tcnt,Rate,Plog,Pstl,Flog,Fstl,Tavg,Tstd,Vavg,Vstd)
+    return (Tcnt,Rate,Pavg,Pstd,Favg,Fstd,Tavg,Tstd,Vavg,Vstd)
 
 
-def calibrate_txpower(blk, dut, refs, txpwr, rxpwr):
+def calibrate_txpower(blk, dut, refs):
 
-    veprint(1, 'Calibrating {} <{}> Initial TxPWR:{} Target RxPWR:{:.1f}dBm'.format(dut.name,dut.eui,txpwr,rxpwr))
+    txpwr = DW1000.tx_power_reg_to_list(dut.get_dw1000_attr('tx_power'))
+
+    veprint(1, 'Calibrating {} <{}> Initial TxPWR:{} TxLevel:{:.1f}dBm'.format(dut.name,dut.eui,txpwr,cfg.dw1000_txlevel))
 
     TL = 0
     TH = 31
@@ -292,7 +303,7 @@ def calibrate_txpower(blk, dut, refs, txpwr, rxpwr):
 
         dut.set_dw1000_attr('tx_power', DW1000.tx_power_list_to_code(txpwr))
 
-        (Tcnt,Rate,Plog,Pstl,Flog,Fstl,Tavg,Tstd,Vavg,Vstd) = estimate_txpower(blk, dut, refs)
+        (Tcnt,Rate,Pavg,Pstd,Favg,Fstd,Tavg,Tstd,Vavg,Vstd) = estimate_txpower(blk, dut, refs)
 
         fail = 100 * (1.0 - Rate)
 
@@ -302,42 +313,34 @@ def calibrate_txpower(blk, dut, refs, txpwr, rxpwr):
             eprint(f'    Temp:      {Tavg:.1f}°C [{Tstd:.2f}°C]')
             eprint(f'    Volt:      {Vavg:.3f}V [{Vstd:.3f}V]')
             eprint(f'    TxPWR:     [{txpwr[0]:.0f}{txpwr[1]:+.1f}]')
-            eprint(f'    RxPWR:     {Plog:.1f}dBm [{Pstl:.2f}dBm]')
-            eprint(f'    FpPWR:     {Flog:.1f}dBm [{Fstl:.2f}dBm]')
+            eprint(f'    RxPWR:     {Pavg:+.1f}dBm [{Pstd:.2f}dBm]')
+            eprint(f'    FpPWR:     {Favg:+.1f}dBm [{Fstd:.2f}dBm]')
         else:
-            veprint(1, f' [{loop}] TxPwr: {txpwr[0]:.0f}{txpwr[1]:+.1f}dBm RxPWR:{Plog:.1f}dBm FpPWR:{Flog:.1f}dBm')
+            veprint(1, f' [{loop}] TxPwr: {txpwr[0]:.0f}{txpwr[1]:+.1f}dBm RxPWR:{Pavg:+.1f}dBm FpPWR:{Favg:+.1f}dBm')
 
-        errors[TX] = Perr = Plog - rxpwr
+        errors[TX] = Pavg
 
-        if -20 < Perr < 20 and Pstl < 10.0:
-            if Perr < 0.0:
+        if -20 < Pavg < 20 and Pstd < 10.0:
+            if Pavg < 0.0:
                 TL = TX
             else:
                 TH = TX
 
+    veprint(1, 'Calibrating {} <{}> DONE TxPWR:{} TxLevel:{:.1f}dBm'.format(dut.name,dut.eui,txpwr,cfg.dw1000_txlevel))
+
     dut.set_dw1000_attr('tx_power', DW1000.tx_power_list_to_code(txpwr))
+
+    return DW1000.tx_power_list_to_code(txpwr)
     
-    return txpwr
 
+def trcalc(blk, idx, dut, dtx, drx):
 
-def ranging(blk, dut, rem):
-
-    blk.sync(cfg.blink_interval)
-    
-    i1 = blk.blink(dut)
-    blk.nap(cfg.blink_delay)
-    i2 = blk.blink(rem)
-    blk.nap(cfg.blink_delay)
-    i3 = blk.blink(dut)
-
-    blk.wait_blinks((i1,i2,i3),(dut,rem),cfg.blink_wait)
-    
-    T1 = blk.get_rawts(i1, dut)
-    T2 = blk.get_rawts(i1, rem)
-    T3 = blk.get_rawts(i2, rem)
-    T4 = blk.get_rawts(i2, dut)
-    T5 = blk.get_rawts(i3, dut)
-    T6 = blk.get_rawts(i3, rem)
+    T1 = blk.get_rawts(idx[0], drx)
+    T2 = blk.get_rawts(idx[0], dut)
+    T3 = blk.get_rawts(idx[1], dut)
+    T4 = blk.get_rawts(idx[1], drx)
+    T5 = blk.get_rawts(idx[2], drx)
+    T6 = blk.get_rawts(idx[2], dut)
     
     T41 = T4 - T1
     T32 = T3 - T2
@@ -346,51 +349,7 @@ def ranging(blk, dut, rem):
     T51 = T5 - T1
     T62 = T6 - T2
     
-    Tof = (T41*T63 - T32*T54) / (T51+T62)
-    Dof = Tof / DW1000_CLOCK_HZ
-    Lof = Dof * Cabs
-
-    Loe = dut.distance_to(rem)
-
-    Err = Lof - Loe
-    
-    if Err < -10 or Err > 10:
-        raise ValueError(f'Ranging: Err out of bounds: {Err}')
-    
-    blk.purge_blink(i1)
-    blk.purge_blink(i2)
-    blk.purge_blink(i3)
-    
-    return Err
-
-
-def tringing(blk, dut, dtx, drx):
-
-    blk.sync(cfg.blink_interval)
-    
-    i1 = blk.blink(dtx)
-    blk.nap(cfg.blink_delay)
-    i2 = blk.blink(dut)
-    blk.nap(cfg.blink_delay)
-    i3 = blk.blink(dtx)
-
-    blk.wait_blinks((i1,i2,i3),(dut,dtx,drx),cfg.blink_wait)
-    
-    T1 = blk.get_rawts(i1, drx)
-    T2 = blk.get_rawts(i1, dut)
-    T3 = blk.get_rawts(i2, dut)
-    T4 = blk.get_rawts(i2, drx)
-    T5 = blk.get_rawts(i3, drx)
-    T6 = blk.get_rawts(i3, dut)
-    
-    T41 = T4 - T1
-    T32 = T3 - T2
-    T54 = T5 - T4
-    T63 = T6 - T3
-    T51 = T5 - T1
-    T62 = T6 - T2
-    
-    Tof = 2 * (T41*T63 - T32*T54) / (T51+T62)
+    Tof = 2* (T41*T63 - T32*T54) / (T51+T62)
     Dof = Tof / DW1000_CLOCK_HZ
     Lof = Dof * Cabs
 
@@ -401,24 +360,20 @@ def tringing(blk, dut, dtx, drx):
     Loe = D3 + (D2 - D1)
     Err = Lof - Loe
 
-    veprint(4, f'\rDUT:{dut.name} DTX:{dtx.name} DRX:{drx.name} DUTTX:{D1:.3f} DTXRX:{D2:.3f} DUTRX:{D3:.3f} Loe:{Loe:.3f} Lof:{Lof:.3f} Err:{Err:.3f}')
+    veprint(5, f'\rDUT:{dut.name} DTX:{dtx.name} DRX:{drx.name} DUTTX:{D1:.3f} DTXRX:{D2:.3f} DUTRX:{D3:.3f} Loe:{Loe:.3f} Lof:{Lof:.3f} Err:{Err:.3f}')
 
     if Err < -10 or Err > 10:
         raise ValueError(f'Tringing: Err out of bounds: {Err}')
-    
-    blk.purge_blink(i1)
-    blk.purge_blink(i2)
-    blk.purge_blink(i3)
     
     return Err
 
 
 def calibrate_antd(blk, dut, grps):
 
-    antd = int(dut.get_dw1000_attr('antd'),0)
+    antd = 0x4040
     corr = 0.0
     
-    veprint(1, 'Calibrating {} <{}> ANTD [{:#04x}]'.format(dut.name,dut.eui,antd))
+    veprint(1, 'Calibrating {} <{}> ANTD'.format(dut.name,dut.eui))
 
     for loop in range(10):
 
@@ -428,13 +383,63 @@ def calibrate_antd(blk, dut, grps):
         
         Errs = [ ]
 
-        for i in range(cfg.blink_count):
-            for drx in grps[1]:
-                for dtx in grps[2]:
+        count = cfg.blink_count // (len(grps[1]) + len(grps[2]))
+        
+        for i in range(count):
+            
+            for dtx in grps[1]:
+                
+                grp = [dut,dtx] + grps[2]
+
+                blk.sync(cfg.blink_interval)
+    
+                i1 = blk.blink(dtx)
+                blk.nap(cfg.blink_delay)
+                i2 = blk.blink(dut)
+                blk.nap(cfg.blink_delay)
+                i3 = blk.blink(dtx)
+
+                idx = (i1,i2,i3)
+
+                blk.wait_blinks(idx,grp,cfg.blink_wait)
+    
+                for drx in grps[2]:
                     try:
-                        Err = tringing(blk,dut,dtx,drx)
+                        Err = trcalc(blk,idx,dut,dtx,drx)
                         Errs.append(Err)
-                        Err = tringing(blk,dut,drx,dtx)
+
+                    except KeyError:
+                        veprints(2,'?')
+                    except ValueError:
+                        veprints(2,'!')
+                    except TimeoutError:
+                        veprints(2,'T')
+                    except RuntimeError:
+                        veprints(2,'R')
+                    except ZeroDivisionError:
+                        veprints(2,'0')
+                    else:
+                        veprints(2,'.')
+
+            for dtx in grps[2]:
+                
+                grp = [dut,dtx] + grps[1]
+
+                blk.sync(cfg.blink_interval)
+    
+                i1 = blk.blink(dtx)
+                blk.nap(cfg.blink_delay)
+                i2 = blk.blink(dut)
+                blk.nap(cfg.blink_delay)
+                i3 = blk.blink(dtx)
+
+                idx = (i1,i2,i3)
+
+                blk.wait_blinks(idx,grp,cfg.blink_wait)
+    
+                for drx in grps[1]:
+                    try:
+                        Err = trcalc(blk,idx,dut,dtx,drx)
                         Errs.append(Err)
 
                     except KeyError:
@@ -452,7 +457,7 @@ def calibrate_antd(blk, dut, grps):
         
         veprint(2)
         
-        if len(Errs) < 10:
+        if len(Errs) < cfg.blink_count:
             raise RuntimeError('calibrate_antd: Not enough measurements')
 
         Ecnt = len(Errs)
@@ -470,12 +475,31 @@ def calibrate_antd(blk, dut, grps):
         
         error = Eavg / (Cabs / DW1000_CLOCK_HZ) / 2
 
-        if -0.75 < error < 0.75:
+        if -1 < error < 1:
             break
         
         corr += error
-        
-    return (current,corr)
+
+    veprint(1, 'Calibrating {} <{}> ANTD:{:#04x}'.format(dut.name,dut.eui,current))
+    
+    return current
+
+
+def program_dw1000(dut):
+
+    cmd = f'modhat'
+    if dut.xtalt:
+        cmd += f' -X {dut.xtalt}'
+    if dut.txpwr:
+        cmd += f' -T 0x{dut.txpwr:02x}{dut.txpwr:02x}{dut.txpwr:02x}{dut.txpwr:02x}'
+    if dut.antd:
+        cmd += f' -A {dut.antd:#04x}'
+        # Fixme with profiles - PRF16 should be calibrated separately
+        cmd += f' -a {dut.antd:#04x}'
+    
+    ssh = sub.run(['ssh', f'root@{dut.host}', cmd], timeout=30)
+
+    return ssh.returncode
 
 
 def create_dw1000(rpc, name=None, host=None, port=None, coord=None, offset=None, rotation=None, role=None, group=None):
@@ -514,7 +538,11 @@ def create_dw1000(rpc, name=None, host=None, port=None, coord=None, offset=None,
     setattr(adev, 'role', role)
     setattr(adev, 'group', group)
 
-    veprint(1, f'Connecting to {adev.host}...')
+    setattr(adev, 'xtalt', None)
+    setattr(adev, 'txpwr', None)
+    setattr(adev, 'antd', None)
+
+    veprint(2, f'Connecting to {adev.host}...')
 
     adev.connect()
     
@@ -529,6 +557,19 @@ def create_dw1000(rpc, name=None, host=None, port=None, coord=None, offset=None,
     return adev
 
 
+def load_dict(input, output, prefix=''):
+    for (key,value) in input.items():
+        try:
+            getattr(output, prefix + key)
+            setattr(output, prefix + key, value)
+        except AttributeError:
+            eprint('Invalid setup {}: {}'.format(key,value))
+
+def load_list(input, output, prefix=''):
+    for value in input:
+        output.append(value)
+
+
 def main():
 
     parser = argparse.ArgumentParser(description="DW1000 calibraturd")
@@ -536,16 +577,19 @@ def main():
     parser.add_argument('-v', '--verbose', action='count', default=0)
     parser.add_argument('-D', '--debug', action='count', default=0)
     
-    parser.add_argument('-c', '--config', type=str, default=cfg.config_json)
+    parser.add_argument('-s', '--setup', type=str, default=cfg.setup_json)
+    parser.add_argument('-c', '--calib', type=str, default=cfg.calib_json)
 
+    parser.add_argument('-A', '--calib-antd', action='store_true', default=None)
+    parser.add_argument('-X', '--calib-xtalt', action='store_true', default=None)
+    parser.add_argument('-T', '--calib-txpower', action='store_true', default=None)
+    parser.add_argument('-P', '--program', action='store_true', default=None)
+    
     parser.add_argument('-p', '--port', type=int)
     parser.add_argument('-n', '--count', type=int)
     parser.add_argument('-d', '--delay', type=float)
     parser.add_argument('-w', '--wait', type=float)
     parser.add_argument('-i', '--interval', type=float)
-    parser.add_argument('-P', '--power', type=float)
-    parser.add_argument('-C', '--coarse', type=int)
-    parser.add_argument('-L', '--distance', type=float)
     parser.add_argument('-O', '--ppm-offset', type=float)
     
     parser.add_argument('--channel', type=int)
@@ -554,56 +598,48 @@ def main():
     parser.add_argument('--rate', type=int)
     parser.add_argument('--txpsr', type=int)
     parser.add_argument('--txpwr', type=int)
-    
-    parser.add_argument('-X', '--calib-xtalt', action='store_true', default=False)
-    parser.add_argument('-T', '--calib-txpower', action='store_true', default=False)
-    parser.add_argument('-A', '--calib-antd', action='store_true', default=False)
-    
+    parser.add_argument('--txlevel', type=float)
+
     args = parser.parse_args()
 
     cfg.debug = args.debug
     cfg.verbose = args.verbose
     WPANFrame.verbosity = cfg.verbose
 
-    cfg.config_json = args.config
+    cfg.calib_json = args.calib
+    cfg.setup_json = args.setup
 
-    with open(cfg.config_json, 'r') as f:
-        cfg.config = json.load(f)
+    with open(cfg.calib_json, 'r') as f:
+        calib = json.load(f)
 
-    for (key,value) in cfg.config.get('DW1000').items():
-        try:
-            getattr(cfg,'dw1000_' + key)
-            setattr(cfg,'dw1000_' + key,value)
-        except AttributeError:
-            eprint('Invalid DW1000 config {}: {}'.format(key,value))
+    with open(cfg.setup_json, 'r') as f:
+        setup = json.load(f)
 
-    for (key,value) in cfg.config.get('CALIBRATOR').items():
-        try:
-            getattr(cfg,key)
-            setattr(cfg,key,value)
-        except AttributeError:
-            eprint('Invalid CALIBRATOR config {}: {}'.format(key,value))
+    load_list(setup.get('ANCHORS'), cfg.anchors)
+    load_dict(calib.get('DW1000'), cfg, 'dw1000_')
+    load_dict(calib.get('CALIBRATE'), cfg)
 
-    cfg.setarg('rpc_port', args.port)
-
-    cfg.setarg('blink_count', args.count)
-    cfg.setarg('blink_delay', args.delay)
-    cfg.setarg('blink_wait', args.wait)
-    cfg.setarg('blink_interval', args.interval)
+    cfg.setarg('program', args.program)
+    cfg.setarg('calib_antd', args.calib_antd)
+    cfg.setarg('calib_xtalt', args.calib_xtalt)
+    cfg.setarg('calib_txpower', args.calib_txpower)
     
-    cfg.setarg('txlevel', args.power)
-    cfg.setarg('distance', args.distance)
-    cfg.setarg('ppm_offset', args.ppm_offset)
-
     cfg.setarg('dw1000_channel', args.channel)
     cfg.setarg('dw1000_prf', args.prf)
     cfg.setarg('dw1000_pcode', args.pcode)
     cfg.setarg('dw1000_rate', args.rate)
     cfg.setarg('dw1000_txpsr', args.txpsr)
     cfg.setarg('dw1000_power', args.txpwr)
+    cfg.setarg('dw1000_txlevel', args.txlevel)
     
-    cfg.setarg('rxlevel', RFCalcRxPower(cfg.dw1000_channel, cfg.distance, cfg.txlevel))
+    cfg.setarg('blink_count', args.count)
+    cfg.setarg('blink_delay', args.delay)
+    cfg.setarg('blink_wait', args.wait)
+    cfg.setarg('blink_interval', args.interval)
     
+    cfg.setarg('rpc_port', args.port)
+    cfg.setarg('ppm_offset', args.ppm_offset)
+
 
     ##
     ## Devices
@@ -616,7 +652,7 @@ def main():
     refs = [ ]
     grps = { 0:[], 1:[], 2:[] }
 
-    for arg in cfg.config.get('ANCHORS'):
+    for arg in cfg.anchors:
         try:
             host = arg['host']
             adev = create_dw1000(rpc, **arg)
@@ -640,28 +676,31 @@ def main():
 
     blk = Blinks(rpc)
 
-    rxpwr = cfg.rxlevel
-    txpwr = DW1000.tx_power_reg_to_list( duts[0].get_dw1000_attr('tx_power') )
-
-    if args.coarse is not None:
-        txpwr[0] = args.coarse
-
     try:
-        if args.calib_xtalt:
-            for dut in duts:
-                xtalt = calibrate_xtalt(blk,dut,refs)
-                print('XTALT,{:s},{:d}'.format(dut.name,xtalt))
-        
-        if args.calib_txpower:
-            for dut in duts:
-                txpwr = calibrate_txpower(blk,dut,refs,txpwr,rxpwr)
-                print('TXPWR,{0:s},0x{1:02x},{2[0]:},{2[1]:}'.format(dut.name,DW1000.tx_power_list_to_code(txpwr),txpwr))
-        
-        if args.calib_antd:
-            for dut in duts:
-                (antd,corr) = calibrate_antd(blk,dut,grps)
-                print('ANTD,{:s},{:#04x}'.format(dut.name,antd))
-    
+        for dut in duts:
+
+            if cfg.calib_xtalt:
+                dut.xtalt = calibrate_xtalt(blk,dut,refs)
+            if cfg.calib_txpower:
+                dut.txpwr = calibrate_txpower(blk,dut,refs)
+            if cfg.calib_antd:
+                dut.antd = calibrate_antd(blk,dut,grps)
+
+            prints(f'{dut.name} <{dut.eui}>')
+            
+            if dut.xtalt:
+                prints(f' XTALT:{dut.xtalt}')
+            if dut.txpwr:
+                prints(f' TXPWR:0x{dut.txpwr:02x}')
+            if dut.antd:
+                prints(f' ANTD:0x{dut.antd:04x}')
+
+            prints('\n')
+
+            if cfg.program:
+                eprint(f'Programming {dut.name}')
+                program_dw1000(dut)
+
     except KeyboardInterrupt:
         eprint('\rStopping...')
     except RuntimeError as err:
