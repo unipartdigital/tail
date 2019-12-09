@@ -108,7 +108,7 @@ def run(host, port):
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-p', '--port', type=int, default=9475)
-parser.add_argument('host', type=str)
+parser.add_argument('host', type=str, nargs='?', default='localhost')
 
 if __name__ == '__main__':
     args = parser.parse_args()
