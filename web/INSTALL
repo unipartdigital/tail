@@ -10,3 +10,10 @@ Allow nginx to act as a reverse proxy:
 Install everything:
 
   make && sudo make install
+
+Reload/restart services:
+
+  sudo systemctl daemon-reload
+  sudo systemctl enable --now tailui
+  sudo systemctl restart tailui
+  sudo systemctl restart nginx

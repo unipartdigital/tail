@@ -24,3 +24,4 @@ install :
 	install -m 755 server.py $(DESTDIR)/
 	install -m 644 dist/* $(DESTDIR)/dist/
 	install -m 644 nginx-tail.conf /etc/nginx/default.d/tail.conf
+	install -m 644 tailui.service /etc/systemd/system/
