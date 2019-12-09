@@ -64,13 +64,21 @@ function TagDot({ x, y, r, color, ...other }) {
   );
 }
 
-function TagDots({tags, group}) {
+function TagDots({tags, target}) {
+
+  if (!target)
+    return <div/>;
 
   const tagdots = Object.entries(tags).map(([id, {x, y, r, color}]) => (
     <TagDot key={id} id={id} x={x} y={y} r={r} color={color}/>
   ));
 
-  return group ? ReactDOM.createPortal(tagdots, group) : <div/>;
+  return ReactDOM.createPortal(
+    <g transform="scale(1,-1) translate(0,-4.686)">
+      {tagdots}
+    </g>,
+    target
+  );
 }
 
 function TagMap({tags}) {
@@ -85,11 +93,11 @@ function TagMap({tags}) {
   return (
     <PanZoom ref={panzoomRef}>
       <FloorplanObject ref={floorplanRef} data={floorplan} width="100%"
-                      onLoad={onFloorplanLoad}/>
+                       onLoad={onFloorplanLoad}/>
       <TagDots tags={tags}
-               group={floorplanRef.current &&
-                      floorplanRef.current.contentDocument &&
-                      floorplanRef.current.contentDocument.documentElement}/>
+               target={floorplanRef.current &&
+                       floorplanRef.current.contentDocument &&
+                       floorplanRef.current.contentDocument.documentElement}/>
     </PanZoom>
   );
 }
