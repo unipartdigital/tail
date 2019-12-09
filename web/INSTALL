@@ -1,0 +1,12 @@
+Basic installation instructions
+===============================
+
+Install nginx, configure for LetsEncrypt as per usual.
+
+Allow nginx to act as a reverse proxy:
+
+  sudo setsebool httpd_can_network_connect 1 -P
+
+Install everything:
+
+  make && sudo make install
