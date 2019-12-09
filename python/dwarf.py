@@ -190,6 +190,10 @@ def TailSpline(spline,X):
 ## Decawave power conversion
 ##
 
+def RxdBu2Power(dBu, prf=64):
+    power = math.pow(10, (dBu + RX_BASE_LEVEL[prf])/10)
+    return power
+
 def RxPower2dBu(power, prf=64):
     dBu = 10*math.log10(power) - RX_BASE_LEVEL[prf]
     return dBu
