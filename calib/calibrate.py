@@ -49,6 +49,8 @@ class cfg():
     ppm_offset      = 0.0
     rpc_port        = 9812
 
+    min_distance    = 2.00
+
     anchors         = []
 
     def setarg(name, value):
@@ -190,6 +192,9 @@ def calibrate_xtalt(blk, dut, refs):
             veprint(1, f' [{loop}] {xtalt} => {Eavg:+.3f}ppm ')
 
         if -100 < Eavg < 100 and Estd < 3:
+            if -1.0 < Eavg < 1.0:
+                best = xtalt
+                break
             if Eavg < 0.0:
                 TL = xtalt
             else:
@@ -368,8 +373,12 @@ def trcalc(blk, idx, dut, dtx, drx):
     return Err
 
 
-def calibrate_antd(blk, dut, grps):
+def calibrate_antd(blk, dut, refs):
 
+    group = [dut,] + refs
+
+    count = cfg.blink_count // len(refs) + 1
+        
     antd = 0x4040
     corr = 0.0
     
@@ -383,14 +392,10 @@ def calibrate_antd(blk, dut, grps):
         
         Errs = [ ]
 
-        count = cfg.blink_count // (len(grps[1]) + len(grps[2]))
-        
         for i in range(count):
             
-            for dtx in grps[1]:
+            for dtx in refs:
                 
-                grp = [dut,dtx] + grps[2]
-
                 blk.sync(cfg.blink_interval)
     
                 i1 = blk.blink(dtx)
@@ -401,60 +406,26 @@ def calibrate_antd(blk, dut, grps):
 
                 idx = (i1,i2,i3)
 
-                blk.wait_blinks(idx,grp,cfg.blink_wait)
+                blk.wait_blinks(idx,group,cfg.blink_wait)
     
-                for drx in grps[2]:
-                    try:
-                        Err = trcalc(blk,idx,dut,dtx,drx)
-                        Errs.append(Err)
+                for drx in refs:
+                    if dtx.distance_to(drx) > cfg.min_distance:
+                        try:
+                            Err = trcalc(blk,idx,dut,dtx,drx)
+                            Errs.append(Err)
+                        except KeyError:
+                            veprints(2,'?')
+                        except ValueError:
+                            veprints(2,'!')
+                        except TimeoutError:
+                            veprints(2,'T')
+                        except RuntimeError:
+                            veprints(2,'R')
+                        except ZeroDivisionError:
+                            veprints(2,'0')
+                        else:
+                            veprints(2,'.')
 
-                    except KeyError:
-                        veprints(2,'?')
-                    except ValueError:
-                        veprints(2,'!')
-                    except TimeoutError:
-                        veprints(2,'T')
-                    except RuntimeError:
-                        veprints(2,'R')
-                    except ZeroDivisionError:
-                        veprints(2,'0')
-                    else:
-                        veprints(2,'.')
-
-            for dtx in grps[2]:
-                
-                grp = [dut,dtx] + grps[1]
-
-                blk.sync(cfg.blink_interval)
-    
-                i1 = blk.blink(dtx)
-                blk.nap(cfg.blink_delay)
-                i2 = blk.blink(dut)
-                blk.nap(cfg.blink_delay)
-                i3 = blk.blink(dtx)
-
-                idx = (i1,i2,i3)
-
-                blk.wait_blinks(idx,grp,cfg.blink_wait)
-    
-                for drx in grps[1]:
-                    try:
-                        Err = trcalc(blk,idx,dut,dtx,drx)
-                        Errs.append(Err)
-
-                    except KeyError:
-                        veprints(2,'?')
-                    except ValueError:
-                        veprints(2,'!')
-                    except TimeoutError:
-                        veprints(2,'T')
-                    except RuntimeError:
-                        veprints(2,'R')
-                    except ZeroDivisionError:
-                        veprints(2,'0')
-                    else:
-                        veprints(2,'.')
-        
         veprint(2)
         
         if len(Errs) < cfg.blink_count:
@@ -487,7 +458,7 @@ def calibrate_antd(blk, dut, grps):
 
 def program_dw1000(dut):
 
-    cmd = f'modhat'
+    cmd = 'inithat'
     if dut.xtalt:
         cmd += f' -X {dut.xtalt}'
     if dut.txpwr:
@@ -650,7 +621,6 @@ def main():
     devs = [ ]
     duts = [ ]
     refs = [ ]
-    grps = { 0:[], 1:[], 2:[] }
 
     for arg in cfg.anchors:
         try:
@@ -661,7 +631,6 @@ def main():
                 duts.append(adev)
             elif adev.role == 'REF':
                 refs.append(adev)
-                grps[adev.group].append(adev)
 
         except (OSError,ConnectionError) as err:
             raise RuntimeError(f'Remote host {host} not available: {err}')
@@ -684,7 +653,7 @@ def main():
             if cfg.calib_txpower:
                 dut.txpwr = calibrate_txpower(blk,dut,refs)
             if cfg.calib_antd:
-                dut.antd = calibrate_antd(blk,dut,grps)
+                dut.antd = calibrate_antd(blk,dut,refs)
 
             prints(f'{dut.name} <{dut.eui}>')
             

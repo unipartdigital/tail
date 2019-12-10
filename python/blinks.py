@@ -654,7 +654,11 @@ class Blinks():
         tsi = data.get('TSInfo')
         frd = data.get('Frame')
         frm = TailFrame(bytes.fromhex(frd))
-        (bid,) = struct.unpack('>Q', frm.tail_beacon)
+        
+        if frm.tail_beacon:
+            (bid,) = struct.unpack('>Q', frm.tail_beacon)
+        else:
+            bid = None
         
         if bid in self.blinks:
             blk = Blink(eui,bid,src,frm,tms,tsi)

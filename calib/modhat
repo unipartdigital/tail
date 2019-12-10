@@ -2,23 +2,24 @@
 #
 # DW1000 Hat calibration writer
 #
-# Usage: modhat.sh
-#
 
+EUI64=''
 XTALT=''
 TXPWR=''
 ANTD16=''
 ANTD64=''
 PROG='no'
 
-while getopts "X:T:A:a:" OPT
+while getopts "E:X:T:A:a:" OPT
 do
     case "$OPT" in
-	X)  XTALT=${OPTARG}
-	    PROG=YES
+	E)  EUI64=${OPTARG}
             ;;
 	T)  TXPWR=${OPTARG}
 	    ;;
+	X)  XTALT=${OPTARG}
+	    PROG=YES
+            ;;
 	A)  ANTD64=${OPTARG}
 	    PROG=YES
 	    ;;
@@ -29,7 +30,6 @@ do
 done
 
 DTSFILE="/tmp/dtsfile-$$"
-:>${DTSFILE}
 
 
 ##
@@ -38,7 +38,16 @@ DTSFILE="/tmp/dtsfile-$$"
 
 prepare_dts()
 {
-    cat<<MEOW>>${DTSFILE}
+    if [ -n "${ANTD16}" -a -n "${ANTD64}" ]
+    then
+        ANTD_MOD="			decawave,antd = <${ANTD16} ${ANTD64}>;"
+    fi
+    if [ -n "${XTALT}" ]
+    then
+        XTALT_MOD="			decawave,xtalt = <${XTALT}>;"
+    fi
+
+    cat<<MEOW>${DTSFILE}
 /dts-v1/;
 /plugin/;
 
@@ -48,17 +57,8 @@ prepare_dts()
 	fragment@0 {
 		target = <&dw1000@0>;
 		__overlay__ {
-MEOW
-    if [ -n "${ANTD16}" -a -n "${ANTD64}" ]
-    then
-        echo "			decawave,antd = <${ANTD16} ${ANTD64}>;" >>${DTSFILE}
-    fi
-    if [ -n "${XTALT}" ]
-    then
-        echo "			decawave,xtalt = <${XTALT}>;" >>${DTSFILE}
-    fi
-
-    cat<<MEOW>>${DTSFILE}
+			    ${ANTD_MOD}
+			    ${XTALT_MOD}
 		};
 	};
 };
@@ -70,7 +70,7 @@ prepare_dts
 
 if [ "$PROG" == "YES" ]
 then
-    echo pihat-eeprom --merge --dts ${DTSFILE}
+    pihat-eeprom --merge --dts ${DTSFILE}
 fi
 
 cat ${DTSFILE}
