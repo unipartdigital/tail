@@ -13,16 +13,25 @@
 / {
 	compatible = "brcm,bcm2708";
 
-	/* Enable SPI0 controller */
+	/* Remove SPI CE1 from SPI0 CS pins */
 	fragment@0 {
+		target = <&spi0_cs_pins>;
+		__overlay__ {
+			brcm,pins = <8>;
+		};
+	};
+
+	/* Enable SPI0 controller and limit to CE0 */
+	fragment@1 {
 		target = <&spi0>;
 		__overlay__ {
+			cs-gpios = <&gpio 8 1>;
 			status = "okay";
 		};
 	};
 
 	/* Enable generic SPI device for SPI0 CE0 */
-	fragment@1 {
+	fragment@2 {
 		target = <&spidev0>;
 		__overlay__ {
 			status = "okay";
@@ -30,28 +39,15 @@
 	};
 
 	/* Disable generic SPI device for SPI0 CE1 */
-	fragment@2 {
+	fragment@3 {
 		target = <&spidev1>;
 		__overlay__ {
 			status = "disabled";
 		};
 	};
 
-    /* Set SPI0 CE1 pin back to GPIO input */
-    fragment@2a {
-        target = <&gpio>;
-        __overlay__ {
-            pinctrl-names = "default";
-            pinctrl-0 = <&pinstate>;
-            pinstate: pinstate {
-                brcm,pins = <7>;
-                brcm,function = <0>; /* Input */
-            };
-        };
-    };
-
 	/* Enable I2C0 controller and adapter's own ID EEPROM */
-	fragment@3 {
+	fragment@4 {
 		target = <&i2c0>;
 		__overlay__ {
 			#address-cells = <1>;
@@ -62,23 +58,6 @@
 			eeprom@50 {
 				compatible = "atmel,24c128";
 				reg = <0x50>;
-			};
-		};
-	};
-
-	/* Enable I2C1 controller with DUT ID EEPROM disabled */
-	fragment@4 {
-		target = <&i2c1>;
-		__overlay__ {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			status = "okay";
-
-			tailtest_dut_eeprom: eeprom@50 {
-				compatible = "atmel,24c128";
-				reg = <0x50>;
-				status = "disabled";
 			};
 		};
 	};
