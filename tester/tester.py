@@ -713,20 +713,33 @@ class Hat:
     def create_eeprom(self):
         return EepromDevice(bus=98, autoload=False, autosave=False)
 
+    def create_new_eeprom(self):
+        self.eeprom = self.create_eeprom()
+        with open(eeprom_yaml, 'r') as f:
+            desc = EepromDescription(yaml=f.read())
+        desc.apply(self.eeprom)
+        with open(eeprom_dts, 'r') as f:
+            process = subprocess.run(['dtc', '-@'], stdin=f, check=True, capture_output=True)
+            self.eeprom.fdt = parse_dtb(process.stdout)
+        self.new_eeprom = True
+
+    def prepare_eeprom(self):
+        self.eeprom_path = self.eeprom.fdt.get_property('dw1000', '__symbols__').value
+
     def load_eeprom(self):
+        self.new_eeprom = False
         if self.eeprom != None:
             return
         try:
             self.eeprom = self.create_eeprom().load()
         except EepromValueError:
-            self.eeprom = self.create_eeprom()
-            with open(eeprom_yaml, 'r') as f:
-                desc = EepromDescription(yaml=f.read())
-            desc.apply(self.eeprom)
-            with open(eeprom_dts, 'r') as f:
-                process = subprocess.run(['dtc', '-@'], stdin=f, check=True, capture_output=True)
-                self.eeprom.fdt = parse_dtb(process.stdout)
-        self.eeprom_path = self.eeprom.fdt.get_property('dw1000', '__symbols__').value
+            self.create_new_eeprom()
+        self.prepare_eeprom()
+
+    def fresh_eeprom(self):
+        if not self.new_eeprom:
+            self.create_new_eeprom()
+            self.prepare_eeprom()
 
     def read_eeprom(self, key):
         self.load_eeprom()
@@ -746,6 +759,7 @@ class Hat:
         return True
 
     def flush_config(self):
+        self.fresh_eeprom()
         for key, value in self.config.items():
             self.write_eeprom(key, value)
         try:
