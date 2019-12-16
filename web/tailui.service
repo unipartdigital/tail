@@ -1,0 +1,15 @@
+[Unit]
+Description=Tail Demo
+After=network.target
+
+[Install]
+WantedBy=multi-user.target
+
+[Service]
+ExecStart=/opt/tail/web/server.py
+WorkingDirectory=/opt/tail/web
+Type=simple
+Restart=on-failure
+User=tailui
+Group=tailui
+DynamicUser=yes

@@ -6,6 +6,22 @@
 
 ANCHOR_ROOT ?= /netboot/buster
 
+FILES := \
+	anchord.py		\
+	anchor.service		\
+	blinks.py		\
+	dwarf.py		\
+	tail.py			\
+	ranging.py		\
+	xtaltrim.py		\
+	calibrate.py		\
+	setup4-11-14.json	\
+	setup4-1-4.json		\
+	setup4-5-8.json		\
+	setup.json		\
+	calib.json		\
+	modhat			\
+
 
 ## Rules
 
@@ -20,10 +36,13 @@ install-anchor:
 	install -o root -g root -m 644 anchor.service $(ANCHOR_ROOT)/lib/systemd/system/
 
 install-fluffy:
-	scp -4 *.py *.sh *.json *.service pmattila@fluffy:~/Projects/Tail/calib/
+	scp -4 $(FILES) pmattila@fluffy:~/Projects/Tail/calib/
 
 install-resistor:
-	scp -6 *.py *.sh *.json *.service pmattila@resistor:~/Projects/Tail/calib/
+	scp -J fluffy.qs.unipart.io $(FILES) pmattila@resistor:~/Projects/Tail/calib/
+
+install-magpi0:
+	scp -J fluffy.qs.unipart.io $(FILES) root@magpi0:/root/calib/
 
 
 clean:
