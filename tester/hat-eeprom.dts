@@ -43,11 +43,16 @@
                                 interrupt-parent = <&gpio>;
                                 interrupts = <25 4>;
                                 spi-max-frequency = <20000000>;
+                                decawave,default = "default";
+                                decawave,eui64 = /bits/ 64 <0x0000000000000000>;
+                                decawave,antd = <0x4000 0x4000>;
+                                decawave,xtalt = <16>;
                         };
                 };
         };
         __overrides__ {
                 dw1000_eui = <&dw1000>,"decawave,eui64#0";
+                dw1000_profile = <&dw1000>,"decawave,default";
         };
 };
 
