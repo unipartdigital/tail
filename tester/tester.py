@@ -20,12 +20,17 @@ import time
 import json
 import configparser
 import netaddr
+import traceback
+import struct
 
 import tf930
 import instruments
 
 import serial
 import spidev
+
+from pihat.eeprom import EepromDevice, EepromValueError, EepromDescription, EepromVerificationError
+from fdt import parse_dtb
 
 config = configparser.ConfigParser()
 config.read('tester.ini')
@@ -43,6 +48,8 @@ device_dut = config.get('Tester', 'DUT', fallback='/dev/ttyS0')
 eui_file = expanduser(config.get('Tester', 'EUIFile', fallback='~/eui'))
 results_file = expanduser(config.get('Tester', 'ResultsFile', fallback='~/test-results.txt'))
 config_file = expanduser(config.get('Tester', 'ConfigFile', fallback='~/tag-config.txt'))
+eeprom_yaml = expanduser(config.get('Tester', 'EepromYaml', fallback='~/hat-eeprom.yaml'))
+eeprom_dts = expanduser(config.get('Tester', 'EepromDts', fallback='~/hat-eeprom.dts'))
 
 limit_precondition = config.get('Limits', 'Precondition', fallback='50')
 limit_charge = config.get('Limits', 'Charge', fallback='200')
@@ -566,6 +573,7 @@ class Tag:
         return self.firmware_cmd('config {}'.format(key))
 
     def write_config(self, key, value):
+        value = ' '.join(str(x) for x in value)
         if self.firmware_cmd('config {} {}'.format(key, value)) != []:
             return False
         return True
@@ -584,8 +592,11 @@ class Tag:
         return None
 
     def write_eui(self, eui):
-        value = ' '.join(str(x) for x in reversed(list(eui.words)))
+        value = reversed(list(eui.words))
         return self.write_config('eui', value)
+
+    def write_xtal_ppm(self, ppm):
+        return self.write_config('xtal_ppm', [ppm % 256, int(ppm / 256)])
 
     def reading(self, name):
         r_value = self.firmware_cmd(name)
@@ -620,6 +631,14 @@ GPIO_DOUT = 0x0C
 FS_CTRL   = 0x2B
 FS_XTALT  = 0x0E
 
+configmap = {
+    'eui'        : 'decawave,eui64',
+    'xtal_trim'  : 'decawave,xtalt',
+    'xtal_ppm'   : 'decawave,xtal_ppm',
+    'xtal_volts' : 'decawave,xtal_volts',
+    'xtal_temp'  : 'decawave,xtal_temp',
+}
+
 class Hat:
     def __init__(self, bus, device):
         self.spi = spidev.SpiDev()
@@ -627,9 +646,12 @@ class Hat:
         self.spi.max_speed_hz = 1000000
         self.spi.mode = 0
         self.config = {}
+        self.eeprom = None
 
     def close(self):
         self.spi.close()
+        if self.eeprom:
+            self.eeprom.overlay.remove()
 
     def header(self, file, reg, write):
         b = [file]
@@ -688,18 +710,65 @@ class Hat:
         relays.relay('uart').state = True
         pass
 
+    def create_eeprom(self):
+        return EepromDevice(bus=98, autoload=False, autosave=False)
+
+    def load_eeprom(self):
+        if self.eeprom != None:
+            return
+        try:
+            self.eeprom = self.create_eeprom().load()
+        except EepromValueError:
+            self.eeprom = self.create_eeprom()
+            with open(eeprom_yaml, 'r') as f:
+                desc = EepromDescription(yaml=f.read())
+            desc.apply(self.eeprom)
+            with open(eeprom_dts, 'r') as f:
+                process = subprocess.run(['dtc', '-@'], stdin=f, check=True, capture_output=True)
+                self.eeprom.fdt = parse_dtb(process.stdout)
+        self.eeprom_path = self.eeprom.fdt.get_property('dw1000', '__symbols__').value
+
+    def read_eeprom(self, key):
+        self.load_eeprom()
+        prop = self.eeprom.fdt.get_property(key, path=self.eeprom_path)
+        if prop:
+            return list(prop)
+        else:
+            return None
+
+    def write_eeprom(self, key, value):
+        self.load_eeprom()
+        self.eeprom.fdt.set_property(key, value, path=self.eeprom_path)
+
     def write_config(self, key, value):
+        key = configmap[key]
         self.config[key] = value
         return True
 
     def flush_config(self):
+        for key, value in self.config.items():
+            self.write_eeprom(key, value)
+        try:
+            self.eeprom.save(verify=True)
+        except EepromVerificationError:
+            return False
         return True
 
     def read_eui(self):
+        eui = self.read_eeprom('decawave,eui64')
+        if eui:
+            try:
+                eui = '-'.join(format(s, '02x') for s in b''.join(part.to_bytes(4, 'big') for part in eui))
+                return netaddr.EUI(eui, version=64)
+            except:
+                return None
         return None
 
     def write_eui(self, eui):
-        return self.write_config('eui', str(eui))
+        return self.write_config('eui', list(struct.unpack('>2I', struct.pack('>Q', int(eui)))))
+
+    def write_xtal_ppm(self, ppm):
+        return self.write_config('xtal_ppm', [ppm])
 
     def read_adc(self):
         self.write(0x28, 0x11, [0x80])
@@ -1056,9 +1125,9 @@ class Test(threading.Thread):
                 'v_rawvolts' : v_rawvolts,
                 't_rawtemp' : t_rawtemp,
             }})
-        if not self.dut.write_config('xtal_volts', str(v_rawvolts)):
+        if not self.dut.write_config('xtal_volts', [v_rawvolts]):
             return False
-        if not self.dut.write_config('xtal_temp', str(t_rawtemp)) != []:
+        if not self.dut.write_config('xtal_temp', [t_rawtemp]) != []:
             return False
         return abs(v_reg - v_volts) < 0.1
 
@@ -1109,9 +1178,9 @@ class Test(threading.Thread):
         xtal_ppm = round(ppm * 100) % 65536
         self.output = output + " {}: {:.02f} ppm".format(xtal, ppm)
         self.dut.rgpio(0, 1, 0, 0)
-        if not self.dut.write_config('xtal_trim', str(xtal)):
+        if not self.dut.write_config('xtal_trim', [xtal]):
             return False
-        if not self.dut.write_config('xtal_ppm', str(xtal_ppm % 256) + ' ' + str(int(xtal_ppm / 256))):
+        if not self.dut.write_xtal_ppm(xtal_ppm):
             return False
         return True
 
@@ -1338,12 +1407,20 @@ class Test(threading.Thread):
                 self.output += "\n[color=#ff0000]TEST ABORTED[/color]"
                 break
             self.output += "\n{0:.<20s}".format(test.__name__)
-            if test(self):
+            try:
+                result = test(self)
+            except Exception as e:
+                self.output += " [color=#ff0000]Exception: {}[/color]".format(e)
+                print(e)
+                traceback.print_exc()
+                result = False
+            if result:
                 self.output += " [color=#00ff00]OK[/color]"
             else:
                 all_pass = False
                 self.output += " [color=#ff0000]FAIL[/color]"
                 break
+        self.dut.close()
         self.all_relays_off()
         if all_pass:
             self.log.update({str(self.eui) : self.results})
@@ -1351,7 +1428,6 @@ class Test(threading.Thread):
             self.output += "\n[color=#00ff00]TEST PASSED[/color] [color=#ffff00]{}[/color]".format(self.eui)
         else:
             self.output += "\n[color=#ff0000]TEST FAILED[/color]"
-        self.dut.close()
         gpsdo_lock.release()
         multimeter_lock.release()
         frequencycounter_lock.release()
