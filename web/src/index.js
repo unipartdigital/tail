@@ -74,7 +74,7 @@ function TagDots({tags, target}) {
   ));
 
   return ReactDOM.createPortal(
-    <g transform="scale(1,-1) translate(0,-4.686)">
+    <g transform="scale(1,-1) translate(0,-5.35)">
       {tagdots}
     </g>,
     target
