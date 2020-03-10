@@ -230,6 +230,7 @@ class TRX():
         self.tinfo  = tinfo
         self.rawts  = tinfo['rawts']
         self.ts     = tinfo['rawts'] + self.get_offset()
+        self.time   = time.time()
 
     def is_rx(self):
         return (self.tinfo['lqi'] > 0)
@@ -298,6 +299,7 @@ class Tag():
         self.coord = np.zeros(3)
         self.coord_filt = GeoFilter(np.zeros(3), cfg.coord_filter_len)
         self.cqual_filt = GeoFilter(np.zeros(3), cfg.cqual_filter_len)
+        self.blink = None
         self.blinks = None
         self.ranging = False
         self.beacon_timer = Timeout(server.timer, cfg.tag_beacon_timer, Tag.beacon_expire, (self,))
@@ -309,6 +311,7 @@ class Tag():
         self.timeout_timer.arm()
         self.ranging_start = time.time()
         self.blinks = ( {}, {}, {} )
+        self.blink = None
         self.ranging = True
 
     def finish_ranging(self):
@@ -326,7 +329,13 @@ class Tag():
         if dist(self.cqual_filt.avg(), self.coord_filt.avg()) < cfg.max_change:
             if dist(self.coord, self.coord_filt.avg()) > cfg.min_change:
                 self.coord = self.coord_filt.avg()
-        self.server.send_client_msg(Type='TAG', Tag=self.eui, Name=self.name, Colour=self.colour, Coord=self.coord.tolist())
+        if self.blink:
+            ies = self.blink.frame.tail_ies
+            tms = self.blink.time
+        else:
+            ies = None
+            tms = None
+        self.server.send_client_msg(Type='TAG', Tag=self.eui, Name=self.name, Colour=self.colour, Coord=self.coord.tolist(), Time=tms, IES=ies)
 
     def laterate_wls2d(self):
         dprint(3, ' * Beacon: {} {}'.format(self.beacon.name,self.beacon.eui))
@@ -619,12 +628,13 @@ class Tag():
         dprint(3, 'Tag::timeout_expire @ {}'.format(time.time() - self.ranging_start))
         self.select_beacon()
         self.finish_ranging()
-        
+    
     def add_blink(self,trx):
         dprint(4, 'Tag::add_blink:   ANC:{} Rx:{:.1f}dBm'.format(trx.anchor.eui, trx.get_rx_level()))
         if not self.ranging:
             self.start_ranging()
         self.blinks[0][trx.key] = trx
+        self.blink = trx
 
     def add_beacon(self,trx):
         if self.ranging:
