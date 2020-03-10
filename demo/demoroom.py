@@ -31,7 +31,7 @@ class cfg():
     room_y = (-2, 7)
     room_w = (room_s * (room_x[1] - room_x[0]), room_s * (room_y[1] - room_y[0]))
 
-    coord_filter_len = 3
+    coord_filter_len = 1
     bubble_filter_len  = 10
 
     config_json = 'config.json'
