@@ -19,6 +19,13 @@ Tail has been developed to a functional demo in a constrained test environment. 
 
 Unipart Digital is not currently developing this project past this stage.
 
+# Video
+
+Unipart Digital produced a video showing how the system works, and demonstrating it in action. The video is available here:
+
+https://unipart.digital/images/projects/tail/tail-commercial.mp4
+
+
 # Repositories
 
 ## tail
