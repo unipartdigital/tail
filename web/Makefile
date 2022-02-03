@@ -1,5 +1,5 @@
 MAKEFLAGS = "-j 2"
-HOST = resistor.qs.unipart.io
+HOST = server-host
 
 DESTDIR = /opt/tail/web
 

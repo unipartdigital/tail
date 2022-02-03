@@ -9,7 +9,7 @@ ANCHOR_ROOT ?= /netboot/buster
 
 ## Rules
 
-.PHONY: all install-server install-anchor install-client install-fluffy
+.PHONY: all install-server install-anchor install-client install-testserver
 
 all:
 	@echo "all done!"
@@ -32,8 +32,8 @@ install-client:
 	install -o root -g root -m 644 tail.py dwarf.py tdoa.py	$(INSTALL_ROOT)/usr/lib/python3.7/site-packages/
 	install -o root -g root -m 755 demoroom.py $(INSTALL_ROOT)/bin/demoroom
 
-install-fluffy:
-	scp *.py *.json *.service Makefile pmattila@fluffy:~/Projects/Tail/demo/
+install-testserver:
+	scp *.py *.json *.service Makefile pmattila@testserver:~/Projects/Tail/demo/
 
 
 clean:

@@ -58,7 +58,7 @@ bool crypto_get_cookie(uint8_t *cookie_buf) {
 /* Derive a crypto key from the tag key, storing it in derived_key. This must
    have space for a 128-bit value.
    Explanation of the contents of kdf_string is at
-   https://wiki.unipart.io/wiki/Tail_tag_protocol#Key_derivation.
+   https://private-wiki/wiki/Tail_tag_protocol#Key_derivation.
 
    This function explicitly calls config_get, which can take unbounded time.
    This is acceptable, as it is extremely rarely called. (At the time of

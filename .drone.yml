@@ -8,7 +8,7 @@ pipeline:
 
   release:
     image: plugins/gitea-release
-    base_url: https://git.unipart.io
+    base_url: https://git
     secrets: [ gitea_token ]
     files: firmware/Tail*.bin
     when:

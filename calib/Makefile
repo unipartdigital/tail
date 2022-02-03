@@ -25,7 +25,7 @@ FILES := \
 
 ## Rules
 
-.PHONY: all install-anchor install-fluffy
+.PHONY: all install-anchor install-testserver
 
 all:
 	@echo "all done!"
@@ -35,14 +35,14 @@ install-anchor:
 	install -o root -g root -m 644 tail.py dwarf.py blinks.py $(ANCHOR_ROOT)/usr/lib/python3.7/
 	install -o root -g root -m 644 anchor.service $(ANCHOR_ROOT)/lib/systemd/system/
 
-install-fluffy:
-	scp -4 $(FILES) pmattila@fluffy:~/Projects/Tail/calib/
+install-testserver:
+	scp -4 $(FILES) pmattila@testserver:~/Projects/Tail/calib/
 
-install-resistor:
-	scp -J fluffy.qs.unipart.io $(FILES) pmattila@resistor:~/Projects/Tail/calib/
+install-server-host:
+	scp -J testserver.example.com $(FILES) pmattila@server-host:~/Projects/Tail/calib/
 
 install-magpi0:
-	scp -J fluffy.qs.unipart.io $(FILES) root@magpi0:/root/calib/
+	scp -J testserver.example.com $(FILES) root@magpi0:/root/calib/
 
 
 clean:

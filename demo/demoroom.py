@@ -19,7 +19,7 @@ import matplotlib.pyplot as ppl
 
 class cfg():
 
-    server_host = 'resistor.qs.unipart.io'
+    server_host = 'server-host'
     server_port = 9475
 
     title = 'Tail Demo Room'

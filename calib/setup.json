@@ -3,7 +3,7 @@
     [
         {
             "name"     : "D1",
-            "host"     : "magpi11.qs.unipart.io",
+            "host"     : "magpi11.example.com",
 	    "role"     : "DUT",
 	    "coord"    : [0.0, 0.0, 0.0],
 	    "offset"   : [0.1425, 0.020, 0.115],
@@ -11,7 +11,7 @@
         },
         {
             "name"     : "D2",
-            "host"     : "magpi12.qs.unipart.io",
+            "host"     : "magpi12.example.com",
 	    "role"     : "DUT",
 	    "coord"    : [0.0, 0.0, 0.0],
 	    "offset"   : [0.0475, 0.020, 0.115],
@@ -19,7 +19,7 @@
         },
         {
             "name"     : "D3",
-            "host"     : "magpi13.qs.unipart.io",
+            "host"     : "magpi13.example.com",
 	    "role"     : "DUT",
 	    "coord"    : [0.0, 0.0, 0.0],
 	    "offset"   : [-0.0475, 0.020, 0.115],
@@ -27,7 +27,7 @@
         },
         {
             "name"     : "D4",
-            "host"     : "magpi14.qs.unipart.io",
+            "host"     : "magpi14.example.com",
 	    "role"     : "DUT",
 	    "coord"    : [0.0, 0.0, 0.0],
 	    "offset"   : [-0.1425, 0.020, 0.115],
@@ -35,7 +35,7 @@
         },
         {
             "name"     : "M1",
-            "host"     : "magpi1.qs.unipart.io",
+            "host"     : "magpi1.example.com",
 	    "role"     : "REF",
 	    "coord"    : [2.520, 4.365, 0.0],
 	    "offset"   : [0.1425, 0.020, 0.115],
@@ -43,7 +43,7 @@
         },
         {
             "name"     : "M2",
-            "host"     : "magpi2.qs.unipart.io",
+            "host"     : "magpi2.example.com",
 	    "role"     : "REF",
 	    "coord"    : [2.520, 4.365, 0.0],
 	    "offset"   : [0.0475, 0.020, 0.115],
@@ -51,7 +51,7 @@
         },
         {
             "name"     : "M3",
-            "host"     : "magpi3.qs.unipart.io",
+            "host"     : "magpi3.example.com",
 	    "role"     : "REF",
 	    "coord"    : [2.520, 4.365, 0.0],
 	    "offset"   : [-0.0475, 0.020, 0.115],
@@ -59,7 +59,7 @@
         },
         {
             "name"     : "M4",
-            "host"     : "magpi4.qs.unipart.io",
+            "host"     : "magpi4.example.com",
 	    "role"     : "REF",
 	    "coord"    : [2.520, 4.365, 0.0],
 	    "offset"   : [-0.1425, 0.020, 0.115],
@@ -67,7 +67,7 @@
         },
         {
             "name"     : "M5",
-            "host"     : "magpi5.qs.unipart.io",
+            "host"     : "magpi5.example.com",
 	    "role"     : "REF",
 	    "coord"    : [-2.520, 4.365, 0.0],
 	    "offset"   : [0.1425, 0.020, 0.115],
@@ -75,7 +75,7 @@
         },
         {
             "name"     : "M6",
-            "host"     : "magpi6.qs.unipart.io",
+            "host"     : "magpi6.example.com",
 	    "role"     : "REF",
 	    "coord"    : [-2.520, 4.365, 0.0],
 	    "offset"   : [0.0475, 0.020, 0.115],
@@ -83,7 +83,7 @@
         },
         {
             "name"     : "M7",
-            "host"     : "magpi7.qs.unipart.io",
+            "host"     : "magpi7.example.com",
 	    "role"     : "REF",
 	    "coord"    : [-2.520, 4.365, 0.0],
 	    "offset"   : [-0.0475, 0.020, 0.115],
@@ -91,7 +91,7 @@
         },
         {
             "name"     : "M8",
-            "host"     : "magpi8.qs.unipart.io",
+            "host"     : "magpi8.example.com",
 	    "role"     : "REF",
 	    "coord"    : [-2.520, 4.365, 0.0],
 	    "offset"   : [-0.1425, 0.020, 0.115],

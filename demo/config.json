@@ -33,7 +33,7 @@
 
     "ANCHORD" :
     {
-	"server_host"		: "resistor.qs.unipart.io",
+	"server_host"		: "server-host",
 	"server_port"		: 8913,
 	"anchor_port"		: 8912
     },
@@ -41,7 +41,7 @@
     "DEMO" :
     {
 	"title"			: "Tail Demo Room",
-	"server_host"		: "resistor.qs.unipart.io",
+	"server_host"		: "server-host",
 	"server_port"		: 9475
     },
 
@@ -50,7 +50,7 @@
         {
             "name"  : "A1",
             "eui"   : "70b3d5b1e0000042",
-            "host"  : "anchor01.qs.unipart.io",
+            "host"  : "anchor01.example.com",
             "port"  : 8912,
             "coord" : [0.000, 6.320, -0.320],
             "ref"   : true
@@ -58,7 +58,7 @@
         {
             "name"  : "A2",
             "eui"   : "70b3d5b1e0000049",
-            "host"  : "anchor02.qs.unipart.io",
+            "host"  : "anchor02.example.com",
             "port"  : 8912,
             "coord" : [3.297, 5.576, -0.330],
             "ref"   : true
@@ -66,7 +66,7 @@
         {
             "name"  : "A3",
             "eui"   : "70b3d5b1e000000d",
-            "host"  : "anchor03.qs.unipart.io",
+            "host"  : "anchor03.example.com",
             "port"  : 8912,
             "coord" : [3.307, 5.573, -1.242],
             "ref"   : false
@@ -74,7 +74,7 @@
         {
             "name"  : "A4",
             "eui"   : "70b3d5b1e000004a",
-            "host"  : "anchor04.qs.unipart.io",
+            "host"  : "anchor04.example.com",
             "port"  : 8912,
             "coord" : [7.772, 4.360, -0.315],
             "ref"   : true
@@ -82,7 +82,7 @@
         {
             "name"  : "A5",
             "eui"   : "70b3d5b1e0000046",
-            "host"  : "anchor05.qs.unipart.io",
+            "host"  : "anchor05.example.com",
             "port"  : 8912,
             "coord" : [9.081, 1.523, -1.244],
             "ref"   : false
@@ -90,7 +90,7 @@
         {
             "name"  : "A6",
             "eui"   : "70b3d5b1e0000048",
-            "host"  : "anchor06.qs.unipart.io",
+            "host"  : "anchor06.example.com",
             "port"  : 8912,
             "coord" : [0.058, 1.327, -1.242],
             "ref"   : true
@@ -98,7 +98,7 @@
         {
             "name"  : "A7",
             "eui"   : "70b3d5b1e0000043",
-            "host"  : "anchor07.qs.unipart.io",
+            "host"  : "anchor07.example.com",
             "port"  : 8912,
             "coord" : [0.086, 0.000, -0.300],
             "ref"   : true
@@ -106,7 +106,7 @@
         {
             "name"  : "A8",
             "eui"   : "70b3d5b1e0000044",
-            "host"  : "anchor08.qs.unipart.io",
+            "host"  : "anchor08.example.com",
             "port"  : 8912,
             "coord" : [3.131, -1.027, -1.205],
             "ref"   : false
@@ -114,7 +114,7 @@
         {
             "name"  : "A9",
             "eui"   : "70b3d5b1e0000047",
-            "host"  : "anchor09.qs.unipart.io",
+            "host"  : "anchor09.example.com",
             "port"  : 8912,
             "coord" : [4.836, -0.047, -0.338],
             "ref"   : true
@@ -122,7 +122,7 @@
         {
             "name"  : "A10",
             "eui"   : "70b3d5b1e0000045",
-            "host"  : "anchor10.qs.unipart.io",
+            "host"  : "anchor10.example.com",
             "port"  : 8912,
             "coord" : [8.727, 0.064, -0.325],
             "ref"   : false
@@ -130,7 +130,7 @@
         {
             "name"  : "A11",
             "eui"   : "70b3d5b1e0000051",
-            "host"  : "anchor11.qs.unipart.io",
+            "host"  : "anchor11.example.com",
             "port"  : 8912,
             "coord" : [0.329, 3.121, -0.047],
             "ref"   : true
@@ -138,7 +138,7 @@
         {
             "name"  : "A12",
             "eui"   : "70b3d5b1e0000052",
-            "host"  : "anchor12.qs.unipart.io",
+            "host"  : "anchor12.example.com",
             "port"  : 8912,
             "coord" : [2.067, 2.959, -0.047],
             "ref"   : true
@@ -146,7 +146,7 @@
         {
             "name"  : "A13",
             "eui"   : "70b3d5b1e0000053",
-            "host"  : "anchor13.qs.unipart.io",
+            "host"  : "anchor13.example.com",
             "port"  : 8912,
             "coord" : [4.169, 2.627, -0.047],
             "ref"   : true
@@ -154,7 +154,7 @@
         {
             "name"  : "A14",
             "eui"   : "70b3d5b1e0000054",
-            "host"  : "anchor14.qs.unipart.io",
+            "host"  : "anchor14.example.com",
             "port"  : 8912,
             "coord" : [6.271, 2.383, -0.047],
             "ref"   : true
@@ -162,7 +162,7 @@
         {
             "name"  : "A15",
             "eui"   : "70b3d5b1e0000055",
-            "host"  : "anchor15.qs.unipart.io",
+            "host"  : "anchor15.example.com",
             "port"  : 8912,
             "coord" : [8.363, 2.120, -0.047],
             "ref"   : false
